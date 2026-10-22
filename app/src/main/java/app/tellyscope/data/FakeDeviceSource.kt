@@ -2,12 +2,22 @@
 
 package app.tellyscope.data
 
+import app.tellyscope.adb.ApkInfo
+import app.tellyscope.adb.InstallResult
+import app.tellyscope.adb.InstalledVersion
+import app.tellyscope.adb.Progress
+import app.tellyscope.adb.TvFile
+import app.tellyscope.adb.TvFolder
+import java.io.File
 import kotlin.random.Random
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.isActive
+import okio.Buffer
+import okio.Sink
+import okio.Source
 
 /**
  * Stand-in [DeviceSource] for building the screens before the ADB module exists.
@@ -42,6 +52,7 @@ class FakeDeviceSource(
 
     private val apps = mutableMapOf<String, MutableList<AppInfo>>()
     private val book = HistoryBook()
+    private val tvFiles = mutableMapOf<TvFolder, MutableList<TvFile>>()
 
     override fun scan(): Flow<ScanEvent> = flow {
         val subnet = "192.168.1.0/24"
@@ -194,6 +205,64 @@ class FakeDeviceSource(
             act(deviceId, Action.Enable, pkg, undoing = book.openDisable(deviceId, pkg))
         }
     }
+
+    override suspend fun installed(deviceId: String, packageName: String): InstalledVersion? =
+        appsFor(deviceId).firstOrNull { it.packageName == packageName }?.let { InstalledVersion(1, it.version) }
+
+    override suspend fun install(
+        deviceId: String,
+        apks: List<File>,
+        apk: ApkInfo,
+        allowDowngrade: Boolean,
+        onProgress: (Progress) -> Unit,
+    ): InstallResult {
+        val total = apks.sumOf { it.length() }
+        for (i in 0..20) {
+            onProgress(Progress(total * i / 20, total))
+            delay(100)
+        }
+        delay(1_200) // the TV unpacking it
+        return InstallResult.Done
+    }
+
+    override suspend fun files(deviceId: String, folder: TvFolder): List<TvFile> = tvFiles.getOrPut(folder) {
+        if (folder == TvFolder.DOWNLOAD) baseFiles.toMutableList() else mutableListOf()
+    }.sortedByDescending { it.modifiedMillis }
+
+    override suspend fun push(deviceId: String, folder: TvFolder, name: String, size: Long?, source: Source, onProgress: (Progress) -> Unit): String {
+        var done = 0L
+        val buf = Buffer()
+        while (true) {
+            val n = source.read(buf, 256 * 1024)
+            if (n < 0) break
+            buf.clear()
+            done += n
+            onProgress(Progress(done, size))
+            delay(50)
+        }
+        files(deviceId, folder)
+        tvFiles.getValue(folder) += TvFile(name, done, clock())
+        return name
+    }
+
+    override suspend fun pull(deviceId: String, folder: TvFolder, file: TvFile, sink: Sink, onProgress: (Progress) -> Unit) {
+        val chunk = ByteArray(64 * 1024)
+        var done = 0L
+        while (done < file.size) {
+            val n = minOf(chunk.size.toLong(), file.size - done)
+            sink.write(Buffer().write(chunk, 0, n.toInt()), n)
+            done += n
+            onProgress(Progress(done, file.size))
+            delay(30)
+        }
+        sink.flush()
+    }
+
+    private val baseFiles get() = listOf(
+        TvFile("holiday-2025.mp4", 812_000_000, clock() - 3 * 86_400_000L),
+        TvFile("projectivy-backup.plbackup", 48_200, clock() - 26 * 3_600_000L),
+        TvFile("subtitles.srt", 61_000, clock() - 40 * 60_000L),
+    )
 
     private companion object {
         val baseApps = listOf(

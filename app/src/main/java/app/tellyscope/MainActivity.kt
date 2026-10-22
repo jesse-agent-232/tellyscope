@@ -32,6 +32,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import app.tellyscope.data.AdbDeviceSource
+import app.tellyscope.data.AndroidPhoneStorage
 import app.tellyscope.data.FakeDeviceSource
 import app.tellyscope.ui.Copy
 import app.tellyscope.ui.DeviceActions
@@ -59,7 +60,10 @@ class MainActivity : ComponentActivity() {
                     val vm: TellyscopeViewModel = viewModel(
                         factory = viewModelFactory {
                             initializer {
-                                TellyscopeViewModel(scenario?.let(::FakeDeviceSource) ?: AdbDeviceSource(applicationContext))
+                                TellyscopeViewModel(
+                                    scenario?.let(::FakeDeviceSource) ?: AdbDeviceSource(applicationContext),
+                                    AndroidPhoneStorage(applicationContext),
+                                )
                             }
                         },
                     )
@@ -116,6 +120,11 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
     val snackbar = remember { SnackbarHostState() }
     var adding by rememberSaveable { mutableStateOf(false) }
 
+    // "*/*": file managers label .apks and .xapk bundles inconsistently, so a narrower type would grey them out.
+    val pickApp = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { vm.pickedApp(it) }
+    val pickFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let(vm::push) }
+    val saveFile = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream"), vm::saveTo)
+
     LaunchedEffect(done) {
         val entry = done ?: return@LaunchedEffect
         vm.doneShown()
@@ -165,6 +174,15 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
                 forget = vm::forget,
                 rename = vm::rename,
                 restoreAll = vm::restoreAll,
+                pickApp = { pickApp.launch(arrayOf("*/*")) },
+                allowDowngrade = vm::allowDowngrade,
+                install = vm::install,
+                closeSideload = vm::closeSideload,
+                openInstalled = vm::openInstalled,
+                folder = vm::folder,
+                pickFile = { folder -> vm.folder(folder); pickFile.launch(arrayOf("*/*")) },
+                saveFile = { f -> vm.saving(f); saveFile.launch(f.name) },
+                cancelTransfer = vm::cancelTransfer,
             ),
         )
     }

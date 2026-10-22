@@ -2,6 +2,9 @@
 
 package app.tellyscope.ui
 
+import app.tellyscope.adb.InstallKind
+import app.tellyscope.adb.InstallRefusal
+import app.tellyscope.adb.TvFolder
 import app.tellyscope.data.Action
 import app.tellyscope.data.DeviceState
 import app.tellyscope.data.Snapshot
@@ -116,4 +119,83 @@ object Copy {
 
     const val FULL = 0.9
     private const val HOT_C = 80
+
+    fun bytes(v: Long): String = when {
+        v >= 1L shl 30 -> "%.1f GB".format(v / (1L shl 30).toDouble())
+        v >= 1L shl 20 -> "%.1f MB".format(v / (1L shl 20).toDouble())
+        v >= 1L shl 10 -> "${v shr 10} KB"
+        else -> "$v bytes"
+    }
+
+    fun folder(f: TvFolder) = when (f) {
+        TvFolder.DOWNLOAD -> "Download"
+        TvFolder.MOVIES -> "Movies"
+    }
+
+    // Sideload
+
+    fun installButton(kind: InstallKind) = when (kind) {
+        InstallKind.NEW -> "Install"
+        InstallKind.UPDATE -> "Update"
+        InstallKind.REINSTALL -> "Reinstall"
+        InstallKind.DOWNGRADE -> "Install older version"
+    }
+
+    fun installKind(kind: InstallKind, onTv: String?, picked: String?) = when (kind) {
+        InstallKind.NEW -> "Not on this TV yet. This installs it."
+        InstallKind.UPDATE -> "Updates the TV's copy" + versions(onTv, picked) + ". Its settings stay."
+        InstallKind.REINSTALL -> "The TV already has this version" + (onTv?.let { " ($it)" } ?: "") + ". This installs it again over itself."
+        InstallKind.DOWNGRADE -> "This is older than the one on the TV" +
+            (if (onTv != null && picked != null) " ($picked here, $onTv on the TV)" else "") +
+            ". Android normally refuses that, and the app's saved data may not work with the older version."
+    }
+
+    private fun versions(onTv: String?, picked: String?) =
+        if (onTv != null && picked != null) " from $onTv to $picked" else ""
+
+    const val ALLOW_DOWNGRADE = "Install the older version anyway"
+    const val INSTALL_KEEP_OPEN = "Keep Tellyscope open until it's done."
+
+    fun installed(kind: InstallKind, app: String) = when (kind) {
+        InstallKind.UPDATE -> "Updated $app."
+        InstallKind.REINSTALL -> "Reinstalled $app."
+        InstallKind.NEW, InstallKind.DOWNGRADE -> "Installed $app."
+    }
+
+    fun installRefused(reason: InstallRefusal, app: String) = when (reason) {
+        InstallRefusal.SIGNATURE ->
+            "The $app on the TV comes from a different developer, so Android won't replace it. Tellyscope never uninstalls, so if you're sure, uninstall it on the TV first."
+        InstallRefusal.DOWNGRADE -> "The TV has a newer $app and won't go back to an older one."
+        InstallRefusal.NO_SPACE -> "The TV is out of space. Disable or uninstall something there, then try again."
+        InstallRefusal.TV_SAID_NO ->
+            "The TV blocked the install. Look in the TV's security settings for installing apps from unknown sources, or for app verification, then try again."
+        InstallRefusal.TV_TOO_OLD -> "$app needs a newer version of Android than this TV has."
+        InstallRefusal.WRONG_CPU ->
+            "This $app is built for a different kind of processor. Look for a version made for this TV, often marked armeabi-v7a or arm64-v8a."
+        InstallRefusal.APP_TOO_OLD -> "$app was made for a very old version of Android, and this TV won't install it."
+        InstallRefusal.MISSING_FEATURE -> "$app needs something this TV doesn't have, like a touchscreen or a camera."
+        InstallRefusal.MISSING_PARTS ->
+            "$app comes in several parts and one is missing. Pick all of its .apk files together, or its .apks bundle."
+        InstallRefusal.TEST_ONLY -> "This is a developer test build of $app, which the TV won't install."
+        InstallRefusal.CONFLICT -> "Another app on the TV already uses something $app needs, so the TV refused it."
+        InstallRefusal.BROKEN -> "This file isn't a working app. It may be damaged or only half downloaded; try getting it again."
+        InstallRefusal.UNKNOWN -> "The TV didn't install $app."
+    }
+
+    const val NOT_AN_APP = "That file isn't an Android app. Pick an .apk, several split .apk files, or an .apks or .xapk bundle."
+    const val SIDELOAD_LOST = "Lost the TV partway through. Check it's still on and connected, then try again."
+
+    // Files
+
+    fun sent(name: String, savedAs: String, f: TvFolder) =
+        if (savedAs == name) "Sent $name to ${folder(f)}" else "Sent to ${folder(f)} as $savedAs, since $name was already there"
+
+    fun saved(name: String) = "Saved $name to your phone"
+    fun sendFailed(name: String) = "Couldn't send $name. Check the TV is still connected and has space."
+    fun saveFailed(name: String) = "Couldn't save $name. Check the TV is still connected and the phone has space."
+
+    const val CANCELLED_SEND = "Cancelled. Nothing was left on the TV."
+    const val CANCELLED_SAVE = "Cancelled. Nothing was saved."
+    const val CANT_READ = "Couldn't read that file on your phone."
+    const val FILES_LOST = "Couldn't read this folder. Check the TV is still connected."
 }

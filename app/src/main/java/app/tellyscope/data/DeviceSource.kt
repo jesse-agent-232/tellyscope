@@ -2,7 +2,16 @@
 
 package app.tellyscope.data
 
+import app.tellyscope.adb.ApkInfo
+import app.tellyscope.adb.InstallResult
+import app.tellyscope.adb.InstalledVersion
+import app.tellyscope.adb.Progress
+import app.tellyscope.adb.TvFile
+import app.tellyscope.adb.TvFolder
 import kotlinx.coroutines.flow.Flow
+import okio.Sink
+import okio.Source
+import java.io.File
 
 /**
  * Everything the screens need from a TV. The UI only talks to this; an
@@ -50,4 +59,24 @@ interface DeviceSource {
 
     /** Turns back on every app Tellyscope disabled, and nothing that was off before. */
     suspend fun restoreAll(deviceId: String): List<HistoryEntry>
+
+    /** The version of [packageName] on the TV, or null when it isn't installed. */
+    suspend fun installed(deviceId: String, packageName: String): InstalledVersion?
+
+    /** Installs [apks] (base first). Refuses a downgrade unless [allowDowngrade]; refusals come back, never throw. */
+    suspend fun install(
+        deviceId: String,
+        apks: List<File>,
+        apk: ApkInfo,
+        allowDowngrade: Boolean,
+        onProgress: (Progress) -> Unit,
+    ): InstallResult
+
+    /** Files in one of the shared folders, newest first. */
+    suspend fun files(deviceId: String, folder: TvFolder): List<TvFile>
+
+    /** Copies a phone file to the TV without overwriting anything; returns the name it got. */
+    suspend fun push(deviceId: String, folder: TvFolder, name: String, size: Long?, source: Source, onProgress: (Progress) -> Unit): String
+
+    suspend fun pull(deviceId: String, folder: TvFolder, file: TvFile, sink: Sink, onProgress: (Progress) -> Unit)
 }

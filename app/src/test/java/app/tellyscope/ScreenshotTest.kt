@@ -5,11 +5,21 @@ package app.tellyscope
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import app.tellyscope.adb.ApkInfo
+import app.tellyscope.adb.InstallRefusal
+import app.tellyscope.adb.InstalledVersion
+import app.tellyscope.adb.Progress
+import app.tellyscope.adb.TvFolder
 import app.tellyscope.data.Action
 import app.tellyscope.data.AppInfo
 import app.tellyscope.data.AppNames
@@ -17,24 +27,33 @@ import app.tellyscope.data.Device
 import app.tellyscope.data.DeviceState
 import app.tellyscope.data.FakeDeviceSource
 import app.tellyscope.data.HistoryEntry
+import app.tellyscope.data.PickedApp
 import app.tellyscope.data.ScanHit
 import app.tellyscope.data.ScanKind
 import app.tellyscope.data.ScanProgress
 import app.tellyscope.ui.DeviceActions
 import app.tellyscope.ui.DeviceScreen
+import app.tellyscope.ui.Copy
 import app.tellyscope.ui.DeviceUi
 import app.tellyscope.ui.ForgetDialog
+import app.tellyscope.ui.FilesBlock
+import app.tellyscope.ui.FilesUi
 import app.tellyscope.ui.RestoreDialog
 import app.tellyscope.ui.PermissionScreen
 import app.tellyscope.ui.RowState
 import app.tellyscope.ui.ScanScreen
 import app.tellyscope.ui.ScanUi
+import app.tellyscope.ui.SideloadUi
+import app.tellyscope.ui.TransferUi
 import app.tellyscope.ui.UiState
 import app.tellyscope.ui.theme.TellyscopeTheme
 import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.github.takahirom.roborazzi.captureScreenRoboImage
 import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.RandomAccessFile
+import java.nio.file.Files
 import kotlin.random.Random
 import kotlinx.coroutines.runBlocking
 import org.junit.Rule
@@ -207,6 +226,53 @@ class ScreenshotTest {
         // The helper was refused: bundled names where known, a humanised id otherwise, letter avatars.
         val apps = tvApps.map { (pkg, _) -> app(pkg, AppNames.fallback(pkg), null) }
         shot("10_apps_fallback_names") { DeviceScreen(appsState(apps), DeviceActions()) }
+    }
+
+    /** The Files section's body on its own: the section is collapsed on the full page. */
+    @Test fun device_files() = shot("09_device_files") {
+        val files = runBlocking { fake.files(xgimi.ip, TvFolder.DOWNLOAD) }
+        Surface { Column(Modifier.padding(16.dp)) { FilesBlock(FilesUi(TvFolder.DOWNLOAD, files), now, DeviceActions()) } }
+    }
+
+    private val dir = Files.createTempDirectory("shots").toFile()
+    private fun apk(name: String, bytes: Long) = File(dir, name).also { RandomAccessFile(it, "rw").use { f -> f.setLength(bytes) } }
+    private val kodi = PickedApp(listOf(apk("kodi.apk", 74_000_000)), ApkInfo("org.xbmc.kodi", 2101, "21.1"), "Kodi")
+    private val split = PickedApp(
+        listOf(apk("base.apk", 31_000_000), apk("split_config.armeabi_v7a.apk", 9_400_000), apk("split_config.xxhdpi.apk", 1_100_000)),
+        ApkInfo("com.example.player", 410, "4.1.0"),
+        "Example Player",
+    )
+
+    private fun sideload(name: String, s: SideloadUi, dark: Boolean = false) =
+        shot(name, dark, screen = true) { DeviceScreen(deviceState { copy(sideload = s) }, DeviceActions()) }
+
+    @Test fun sideload_new() = sideload("10_sideload_new", SideloadUi(SideloadUi.Step.Ready, split, null))
+
+    @Test fun sideload_update() =
+        sideload("10_sideload_update", SideloadUi(SideloadUi.Step.Ready, kodi, InstalledVersion(2050, "20.5")), dark = true)
+
+    @Test fun sideload_downgrade() =
+        sideload("11_sideload_downgrade", SideloadUi(SideloadUi.Step.Ready, kodi, InstalledVersion(2200, "22.0")))
+
+    @Test fun sideload_installing() = sideload(
+        "12_sideload_installing",
+        SideloadUi(SideloadUi.Step.Installing, kodi, null, progress = Progress(30_000_000, 74_000_000)),
+    )
+
+    @Test fun sideload_refused() = sideload(
+        "13_sideload_refused",
+        SideloadUi(
+            SideloadUi.Step.Failed, kodi, InstalledVersion(2050, "20.5"),
+            error = Copy.installRefused(InstallRefusal.SIGNATURE, "Kodi"),
+            detail = "Failure [INSTALL_FAILED_UPDATE_INCOMPATIBLE: Package org.xbmc.kodi signatures do not match previously installed version; ignoring!]",
+        ),
+    )
+
+    @Test fun sideload_installed() = sideload("14_sideload_installed", SideloadUi(SideloadUi.Step.Installed, kodi, null))
+
+    @Test fun transfer() = shot("15_transfer", screen = true) {
+        val t = TransferUi("holiday-2025.mp4", toTv = false, folder = TvFolder.DOWNLOAD, progress = Progress(301_000_000, 812_000_000))
+        DeviceScreen(deviceState { copy(transfer = t) }, DeviceActions())
     }
 
     @Test fun permission() = shot("08_permission") { PermissionScreen(denied = false, canAsk = true, {}, {}) }

@@ -2,8 +2,16 @@
 
 package app.tellyscope.ui
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.tellyscope.adb.InstallKind
+import app.tellyscope.adb.InstallResult
+import app.tellyscope.adb.InstalledVersion
+import app.tellyscope.adb.Progress
+import app.tellyscope.adb.TvFile
+import app.tellyscope.adb.TvFolder
+import app.tellyscope.adb.installKind
 import app.tellyscope.data.Action
 import app.tellyscope.data.AppInfo
 import app.tellyscope.data.ConnectResult
@@ -12,6 +20,9 @@ import app.tellyscope.data.DeviceSource
 import app.tellyscope.data.DeviceState
 import app.tellyscope.data.HistoryEntry
 import app.tellyscope.data.NetworkInfo
+import app.tellyscope.data.NotAnApp
+import app.tellyscope.data.PhoneStorage
+import app.tellyscope.data.PickedApp
 import app.tellyscope.data.ScanEvent
 import app.tellyscope.data.ScanHit
 import app.tellyscope.data.ScanProgress
@@ -52,7 +63,38 @@ data class DeviceUi(
     /** Package whose action row is open, and the action awaiting confirmation. */
     val pending: Pair<String, Action>? = null,
     val busy: String? = null,
+    /** The install dialog; null when it's closed. */
+    val sideload: SideloadUi? = null,
+    val files: FilesUi = FilesUi(),
+    /** A file copy in progress; its dialog stays up until it finishes or Cancel is tapped. */
+    val transfer: TransferUi? = null,
 )
+
+data class SideloadUi(
+    val step: Step = Step.Reading,
+    /** Null while the picked file is still being read. */
+    val app: PickedApp? = null,
+    val installed: InstalledVersion? = null,
+    /** Set only by the user's own tick on the downgrade warning. */
+    val allowDowngrade: Boolean = false,
+    val progress: Progress? = null,
+    val error: String? = null,
+    /** The TV's own words for a refusal, shown small under the explanation. */
+    val detail: String? = null,
+) {
+    enum class Step { Reading, Ready, Installing, Installed, Failed }
+
+    val kind: InstallKind? get() = app?.let { installKind(it.info, installed) }
+}
+
+data class FilesUi(
+    val folder: TvFolder = TvFolder.DOWNLOAD,
+    /** Null while loading. */
+    val list: List<TvFile>? = null,
+    val error: String? = null,
+)
+
+data class TransferUi(val name: String, val toTv: Boolean, val folder: TvFolder, val progress: Progress? = null)
 
 data class UiState(
     val scan: ScanUi = ScanUi(),
@@ -71,6 +113,7 @@ const val RESTORING = "restore"
 
 class TellyscopeViewModel(
     private val source: DeviceSource,
+    private val storage: PhoneStorage? = null,
     private val allowTimeoutMs: Long = 60_000,
     private val clock: () -> Long = System::currentTimeMillis,
 ) : ViewModel() {
@@ -82,7 +125,7 @@ class TellyscopeViewModel(
     private val _done = MutableStateFlow<HistoryEntry?>(null)
     val done: StateFlow<HistoryEntry?> = _done.asStateFlow()
 
-    /** One-shot snackbar lines: the TV refused, went away mid-action, or a restore finished. */
+    /** One-shot snackbar lines: the TV refused, went away mid-action, or a restore or copy finished. */
     private val _notice = MutableStateFlow<String?>(null)
     val notice: StateFlow<String?> = _notice.asStateFlow()
 
@@ -90,6 +133,8 @@ class TellyscopeViewModel(
     private val lastSnapshot = mutableMapOf<String, Snapshot>()
 
     private var scanJob: Job? = null
+    private var sideloadJob: Job? = null
+    private var transferJob: Job? = null
     private var liveJob: Job? = null
     private var mediumJob: Job? = null
 
@@ -217,6 +262,7 @@ class TellyscopeViewModel(
             // A TV that drops mid-read throws; the live flow ends and the offline card takes over.
             try {
                 _state.update { it.copy(device = it.device.copy(apps = source.apps(id!!))) }
+                loadFiles()
                 while (true) {
                     val net = source.network(id!!)
                     _state.update { it.copy(device = it.device.copy(network = net)) }
@@ -305,6 +351,174 @@ class TellyscopeViewModel(
             if (undoing == null) _done.value = entry
         }
     }
+
+    /** The user picked one or more files to install. Reads them, then asks the TV what it has. */
+    fun pickedApp(uris: List<Uri>) {
+        val id = _state.value.selectedId ?: return
+        val storage = storage ?: return
+        if (uris.isEmpty()) return
+        setSideload(SideloadUi())
+        sideloadJob = viewModelScope.launch {
+            val ui = try {
+                val app = storage.readApp(uris)
+                SideloadUi(SideloadUi.Step.Ready, app, source.installed(id, app.info.packageName))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: NotAnApp) {
+                SideloadUi(SideloadUi.Step.Failed, error = Copy.NOT_AN_APP)
+            } catch (_: Exception) {
+                SideloadUi(SideloadUi.Step.Failed, error = Copy.SIDELOAD_LOST)
+            }
+            setSideload(ui)
+        }
+    }
+
+    fun allowDowngrade(allow: Boolean) = updateSideload { it.copy(allowDowngrade = allow) }
+
+    fun install() {
+        val id = _state.value.selectedId ?: return
+        val ready = _state.value.device.sideload?.takeIf { it.step == SideloadUi.Step.Ready } ?: return
+        val app = ready.app ?: return
+        if (ready.kind == InstallKind.DOWNGRADE && !ready.allowDowngrade) return
+        setSideload(ready.copy(step = SideloadUi.Step.Installing))
+        sideloadJob = viewModelScope.launch {
+            val r = try {
+                source.install(id, app.files, app.info, ready.allowDowngrade) { p -> updateSideload { it.copy(progress = p) } }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                return@launch setSideload(ready.copy(step = SideloadUi.Step.Failed, error = Copy.SIDELOAD_LOST))
+            }
+            when (r) {
+                InstallResult.Done -> {
+                    setSideload(ready.copy(step = SideloadUi.Step.Installed))
+                    runCatching { source.apps(id) }.onSuccess { apps -> _state.update { it.copy(device = it.device.copy(apps = apps)) } }
+                }
+                is InstallResult.Refused -> setSideload(
+                    ready.copy(step = SideloadUi.Step.Failed, error = Copy.installRefused(r.reason, app.label), detail = r.detail),
+                )
+            }
+        }
+    }
+
+    /** Cancel or Done on the install dialog. Not while installing: the dialog has no button then. */
+    fun closeSideload() {
+        if (_state.value.device.sideload?.step == SideloadUi.Step.Installing) return
+        sideloadJob?.cancel()
+        storage?.clearApp()
+        setSideload(null)
+    }
+
+    /** "Open on TV" after a successful install. */
+    fun openInstalled() {
+        val pkg = _state.value.device.sideload?.app?.info?.packageName ?: return
+        closeSideload()
+        run(pkg, Action.Open)
+    }
+
+    fun folder(folder: TvFolder) {
+        _state.update { it.copy(device = it.device.copy(files = FilesUi(folder))) }
+        viewModelScope.launch { loadFiles() }
+    }
+
+    private suspend fun loadFiles() {
+        val id = _state.value.selectedId ?: return
+        val folder = _state.value.device.files.folder
+        val ui = try {
+            FilesUi(folder, source.files(id, folder))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            FilesUi(folder, emptyList(), Copy.FILES_LOST)
+        }
+        _state.update { s -> if (s.device.files.folder == folder) s.copy(device = s.device.copy(files = ui)) else s }
+    }
+
+    /** Copies a phone file into the folder on show. Never overwrites: a taken name gets " (1)". */
+    fun push(uri: Uri) {
+        val id = _state.value.selectedId ?: return
+        val storage = storage ?: return
+        val folder = _state.value.device.files.folder
+        transferJob = viewModelScope.launch {
+            val file = try {
+                storage.open(uri)
+            } catch (_: Exception) {
+                _notice.value = Copy.CANT_READ
+                return@launch
+            }
+            setTransfer(TransferUi(file.name, toTv = true, folder = folder))
+            try {
+                val saved = file.source.use { src ->
+                    source.push(id, folder, file.name, file.size, src) { p -> updateTransfer { it.copy(progress = p) } }
+                }
+                // Close the dialog before the reload: a Cancel tapped now would report a sent file as cancelled.
+                setTransfer(null)
+                _notice.value = Copy.sent(file.name, saved, folder)
+                loadFiles()
+            } catch (e: CancellationException) {
+                _notice.value = Copy.CANCELLED_SEND
+                throw e
+            } catch (_: Exception) {
+                _notice.value = Copy.sendFailed(file.name)
+            } finally {
+                setTransfer(null)
+            }
+        }
+    }
+
+    /** The file whose "save as" picker is open. Kept here so it survives the activity being recreated behind the picker. */
+    private var saving: TvFile? = null
+
+    fun saving(file: TvFile) {
+        saving = file
+    }
+
+    /** The picker's answer: copies the file there, or does nothing if the user backed out. */
+    fun saveTo(uri: Uri?) {
+        val file = saving ?: return
+        saving = null
+        if (uri != null) pull(file, uri)
+    }
+
+    /** A cancelled or failed copy removes the partial file. */
+    private fun pull(file: TvFile, uri: Uri) {
+        val id = _state.value.selectedId ?: return
+        val storage = storage ?: return
+        val folder = _state.value.device.files.folder
+        setTransfer(TransferUi(file.name, toTv = false, folder = folder, progress = Progress(0, file.size)))
+        transferJob = viewModelScope.launch {
+            try {
+                storage.create(uri).use { sink ->
+                    source.pull(id, folder, file, sink) { p -> updateTransfer { it.copy(progress = p) } }
+                }
+                _notice.value = Copy.saved(file.name)
+            } catch (e: CancellationException) {
+                storage.delete(uri)
+                _notice.value = Copy.CANCELLED_SAVE
+                throw e
+            } catch (_: Exception) {
+                storage.delete(uri)
+                _notice.value = Copy.saveFailed(file.name)
+            } finally {
+                setTransfer(null)
+            }
+        }
+    }
+
+    /** Only the dialog's Cancel button calls this. */
+    fun cancelTransfer() {
+        transferJob?.cancel()
+    }
+
+    private fun setSideload(ui: SideloadUi?) = _state.update { it.copy(device = it.device.copy(sideload = ui)) }
+
+    private fun updateSideload(f: (SideloadUi) -> SideloadUi) =
+        _state.update { s -> s.device.sideload?.let { s.copy(device = s.device.copy(sideload = f(it))) } ?: s }
+
+    private fun setTransfer(ui: TransferUi?) = _state.update { it.copy(device = it.device.copy(transfer = ui)) }
+
+    private fun updateTransfer(f: (TransferUi) -> TransferUi) =
+        _state.update { s -> s.device.transfer?.let { s.copy(device = s.device.copy(transfer = f(it))) } ?: s }
 
     fun doneShown() {
         _done.value = null

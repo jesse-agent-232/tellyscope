@@ -6,6 +6,13 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import app.tellyscope.adb.ActionResult
+import app.tellyscope.adb.ApkInfo
+import app.tellyscope.adb.Files
+import app.tellyscope.adb.InstallResult
+import app.tellyscope.adb.Progress
+import app.tellyscope.adb.Sideload
+import app.tellyscope.adb.TvFile
+import app.tellyscope.adb.TvFolder
 import app.tellyscope.adb.Actions
 import app.tellyscope.adb.Connector
 import app.tellyscope.adb.DeviceLink
@@ -28,6 +35,8 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.transformWhile
 import kotlinx.coroutines.launch
+import okio.Sink
+import okio.Source
 import java.io.File
 import java.net.Inet4Address
 import java.util.concurrent.ConcurrentHashMap
@@ -335,6 +344,24 @@ class AdbDeviceSource(context: Context) : DeviceSource {
 
     private suspend fun disabledPackages(deviceId: String) =
         Parsers.packages(session(deviceId).shell("pm list packages -d").output).map { it.name }.toSet()
+
+    override suspend fun installed(deviceId: String, packageName: String) = Sideload(session(deviceId)).installed(packageName)
+
+    override suspend fun install(
+        deviceId: String,
+        apks: List<File>,
+        apk: ApkInfo,
+        allowDowngrade: Boolean,
+        onProgress: (Progress) -> Unit,
+    ): InstallResult = Sideload(session(deviceId)).install(apks, apk, allowDowngrade, onProgress)
+
+    override suspend fun files(deviceId: String, folder: TvFolder) = Files(session(deviceId)).list(folder)
+
+    override suspend fun push(deviceId: String, folder: TvFolder, name: String, size: Long?, source: Source, onProgress: (Progress) -> Unit) =
+        Files(session(deviceId)).push(source, size, name, folder, onProgress)
+
+    override suspend fun pull(deviceId: String, folder: TvFolder, file: TvFile, sink: Sink, onProgress: (Progress) -> Unit) =
+        Files(session(deviceId)).pull(folder, file, sink, onProgress)
 
     private fun session(deviceId: String) =
         links[deviceId]?.session ?: throw IllegalStateException("$deviceId is offline")

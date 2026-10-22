@@ -11,6 +11,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runInterruptible
 import okio.Buffer
 import okio.Path.Companion.toPath
+import okio.Sink
+import okio.Source
 import java.io.File
 import java.io.IOException
 import java.io.InterruptedIOException
@@ -99,6 +101,19 @@ internal class KadbSession(private val kadb: Kadb) : AdbSession {
 
     override suspend fun push(bytes: ByteArray, remotePath: String) = runInterruptible(Dispatchers.IO) {
         kadb.push(Buffer().write(bytes), remotePath, "644".toInt(8), System.currentTimeMillis())
+    }
+
+    override fun install(source: Source, size: Long, vararg options: String) = kadb.install(source, size, *options)
+
+    override fun installMultiple(apks: List<File>, vararg options: String) = kadb.installMultiple(apks, *options)
+
+    override fun push(source: Source, remotePath: String, mode: Int, lastModifiedMs: Long) =
+        kadb.push(source, remotePath, mode, lastModifiedMs)
+
+    override fun pull(sink: Sink, remotePath: String) = kadb.pull(sink, remotePath)
+
+    override fun list(remoteDir: String): List<RemoteEntry> = kadb.openSync().use { sync ->
+        sync.list(remoteDir).map { RemoteEntry(it.name, it.mode, it.size, it.mtimeSec) }
     }
 
     override fun close() = kadb.close()

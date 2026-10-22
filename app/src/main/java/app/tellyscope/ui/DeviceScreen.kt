@@ -78,6 +78,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.tellyscope.adb.TvFile
+import app.tellyscope.adb.TvFolder
 import app.tellyscope.data.Action
 import app.tellyscope.data.AppInfo
 import app.tellyscope.data.AppNames
@@ -104,6 +106,18 @@ data class DeviceActions(
     val forget: (String) -> Unit = {},
     val rename: (String, String?) -> Unit = { _, _ -> },
     val restoreAll: () -> Unit = {},
+    /** Opens the system picker for an APK, split APKs or a bundle. */
+    val pickApp: () -> Unit = {},
+    val allowDowngrade: (Boolean) -> Unit = {},
+    val install: () -> Unit = {},
+    val closeSideload: () -> Unit = {},
+    val openInstalled: () -> Unit = {},
+    val folder: (TvFolder) -> Unit = {},
+    /** Shows that folder, then opens the system picker for a file to send into it. */
+    val pickFile: (TvFolder) -> Unit = {},
+    /** Asks where to save [TvFile] on the phone, then copies it. */
+    val saveFile: (TvFile) -> Unit = {},
+    val cancelTransfer: () -> Unit = {},
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -194,6 +208,7 @@ fun DeviceScreen(
                     )
                 }
             }
+            if (!offline && q.isEmpty()) item { SendRow(actions) }
             snap?.let {
                 // The :adb source has no per-process list yet; no bars beats an empty card.
                 if (q.isEmpty() && it.procs.isNotEmpty() && !offline) item { UsageCard(it, ui.apps) }
@@ -220,10 +235,15 @@ fun DeviceScreen(
             if (!offline || ui.network != null) section("net", "Network", ui.network?.sockets?.size ?: 0, forceOpen = q.isNotEmpty()) {
                 ui.network?.let { NetworkBlock(it, q) }
             }
+            if (!offline && q.isEmpty()) section("files", "Files on the TV", ui.files.list?.size ?: 0) {
+                FilesBlock(ui.files, state.now, actions)
+            }
             section("history", "History", ui.history.size) {
                 HistoryList(ui.history, state.now, actions.undo, restoring = ui.busy == RESTORING, onRestoreAll = actions.restoreAll)
             }
         }
+        ui.sideload?.let { SideloadDialog(it, actions) }
+        ui.transfer?.let { TransferDialog(it, actions.cancelTransfer) }
     }
 }
 
