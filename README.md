@@ -21,30 +21,32 @@ No ads, no tracking, no accounts. Its only internet request fetches the debloat 
 
 Or get updates automatically with [Obtainium](#get-it).
 
+<img src="docs/screenshots/before-after.jpg" alt="A TV home screen before debloating, full of ads and suggestions, and after, showing only the user's apps" width="100%">
+
+<sub>Before and after on a Redmi TV, from [cleanyourtv](https://github.com/Gathin23/cleanyourtv), whose debloat lists Tellyscope uses. Their after also shows their own launcher.</sub>
+
 <table>
   <tr>
     <td width="25%"><img src="docs/screenshots/tv-page.png" alt="A TV's page: the TV at a glance, its vitals, and the Install, Debloat and Send buttons"></td>
     <td width="25%"><img src="docs/screenshots/debloat.png" alt="Debloat: reviewing the apps it will turn off, each with its package name"></td>
     <td width="25%"><img src="docs/screenshots/debloat-confirm.png" alt="The confirm before disabling, naming every app"></td>
-    <td width="25%"><img src="docs/screenshots/advanced.png" alt="Advanced: memory, storage, CPU and RAM by app"></td>
+    <td width="25%"><img src="docs/screenshots/history.png" alt="History: every change with an Undo, and Restore everything"></td>
   </tr>
   <tr>
     <td align="center"><sub>Your TV at a glance</sub></td>
     <td align="center"><sub>Review every app Debloat turns off</sub></td>
     <td align="center"><sub>It names each app before it acts</sub></td>
-    <td align="center"><sub>Every number, on Advanced</sub></td>
+    <td align="center"><sub>Undo anything from History</sub></td>
   </tr>
   <tr>
     <td><img src="docs/screenshots/install.png" alt="Updating Netflix on the TV from an APK on the phone"></td>
     <td><img src="docs/screenshots/send.png" alt="Sending a video from the phone to the TV's Movies folder"></td>
     <td><img src="docs/screenshots/files.png" alt="Files on the TV: the Download folder, each file one tap from the phone"></td>
-    <td><img src="docs/screenshots/history.png" alt="History: every change with an Undo, and Restore everything"></td>
   </tr>
   <tr>
     <td align="center"><sub>Install or update apps</sub></td>
     <td align="center"><sub>Send files to the TV</sub></td>
     <td align="center"><sub>Browse and save the TV's files</sub></td>
-    <td align="center"><sub>Undo anything from History</sub></td>
   </tr>
 </table>
 

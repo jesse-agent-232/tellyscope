@@ -22,7 +22,6 @@ SHOTS = {
     "tv-page": ("04_device", 0),
     "debloat": ("20_readme_debloat", 0),
     "debloat-confirm": ("21_readme_confirm", 0),
-    "advanced": ("17_advanced", 0),
     "install": ("23_readme_install", 0),
     "send": ("25_readme_send", 0),
     "files": ("24_readme_files", 400),
