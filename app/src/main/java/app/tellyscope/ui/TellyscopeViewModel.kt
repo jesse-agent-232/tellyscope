@@ -175,6 +175,8 @@ class TellyscopeViewModel(
     private var mediumJob: Job? = null
     private var listsJob: Job? = null
     private var requestJob: Job? = null
+    /** The fingerprint the user waved away on the phone; its prompt stays hidden while the TV shows it. */
+    private var dismissedRequest: String? = null
 
     init {
         viewModelScope.launch {
@@ -685,7 +687,7 @@ class TellyscopeViewModel(
     private suspend fun watchRequests(id: String) {
         while (true) {
             val request = try {
-                source.connectionRequest(id)
+                source.connectionRequest(id)?.takeIf { it.fingerprint != dismissedRequest }
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
@@ -694,6 +696,12 @@ class TellyscopeViewModel(
             updateDevice(id) { if (it.busy == ANSWERING) it else it.copy(request = request) }
             delay(5_000)
         }
+    }
+
+    fun dismissRequest() {
+        val id = _state.value.selectedId ?: return
+        dismissedRequest = _state.value.device.request?.fingerprint
+        updateDevice(id) { it.copy(request = null) }
     }
 
     /** The user's answer to [DeviceUi.request]; nothing is ever answered without it. */

@@ -209,6 +209,7 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
                 clearCaches = vm::clearCaches,
                 screenshot = { saveScreenshot.launch(Copy.screenshotName(System.currentTimeMillis())) },
                 answerRequest = vm::answerRequest,
+                dismissRequest = vm::dismissRequest,
             ),
         )
     }

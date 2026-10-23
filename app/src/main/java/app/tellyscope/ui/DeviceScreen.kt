@@ -130,6 +130,8 @@ data class DeviceActions(
     val screenshot: () -> Unit = {},
     /** Allow or Deny on another device's debugging prompt, and whether to always allow it. */
     val answerRequest: (allow: Boolean, always: Boolean) -> Unit = { _, _ -> },
+    /** Hides that prompt on the phone without answering it; the TV keeps asking. */
+    val dismissRequest: () -> Unit = {},
 )
 
 /** Off while the remote is made faster: the device page hides its Remote button. */
@@ -195,7 +197,6 @@ fun DeviceScreen(
             // A reading from before the TV went away is stale: it doesn't speak for the TV now.
             val live = snap?.takeIf { !offline }
             item { TvCard(state, live, actions) }
-            if (!offline) ui.request?.let { r -> item { RequestCard(r, ui.busy == ANSWERING, actions.answerRequest) } }
             val restart = state.restarting[device.id]
             if (restart != null) {
                 item { RestartingCard(restart, state.now) }
@@ -266,6 +267,7 @@ fun DeviceScreen(
                 HistoryList(ui.history, state.now, actions.undo, restoring = ui.busy == RESTORING, onRestoreAll = actions.restoreAll)
             }
         }
+        if (!offline) ui.request?.let { RequestDialog(it, ui.busy == ANSWERING, actions.answerRequest, actions.dismissRequest) }
         ui.sideload?.let { SideloadDialog(it, actions) }
         ui.transfer?.let { TransferDialog(it, actions.cancelTransfer) }
     }

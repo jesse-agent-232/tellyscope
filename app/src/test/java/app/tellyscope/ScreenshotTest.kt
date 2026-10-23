@@ -426,7 +426,7 @@ class ScreenshotTest {
         }) { DeviceScreen(deviceState { copy(history = history) }, DeviceActions()) }
     }
 
-    @Test fun device_connectionRequest() = shot("17_device_request") {
+    @Test fun device_connectionRequest() = shot("17_device_request", screen = true) {
         val request = ConnectionRequest("AB:CD:EF:01:23:45:67:89:AB:CD:EF:01:23:45:67:89")
         DeviceScreen(deviceState { copy(request = request) }, DeviceActions())
     }
