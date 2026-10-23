@@ -6,6 +6,7 @@ import app.tellyscope.adb.ApkInfo
 import app.tellyscope.adb.InstallResult
 import app.tellyscope.adb.InstalledVersion
 import app.tellyscope.adb.Progress
+import app.tellyscope.adb.RemoteKey
 import app.tellyscope.adb.TvFile
 import app.tellyscope.adb.TvFolder
 import java.io.File
@@ -103,7 +104,15 @@ class FakeDeviceSource(
         ).takeIf { scenario == Scenario.Normal }.orEmpty().forEach { put(it.id, it) }
     }
 
-    override suspend fun known(): List<Device> = remembered.values.toList()
+    /** TVs restarting, and when they answer again. */
+    private val backAt = mutableMapOf<String, Long>()
+
+    override suspend fun known(): List<Device> {
+        backAt.entries.removeAll { (id, at) ->
+            (at <= clock()).also { back -> if (back) remembered[id]?.let { remembered[id] = it.copy(state = DeviceState.Online, lastSeen = clock()) } }
+        }
+        return remembered.values.toList()
+    }
 
     override suspend fun reconnect(deviceId: String) = Unit
 
@@ -271,6 +280,23 @@ class FakeDeviceSource(
     }
 
     override suspend fun pickList(deviceId: String, listId: String) = Unit
+
+    override suspend fun press(deviceId: String, key: RemoteKey): Boolean {
+        delay(60)
+        return true
+    }
+
+    override suspend fun type(deviceId: String, text: String): Boolean {
+        delay(150)
+        return true
+    }
+
+    override suspend fun reboot(deviceId: String): Boolean {
+        delay(300)
+        remembered[deviceId]?.let { remembered[deviceId] = it.copy(state = DeviceState.Offline) }
+        backAt[deviceId] = clock() + 20_000
+        return true
+    }
 
     private companion object {
         val fakeList = DeviceList(

@@ -40,6 +40,10 @@ import app.tellyscope.ui.FilesBlock
 import app.tellyscope.ui.FilesUi
 import app.tellyscope.ui.RestoreDialog
 import app.tellyscope.ui.PermissionScreen
+import app.tellyscope.ui.RebootDialog
+import app.tellyscope.ui.RemoteActions
+import app.tellyscope.ui.RemoteScreen
+import app.tellyscope.ui.Restart
 import app.tellyscope.ui.RowState
 import app.tellyscope.ui.ScanScreen
 import app.tellyscope.ui.ScanUi
@@ -295,4 +299,20 @@ class ScreenshotTest {
     }
 
     @Test fun restore() = shot("11_restore", screen = true) { RestoreDialog(2, {}, {}) }
+
+    @Test fun remote() = shot("12_remote") { RemoteScreen(deviceState(), RemoteActions()) }
+
+    @Test fun remote_dark() = shot("12_remote", dark = true) { RemoteScreen(deviceState(), RemoteActions()) }
+
+    @Test fun remote_restarting() {
+        val state = deviceState().let { it.copy(restarting = mapOf(it.selectedId!! to Restart(now - 25_000, down = true))) }
+        shot("13_remote_restarting") { RemoteScreen(state, RemoteActions()) }
+    }
+
+    @Test fun device_restarting() {
+        val state = deviceState().let { it.copy(restarting = mapOf(it.selectedId!! to Restart(now - 200_000, down = true))) }
+        shot("14_device_restarting") { DeviceScreen(state, DeviceActions()) }
+    }
+
+    @Test fun reboot() = shot("15_reboot", screen = true) { RebootDialog({}, {}) }
 }

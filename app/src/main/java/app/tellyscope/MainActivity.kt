@@ -38,6 +38,8 @@ import app.tellyscope.ui.Copy
 import app.tellyscope.ui.DeviceActions
 import app.tellyscope.ui.DeviceScreen
 import app.tellyscope.ui.PermissionScreen
+import app.tellyscope.ui.RemoteActions
+import app.tellyscope.ui.RemoteScreen
 import app.tellyscope.ui.ScanScreen
 import app.tellyscope.ui.TellyscopeViewModel
 import app.tellyscope.ui.theme.TellyscopeTheme
@@ -119,6 +121,7 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
     val notice by vm.notice.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     var adding by rememberSaveable { mutableStateOf(false) }
+    var remote by rememberSaveable { mutableStateOf(false) }
 
     // "*/*": file managers label .apks and .xapk bundles inconsistently, so a narrower type would grey them out.
     val pickApp = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { vm.pickedApp(it) }
@@ -143,7 +146,7 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
     }
 
     // A newly connected TV becomes the selection; leave the add flow then, not on tap.
-    LaunchedEffect(state.selectedId) { adding = false }
+    LaunchedEffect(state.selectedId) { adding = false; remote = false }
 
     if (state.selected == null || adding) {
         BackHandler(enabled = adding) { adding = false }
@@ -156,6 +159,18 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
             onPair = vm::pair,
             onAddByIp = vm::addByIp,
             onBack = if (adding) ({ adding = false }) else null,
+        )
+    } else if (remote) {
+        BackHandler { remote = false }
+        RemoteScreen(
+            state = state,
+            snackbar = snackbar,
+            actions = RemoteActions(
+                press = vm::press,
+                type = vm::type,
+                reboot = vm::reboot,
+                back = { remote = false },
+            ),
         )
     } else {
         DeviceScreen(
@@ -185,6 +200,7 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
                 cancelTransfer = vm::cancelTransfer,
                 pickList = vm::pickList,
                 disableSuggested = vm::disableSuggested,
+                remote = { remote = true },
             ),
         )
     }

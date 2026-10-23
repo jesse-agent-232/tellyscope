@@ -31,4 +31,7 @@ data class RemoteEntry(val name: String, val mode: Int, val size: Long, val mtim
 interface AdbSession : AdbShell, AdbTransfer, AutoCloseable {
     /** Writes [bytes] to [remotePath] on the device, mode 0644. Throws [java.io.IOException] if the link is gone. */
     suspend fun push(bytes: ByteArray, remotePath: String)
+
+    /** Asks adbd to restart the device (the `reboot:` service, what `adb reboot` uses). */
+    suspend fun reboot()
 }

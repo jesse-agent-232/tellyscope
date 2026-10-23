@@ -21,6 +21,8 @@ import app.tellyscope.adb.LanScanner
 import app.tellyscope.adb.Parsers
 import app.tellyscope.adb.Protected
 import app.tellyscope.adb.ProtectedReason
+import app.tellyscope.adb.Remote
+import app.tellyscope.adb.RemoteKey
 import com.flyfishxu.kadb.exception.AdbPairAuthException
 import com.flyfishxu.kadb.mdns.KadbMdnsAndroid
 import kotlinx.coroutines.CancellationException
@@ -365,6 +367,12 @@ class AdbDeviceSource(context: Context) : DeviceSource {
         keep[key] = list?.keep.orEmpty()
         return Resolved(index, entry, list, out.getOrNull(MATCH_KEYS.size)?.toIntOrNull())
     }
+
+    override suspend fun press(deviceId: String, key: RemoteKey) = Remote(session(deviceId)).press(key)
+
+    override suspend fun type(deviceId: String, text: String) = Remote(session(deviceId)).type(text)
+
+    override suspend fun reboot(deviceId: String) = Remote(session(deviceId)).reboot()
 
     /**
      * The history key for a TV, read from it once connected and saved with it. Until it has

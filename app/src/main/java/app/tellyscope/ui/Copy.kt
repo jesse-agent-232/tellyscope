@@ -204,4 +204,32 @@ object Copy {
     const val CANCELLED_SAVE = "Cancelled. Nothing was saved."
     const val CANT_READ = "Couldn't read that file on your phone."
     const val FILES_LOST = "Couldn't read this folder. Check the TV is still connected."
+
+    // Remote
+
+    const val KEY_REFUSED = "The TV didn't take that key."
+    const val TYPE_REFUSED = "The TV didn't take the text. Select a text box on the TV first, then send again."
+    const val REMOTE_LOST = "Lost the TV. Check it's still on and connected."
+    const val REBOOT_REFUSED = "The TV said no to restarting. Use its own remote or power button instead."
+    const val REBOOT_IGNORED = "The TV didn't restart. Use its own remote or power button instead."
+    const val REMOTE_OFFLINE = "The TV is offline. The remote works again once it reconnects."
+    const val TYPE_HINT = "Select a text box on the TV, like a search box, then type here."
+
+    fun cantType(text: String): String {
+        val odd = text.firstOrNull { it !in ' '..'~' }
+        return when {
+            text.isEmpty() -> "Type something first."
+            text.length > app.tellyscope.adb.Remote.MAX_TEXT -> "That's too long to send in one go. Send up to ${app.tellyscope.adb.Remote.MAX_TEXT} characters at a time."
+            odd == '\n' || odd == '\t' -> "The TV can only take one line at a time."
+            odd != null -> "The TV can only type plain letters, numbers and symbols, not \u201c$odd\u201d."
+            else -> "The TV reads \u201c%s\u201d as a space, so it can't type that."
+        }
+    }
+
+    const val REBOOT_TITLE = "Restart the TV?"
+    const val REBOOT_TEXT = "Whatever is playing stops, and the TV takes a minute or two to come back. Tellyscope reconnects on its own when it's back."
+
+    fun restarting(minutes: Long) =
+        if (minutes < 3) "Tellyscope reconnects on its own when the TV is back, usually within a couple of minutes."
+        else "Taking a while. Some TVs turn network debugging off when they restart. If it doesn't come back, turn it on again in the TV's Developer options."
 }

@@ -16,6 +16,9 @@ class FakeShell(
     val ran = mutableListOf<String>()
     var closed = false
     var failWith: Exception? = null
+    var rebooted = false
+    /** Thrown by [reboot], like Kadb does when adbd refuses the service. */
+    var rebootFails: Exception? = null
 
     override suspend fun shell(command: String): ShellResult {
         failWith?.let { throw it }
@@ -29,6 +32,11 @@ class FakeShell(
     override suspend fun push(bytes: ByteArray, remotePath: String) {
         failPush?.let { throw it }
         pushed[remotePath] = bytes
+    }
+
+    override suspend fun reboot() {
+        rebootFails?.let { throw it }
+        rebooted = true
     }
 
     override fun close() { closed = true }

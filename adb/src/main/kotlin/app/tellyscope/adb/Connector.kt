@@ -116,5 +116,9 @@ internal class KadbSession(private val kadb: Kadb) : AdbSession {
         sync.list(remoteDir).map { RemoteEntry(it.name, it.mode, it.size, it.mtimeSec) }
     }
 
+    override suspend fun reboot() {
+        runInterruptible(Dispatchers.IO) { kadb.open("reboot:").close() }
+    }
+
     override fun close() = kadb.close()
 }

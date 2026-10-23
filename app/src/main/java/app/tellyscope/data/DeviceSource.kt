@@ -6,6 +6,7 @@ import app.tellyscope.adb.ApkInfo
 import app.tellyscope.adb.InstallResult
 import app.tellyscope.adb.InstalledVersion
 import app.tellyscope.adb.Progress
+import app.tellyscope.adb.RemoteKey
 import app.tellyscope.adb.TvFile
 import app.tellyscope.adb.TvFolder
 import kotlinx.coroutines.flow.Flow
@@ -88,4 +89,13 @@ interface DeviceSource {
 
     /** "Pick your TV": use list [listId] for this TV from now on. */
     suspend fun pickList(deviceId: String, listId: String)
+
+    /** One remote key. False when the TV answered with an error; throws when it's gone. */
+    suspend fun press(deviceId: String, key: RemoteKey): Boolean
+
+    /** Types into the focused box on the TV. The caller checks [app.tellyscope.adb.Remote.typeable] first. */
+    suspend fun type(deviceId: String, text: String): Boolean
+
+    /** Restarts the TV. The link drops and reconnects on its own once the TV is back. False if the TV refused. */
+    suspend fun reboot(deviceId: String): Boolean
 }

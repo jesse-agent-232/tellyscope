@@ -9,6 +9,8 @@ import app.tellyscope.adb.InstallKind
 import app.tellyscope.adb.InstallResult
 import app.tellyscope.adb.InstalledVersion
 import app.tellyscope.adb.Progress
+import app.tellyscope.adb.Remote
+import app.tellyscope.adb.RemoteKey
 import app.tellyscope.adb.TvFile
 import app.tellyscope.adb.TvFolder
 import app.tellyscope.adb.installKind
@@ -36,6 +38,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 
 /** Per-row connect state on the scan screen. */
@@ -107,9 +111,14 @@ data class UiState(
     val device: DeviceUi = DeviceUi(),
     val query: String = "",
     val now: Long = System.currentTimeMillis(),
+    /** TVs asked to restart, by id. */
+    val restarting: Map<String, Restart> = emptyMap(),
 ) {
     val selected: Device? get() = devices.firstOrNull { it.id == selectedId }
 }
+
+/** A restart in progress: [down] once the TV has dropped, so its coming back can be told apart from not having left. */
+data class Restart(val since: Long, val down: Boolean = false)
 
 /** [DeviceUi.busy] value while "Restore everything" runs. */
 const val RESTORING = "restore"
@@ -137,6 +146,9 @@ class TellyscopeViewModel(
 
     /** Last stats per TV, so an offline page shows where it stood instead of blanks. Lives as long as the app. */
     private val lastSnapshot = mutableMapOf<String, Snapshot>()
+
+    /** Keys go out one at a time, in the order pressed. */
+    private val keys = Mutex()
 
     private var scanJob: Job? = null
     private var sideloadJob: Job? = null
@@ -290,7 +302,7 @@ class TellyscopeViewModel(
     private suspend fun refreshDevices() {
         val known = source.known()
         val before = _state.value.selected?.state
-        _state.update { it.copy(devices = known) }
+        _state.update { s -> s.copy(devices = known, restarting = restarts(s.restarting, known)) }
         val now = _state.value.selected ?: return
         if (now.state == DeviceState.Online && before != DeviceState.Online) select(now.id)
     }
@@ -605,8 +617,84 @@ class TellyscopeViewModel(
         }
     }
 
+    /**
+     * Sends one key and waits for the TV to take it. The remote screen holds a D-pad key by
+     * calling this in a loop. A lost TV shows once, not once per repeat.
+     */
+    suspend fun press(key: RemoteKey) {
+        val id = _state.value.selectedId ?: return
+        keys.withLock {
+            try {
+                if (!source.press(id, key)) _notice.value = Copy.KEY_REFUSED
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                _notice.value = Copy.REMOTE_LOST
+            }
+        }
+    }
+
+    /** Types on the TV. Returns why it can't, or null once it's on its way. */
+    fun type(text: String): String? {
+        if (!Remote.typeable(text)) return Copy.cantType(text)
+        val id = _state.value.selectedId ?: return null
+        viewModelScope.launch {
+            keys.withLock {
+                _notice.value = try {
+                    if (source.type(id, text)) null else Copy.TYPE_REFUSED
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    Copy.REMOTE_LOST
+                }
+            }
+        }
+        return null
+    }
+
+    fun reboot() {
+        val id = _state.value.selectedId ?: return
+        viewModelScope.launch {
+            val ok = try {
+                source.reboot(id)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                _notice.value = Copy.REMOTE_LOST
+                return@launch
+            }
+            if (ok) _state.update { it.copy(restarting = it.restarting + (id to Restart(clock()))) }
+            else _notice.value = Copy.REBOOT_REFUSED
+        }
+    }
+
+    /**
+     * A restart ends when the TV is back online after dropping, or stops at a refusal. One still
+     * online after [RESTART_GRACE_MS] never went down, so the TV ignored the request.
+     */
+    private fun restarts(current: Map<String, Restart>, known: List<Device>): Map<String, Restart> {
+        val now = clock()
+        return current.mapNotNull { (id, r) ->
+            val state = known.firstOrNull { it.id == id }?.state ?: return@mapNotNull null
+            when {
+                state == DeviceState.Online && r.down -> null
+                state == DeviceState.Online && now - r.since > RESTART_GRACE_MS -> {
+                    _notice.value = Copy.REBOOT_IGNORED
+                    null
+                }
+                state == DeviceState.Online -> id to r
+                state == DeviceState.NotAllowed || state == DeviceState.NeedsPairing -> null
+                else -> id to r.copy(down = true)
+            }
+        }.toMap()
+    }
+
     private fun setRow(ip: String, row: RowState) =
         _state.update { it.copy(scan = it.scan.copy(rows = it.scan.rows + (ip to row))) }
+
+    private companion object {
+        const val RESTART_GRACE_MS = 60_000L
+    }
 
     private fun ipKey(ip: String) = ip.split('.').fold(0L) { acc, o -> acc * 256 + (o.toLongOrNull() ?: 0) }
 }

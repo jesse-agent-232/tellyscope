@@ -121,6 +121,7 @@ data class DeviceActions(
     val cancelTransfer: () -> Unit = {},
     val pickList: (String) -> Unit = {},
     val disableSuggested: (List<String>) -> Unit = {},
+    val remote: () -> Unit = {},
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -164,6 +165,7 @@ fun DeviceScreen(
                 TopAppBar(
                     title = { DevicePicker(state, actions) },
                     actions = {
+                        TextButton(onClick = actions.remote, enabled = !offline) { Text("Remote") }
                         IconButton(onClick = { searching = true }, enabled = !offline) {
                             Icon(Icons.Default.Search, contentDescription = "Search")
                         }
@@ -192,7 +194,10 @@ fun DeviceScreen(
                     ),
                 )
             }
-            if (device.state == DeviceState.NotAllowed) {
+            val restart = state.restarting[device.id]
+            if (restart != null) {
+                item { RestartingCard(restart, state.now) }
+            } else if (device.state == DeviceState.NotAllowed) {
                 item { NotAllowedCard(actions.reconnect) }
             } else if (offline) {
                 item { OfflineCard(device, state.now, actions.reconnect) }

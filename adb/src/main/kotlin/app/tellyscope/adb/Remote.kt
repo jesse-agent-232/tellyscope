@@ -1,0 +1,75 @@
+// SPDX-License-Identifier: GPL-3.0-only
+package app.tellyscope.adb
+
+import kotlinx.coroutines.CancellationException
+
+/**
+ * The TV's remote. Keys are a fixed list of Android key codes, so nothing the user does reaches
+ * the shell line except text, which [typeCommand] quotes. [repeats] keys repeat while held.
+ */
+enum class RemoteKey(val code: Int, val repeats: Boolean = false) {
+    UP(19, repeats = true),
+    DOWN(20, repeats = true),
+    LEFT(21, repeats = true),
+    RIGHT(22, repeats = true),
+    OK(23),
+    BACK(4),
+    HOME(3),
+    MENU(82),
+    PLAY_PAUSE(85),
+    VOLUME_UP(24, repeats = true),
+    VOLUME_DOWN(25, repeats = true),
+    MUTE(164),
+    /** Sleep, not the power toggle: pressing it twice never wakes a TV the user meant to turn off. */
+    SLEEP(223),
+}
+
+class Remote(private val session: AdbSession) {
+
+    /** False when the TV answered with an error. Throws if the link is gone. */
+    suspend fun press(key: RemoteKey): Boolean = session.shell("input keyevent ${key.code}").exitCode == 0
+
+    /** Types [text] into whatever box has focus on the TV. Check [typeable] first. */
+    suspend fun type(text: String): Boolean = session.shell(typeCommand(text)).exitCode == 0
+
+    /**
+     * Restarts the TV. adbd's `reboot:` service works for the shell user on stock builds; where a
+     * build refuses it, `svc power reboot` goes through the power service instead. Returns false
+     * only when the TV said no. A link that drops on the way counts as restarting.
+     */
+    suspend fun reboot(): Boolean {
+        try {
+            session.reboot()
+            return true
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            // Refused, or the link went: the fallback tells which.
+        }
+        val r = try {
+            session.shell("svc power reboot 2>&1")
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            return true
+        }
+        return r.exitCode == 0 && r.output.isBlank()
+    }
+
+    companion object {
+        const val MAX_TEXT = 200
+
+        /**
+         * What `input text` can type: printable ASCII only (it has no key for anything else), and
+         * never `%s`, which it reads as a space.
+         */
+        fun typeable(text: String): Boolean =
+            text.isNotEmpty() && text.length <= MAX_TEXT && text.all { it in ' '..'~' } && "%s" !in text
+
+        /** `input text` reads `%s` as a space, and the whole thing is single-quoted for the shell. */
+        fun typeCommand(text: String): String {
+            require(typeable(text)) { "input text can't type this" }
+            return "input text " + shellQuote(text.replace(" ", "%s"))
+        }
+    }
+}

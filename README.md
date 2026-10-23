@@ -14,6 +14,7 @@ Tellyscope is a phone app that talks to your Android TV or Google TV over the ne
 - **Debloat**: turn off preinstalled apps, ads and trackers you don't want, and turn them back on with one tap.
 - **Install apps**: pick an APK, a set of split APKs or an `.apks`/`.xapk` bundle on your phone and install it on the TV. It tells you first whether it's new or an update, and won't put an older version over a newer one unless you tick the box.
 - **Files**: send a file from your phone into the TV's Download or Movies folder, or save one from there to your phone. Nothing on the TV is overwritten.
+- **Remote**: D-pad, Back, Home, volume and play/pause from the phone, typing into the TV's search boxes, and Sleep or Restart.
 
 It connects either through classic network debugging (port 5555) or through Android 11+ wireless debugging with a pairing code.
 
