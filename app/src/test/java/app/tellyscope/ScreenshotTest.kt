@@ -21,6 +21,7 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import app.tellyscope.adb.ApkInfo
+import app.tellyscope.adb.ConnectionRequest
 import app.tellyscope.adb.InstallRefusal
 import app.tellyscope.adb.InstalledVersion
 import app.tellyscope.adb.Progress
@@ -423,6 +424,11 @@ class ScreenshotTest {
             compose.onNodeWithText("History").performClick()
             Unit
         }) { DeviceScreen(deviceState { copy(history = history) }, DeviceActions()) }
+    }
+
+    @Test fun device_connectionRequest() = shot("17_device_request") {
+        val request = ConnectionRequest("AB:CD:EF:01:23:45:67:89:AB:CD:EF:01:23:45:67:89")
+        DeviceScreen(deviceState { copy(request = request) }, DeviceActions())
     }
 
     private val dir = Files.createTempDirectory("shots").toFile()

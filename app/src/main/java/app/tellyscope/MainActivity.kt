@@ -208,6 +208,7 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
                 setFastAnimations = vm::setFastAnimations,
                 clearCaches = vm::clearCaches,
                 screenshot = { saveScreenshot.launch(Copy.screenshotName(System.currentTimeMillis())) },
+                answerRequest = vm::answerRequest,
             ),
         )
     }

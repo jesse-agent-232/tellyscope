@@ -128,6 +128,8 @@ data class DeviceActions(
     val clearCaches: () -> Unit = {},
     /** Asks where to save a screenshot of the TV on the phone, then takes it. */
     val screenshot: () -> Unit = {},
+    /** Allow or Deny on another device's debugging prompt, and whether to always allow it. */
+    val answerRequest: (allow: Boolean, always: Boolean) -> Unit = { _, _ -> },
 )
 
 /** Off while the remote is made faster: the device page hides its Remote button. */
@@ -193,6 +195,7 @@ fun DeviceScreen(
             // A reading from before the TV went away is stale: it doesn't speak for the TV now.
             val live = snap?.takeIf { !offline }
             item { TvCard(state, live, actions) }
+            if (!offline) ui.request?.let { r -> item { RequestCard(r, ui.busy == ANSWERING, actions.answerRequest) } }
             val restart = state.restarting[device.id]
             if (restart != null) {
                 item { RestartingCard(restart, state.now) }

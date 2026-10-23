@@ -3,6 +3,7 @@
 package app.tellyscope.data
 
 import app.tellyscope.adb.ApkInfo
+import app.tellyscope.adb.ConnectionRequest
 import app.tellyscope.adb.InstallResult
 import app.tellyscope.adb.InstalledVersion
 import app.tellyscope.adb.Progress
@@ -114,4 +115,13 @@ interface DeviceSource {
 
     /** A PNG of what the TV shows right now, into [sink]. */
     suspend fun screenshot(deviceId: String, sink: Sink)
+
+    /** Another device's "Allow debugging?" prompt showing on the TV now, or null. */
+    suspend fun connectionRequest(deviceId: String): ConnectionRequest?
+
+    /**
+     * Presses Allow or Cancel on that prompt, ticking "Always allow" only when [always]. False
+     * when the prompt was gone or showed another fingerprint by then.
+     */
+    suspend fun answerRequest(deviceId: String, request: ConnectionRequest, allow: Boolean, always: Boolean): Boolean
 }

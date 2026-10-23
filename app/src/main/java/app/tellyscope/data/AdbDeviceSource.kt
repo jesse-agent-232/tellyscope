@@ -14,6 +14,8 @@ import app.tellyscope.adb.Sideload
 import app.tellyscope.adb.TvFile
 import app.tellyscope.adb.TvFolder
 import app.tellyscope.adb.Actions
+import app.tellyscope.adb.ConnectionPrompt
+import app.tellyscope.adb.ConnectionRequest
 import app.tellyscope.adb.Connector
 import app.tellyscope.adb.DeviceLink
 import app.tellyscope.adb.LabelHelper
@@ -439,6 +441,11 @@ class AdbDeviceSource(context: Context) : DeviceSource {
     }
 
     override suspend fun screenshot(deviceId: String, sink: Sink) = Tweaks(session(deviceId)).screenshot(sink)
+
+    override suspend fun connectionRequest(deviceId: String) = ConnectionPrompt(session(deviceId)).pending()
+
+    override suspend fun answerRequest(deviceId: String, request: ConnectionRequest, allow: Boolean, always: Boolean) =
+        ConnectionPrompt(session(deviceId)).answer(request, allow, always)
 
     /**
      * The history key for a TV, read from it once connected and saved with it. Until it has

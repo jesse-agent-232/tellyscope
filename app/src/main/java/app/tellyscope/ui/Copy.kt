@@ -313,4 +313,13 @@ object Copy {
         "TV screenshot " + SimpleDateFormat("yyyy-MM-dd HH.mm.ss", Locale.ROOT).format(Date(at)) + ".png"
     const val SCREENSHOT_SAVED = "Screenshot saved to your phone"
     const val SCREENSHOT_FAILED = "Couldn't take a screenshot. Check the TV is still connected."
+    const val REQUEST_TITLE = "Another device wants to control this TV"
+    const val REQUEST_TEXT = "The TV is asking whether to allow debugging from a device with this key fingerprint. " +
+        "Allow it only if you started this yourself and the fingerprint matches the one that device shows."
+    const val REQUEST_ALWAYS = "Always allow this device"
+    const val REQUEST_ALLOW = "Allow"
+    const val REQUEST_DENY = "Deny"
+    const val REQUEST_ALLOWED = "Allowed. That device can control the TV now."
+    const val REQUEST_DENIED = "Denied. That device can't connect."
+    const val REQUEST_GONE = "The TV's prompt had closed or changed, so nothing was pressed."
 }

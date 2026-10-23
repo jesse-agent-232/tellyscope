@@ -3,6 +3,7 @@
 package app.tellyscope.data
 
 import app.tellyscope.adb.ApkInfo
+import app.tellyscope.adb.ConnectionRequest
 import app.tellyscope.adb.InstallResult
 import app.tellyscope.adb.InstalledVersion
 import app.tellyscope.adb.Progress
@@ -332,6 +333,10 @@ class FakeDeviceSource(
         delay(500)
         throw IOException("the demo TV has no screen to capture")
     }
+
+    override suspend fun connectionRequest(deviceId: String): ConnectionRequest? = null
+
+    override suspend fun answerRequest(deviceId: String, request: ConnectionRequest, allow: Boolean, always: Boolean) = false
 
     private companion object {
         val fakeList = DeviceList(

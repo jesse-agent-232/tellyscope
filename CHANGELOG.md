@@ -19,6 +19,7 @@ until this file has a section for its version.
 - **New:** Faster animations: menus move at twice the speed. [#35](../../pull/35)
 - **New:** Clear every app's cache in one tap; app data stays. [#35](../../pull/35)
 - **New:** Save a screenshot of the TV to your phone. [#35](../../pull/35)
+- **New:** Allow or deny another device's connection request from your phone. [#36](../../pull/36)
 
 ## 0.1.0 — 2026-10-23
 

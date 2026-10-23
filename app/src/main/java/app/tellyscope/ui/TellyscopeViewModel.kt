@@ -5,6 +5,7 @@ package app.tellyscope.ui
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.tellyscope.adb.ConnectionRequest
 import app.tellyscope.adb.InstallKind
 import app.tellyscope.adb.InstallResult
 import app.tellyscope.adb.InstalledVersion
@@ -80,6 +81,8 @@ data class DeviceUi(
     val lists: Suggestions? = null,
     /** Private DNS and animation speed; null until read, or when the TV wouldn't say. */
     val tweaks: TvTweaks? = null,
+    /** Another device asking the TV for debugging access; null when nothing is asking. */
+    val request: ConnectionRequest? = null,
 )
 
 data class SideloadUi(
@@ -138,6 +141,9 @@ const val DISABLING = "lists"
 const val CLEARING = "caches"
 const val SCREENSHOT = "screenshot"
 
+/** [DeviceUi.busy] value while the TV's connection prompt is being answered. */
+const val ANSWERING = "request"
+
 class TellyscopeViewModel(
     private val source: DeviceSource,
     private val storage: PhoneStorage? = null,
@@ -168,6 +174,7 @@ class TellyscopeViewModel(
     private var liveJob: Job? = null
     private var mediumJob: Job? = null
     private var listsJob: Job? = null
+    private var requestJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -277,6 +284,7 @@ class TellyscopeViewModel(
         liveJob?.cancel()
         mediumJob?.cancel()
         listsJob?.cancel()
+        requestJob?.cancel()
         _state.update { it.copy(selectedId = id, device = DeviceUi(snapshot = id?.let(lastSnapshot::get)), query = "") }
         val device = _state.value.selected ?: return
         // History lives on the phone, so it shows (and undo is offered) even while the TV is off.
@@ -293,6 +301,7 @@ class TellyscopeViewModel(
         }
         // Its own job: the list download never holds up apps or stats.
         listsJob = viewModelScope.launch { loadLists(id!!) }
+        requestJob = viewModelScope.launch { watchRequests(id!!) }
         mediumJob = viewModelScope.launch {
             // A TV that drops mid-read throws; the live flow ends and the offline card takes over.
             try {
@@ -666,6 +675,46 @@ class TellyscopeViewModel(
         val apps = if (lists is Suggestions.Ready) runCatching { source.apps(id) }.getOrNull() else null
         _state.update { s ->
             if (s.selectedId != id) s else s.copy(device = s.device.copy(lists = lists, apps = apps ?: s.device.apps))
+        }
+    }
+
+    /**
+     * Another device's "Allow debugging?" prompt, checked every few seconds while the TV's page
+     * is open. A failed check just waits for the next one.
+     */
+    private suspend fun watchRequests(id: String) {
+        while (true) {
+            val request = try {
+                source.connectionRequest(id)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            }
+            updateDevice(id) { if (it.busy == ANSWERING) it else it.copy(request = request) }
+            delay(5_000)
+        }
+    }
+
+    /** The user's answer to [DeviceUi.request]; nothing is ever answered without it. */
+    fun answerRequest(allow: Boolean, always: Boolean) {
+        val id = _state.value.selectedId ?: return
+        val request = _state.value.device.request ?: return
+        updateDevice(id) { it.copy(busy = ANSWERING) }
+        viewModelScope.launch {
+            val ok = try {
+                source.answerRequest(id, request, allow, always)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                false
+            }
+            _notice.value = when {
+                !ok -> Copy.REQUEST_GONE
+                allow -> Copy.REQUEST_ALLOWED
+                else -> Copy.REQUEST_DENIED
+            }
+            updateDevice(id) { it.copy(busy = null, request = null) }
         }
     }
 
