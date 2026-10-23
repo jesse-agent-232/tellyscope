@@ -66,7 +66,10 @@ data class ScanUi(
     val noLan: Boolean = false,
     val hits: List<ScanHit> = emptyList(),
     val rows: Map<String, RowState> = emptyMap(),
-)
+) {
+    /** Off Wi-Fi with nothing found: the scan screen asks the user to join one instead of listing. */
+    val offWifi get() = noLan && hits.isEmpty()
+}
 
 data class DeviceUi(
     val snapshot: Snapshot? = null,
@@ -212,6 +215,15 @@ class TellyscopeViewModel(
             viewModelScope.launch(Dispatchers.IO) { _state.update { it.copy(checkUpdates = u.enabled, alphaBuild = u.alpha) } }
         }
         rescan()
+        viewModelScope.launch {
+            // Off Wi-Fi a scan has nothing to sweep; start over the moment the phone joins one.
+            source.lanUp().collect {
+                if (_state.value.scan.noLan) {
+                    scanJob?.cancel()
+                    rescan()
+                }
+            }
+        }
     }
 
     fun rescan() {

@@ -12,6 +12,7 @@ import app.tellyscope.adb.TvFile
 import app.tellyscope.adb.TvFolder
 import app.tellyscope.adb.Tweak
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import okio.Sink
 import okio.Source
 import java.io.File
@@ -25,6 +26,9 @@ import java.io.File
 interface DeviceSource {
     /** LAN sweep for 5555 plus mDNS for wireless debugging. Emits hits as they answer, then [ScanEvent.Done]. */
     fun scan(): Flow<ScanEvent>
+
+    /** Emits whenever the phone is on a Wi-Fi or Ethernet network a [scan] can sweep. */
+    fun lanUp(): Flow<Unit> = emptyFlow()
 
     /** Classic connect. Suspends while the TV shows the Allow prompt; the caller owns the timeout. */
     suspend fun connect(hit: ScanHit): ConnectResult

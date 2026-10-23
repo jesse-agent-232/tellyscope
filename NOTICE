@@ -22,8 +22,8 @@ debugging pairing.
 Material Icons — https://github.com/google/material-design-icons
 License: Apache License 2.0
 The TV and HDMI (streaming stick) device icons use the path data of the
-"tv" and "settings_input_hdmi" icons, and the Debloat button that of
-"cleaning_services".
+"tv" and "settings_input_hdmi" icons, the Debloat button that of
+"cleaning_services", and the off-Wi-Fi screen that of "wifi_off".
 
 --------------------------------------------------------------------------------
 cleanyourtv — https://github.com/Gathin23/cleanyourtv

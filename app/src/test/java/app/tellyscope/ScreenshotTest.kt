@@ -486,6 +486,10 @@ class ScreenshotTest {
         name = "10_scan_off_wifi",
     )
 
+    @Test fun scan_offWifiEmpty() = scan(ScanUi(noLan = true), name = "10_scan_off_wifi_empty")
+
+    @Test fun scan_offWifiEmpty_dark() = scan(ScanUi(noLan = true), dark = true, name = "10_scan_off_wifi_empty")
+
     @Test fun device_notAllowed() {
         val base = deviceState()
         val off = base.devices.last().copy(state = DeviceState.NotAllowed)

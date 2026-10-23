@@ -4,6 +4,8 @@ package app.tellyscope.data
 
 import android.content.Context
 import android.net.ConnectivityManager
+import android.net.LinkProperties
+import android.net.Network
 import android.net.NetworkCapabilities
 import app.tellyscope.adb.ActionResult
 import app.tellyscope.adb.ApkInfo
@@ -38,7 +40,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
@@ -172,6 +176,18 @@ class AdbDeviceSource(context: Context) : DeviceSource {
             .filter { it.address is Inet4Address }
             .flatMap { LanScanner.subnetHosts(it.address as Inet4Address, it.prefixLength) }
             .distinct()
+    }
+
+    override fun lanUp(): Flow<Unit> = callbackFlow {
+        val cm = appContext.getSystemService(ConnectivityManager::class.java) ?: run { close(); return@callbackFlow }
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            // Capabilities can arrive before the address, so check again on each.
+            override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) = check()
+            override fun onLinkPropertiesChanged(network: Network, link: LinkProperties) = check()
+            private fun check() { if (lanHosts().isNotEmpty()) trySend(Unit) }
+        }
+        cm.registerDefaultNetworkCallback(callback)
+        awaitClose { cm.unregisterNetworkCallback(callback) }
     }
 
     override fun scan(): Flow<ScanEvent> = flow {

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -50,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.tellyscope.data.ScanHit
 import app.tellyscope.data.ScanKind
@@ -67,6 +69,7 @@ fun ScanScreen(
     onPair: (ScanHit) -> Unit,
     onAddByIp: (String) -> String?,
     onBack: (() -> Unit)? = null,
+    onOpenWifi: () -> Unit = {},
 ) {
     var adding by remember { mutableStateOf(false) }
     Scaffold(
@@ -82,7 +85,9 @@ fun ScanScreen(
             )
         },
     ) { pad ->
-        LazyColumn(
+        if (scan.offWifi) {
+            OffWifi(Modifier.padding(pad), onOpenWifi, onAddByIp = { adding = true })
+        } else LazyColumn(
             Modifier.fillMaxSize().padding(pad),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -112,6 +117,29 @@ fun ScanScreen(
         }
     }
     if (adding) AddByIpDialog(subnet = scan.progress?.subnet, onDismiss = { adding = false }, onSubmit = { onAddByIp(it).also { e -> if (e == null) adding = false } })
+}
+
+/** Off Wi-Fi with no TV announcing itself: one way forward instead of an empty list. */
+@Composable
+private fun OffWifi(modifier: Modifier, onOpenWifi: () -> Unit, onAddByIp: () -> Unit) {
+    Column(
+        modifier.fillMaxSize().padding(32.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Icon(DeviceIcons.WifiOff, null, Modifier.size(64.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Connect to Wi-Fi", style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+        Text(
+            "Connect this phone to the same Wi-Fi as your TV.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(4.dp))
+        Button(onClick = onOpenWifi) { Text("Open Wi-Fi settings") }
+        // VPNs and odd setups can still reach a TV by its address.
+        TextButton(onClick = onAddByIp) { Text("Add by IP address") }
+    }
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)

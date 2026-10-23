@@ -2,6 +2,7 @@
 
 package app.tellyscope
 
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -24,6 +25,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
@@ -136,6 +138,7 @@ class MainActivity : ComponentActivity() {
 fun TellyscopeApp(vm: TellyscopeViewModel) {
     val state by vm.state.collectAsStateWithLifecycle()
     val browser = LocalUriHandler.current
+    val context = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
     var adding by rememberSaveable { mutableStateOf(false) }
     var remote by rememberSaveable { mutableStateOf(false) }
@@ -172,6 +175,7 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
             onPair = vm::pair,
             onAddByIp = vm::addByIp,
             onBack = if (adding) ({ adding = false }) else null,
+            onOpenWifi = { context.openWifiSettings() },
         )
     } else if (remote) {
         BackHandler { remote = false }
@@ -281,4 +285,11 @@ internal fun Snackbars(
             host.showSnackbar(message, duration = SnackbarDuration.Long)
         }
     }
+}
+
+/** The Wi-Fi panel over the app on Android 10+, else the full Wi-Fi settings. */
+private fun Context.openWifiSettings() {
+    val panel = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) Settings.Panel.ACTION_WIFI else Settings.ACTION_WIFI_SETTINGS
+    runCatching { startActivity(Intent(panel)) }
+        .recoverCatching { startActivity(Intent(Settings.ACTION_WIFI_SETTINGS)) }
 }
