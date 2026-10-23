@@ -2,7 +2,11 @@
 package app.tellyscope.adb
 
 /** Another device's "Allow debugging?" prompt on the TV, with the key fingerprint it shows. */
-data class ConnectionRequest(val fingerprint: String)
+data class ConnectionRequest(
+    val fingerprint: String,
+    /** The prompt has an "Always allow" tick-box; some builds leave it out. */
+    val canAlwaysAllow: Boolean = true,
+)
 
 /**
  * Answers the TV's own "Allow debugging?" prompt for another device, from the phone. Tellyscope
@@ -14,7 +18,7 @@ class ConnectionPrompt(private val shell: AdbShell) {
     /** The prompt on screen now, or null. Cheap enough to poll: one `dumpsys window` line. */
     suspend fun pending(): ConnectionRequest? {
         if (showing() == null) return null
-        return screen()?.let { ConnectionRequest(it.fingerprint) }
+        return screen()?.let { ConnectionRequest(it.fingerprint, canAlwaysAllow = it.always != null) }
     }
 
     /**

@@ -40,7 +40,8 @@ fun RequestCard(request: ConnectionRequest, busy: Boolean, answer: (allow: Boole
             Text(Copy.REQUEST_TEXT, style = MaterialTheme.typography.bodyMedium)
             // Eight pairs a line, so a pair is never split when comparing it with the other device.
             Text(request.fingerprint.split(':').chunked(8).joinToString("\n") { it.joinToString(":") }, style = MaterialTheme.typography.bodyMedium, fontFamily = FontFamily.Monospace)
-            Row(
+            // No tick-box on the TV's prompt, none here: a tick that can't be applied would mislead.
+            if (request.canAlwaysAllow) Row(
                 Modifier.fillMaxWidth().toggleable(always, enabled = !busy, role = Role.Checkbox) { always = it },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -49,7 +50,7 @@ fun RequestCard(request: ConnectionRequest, busy: Boolean, answer: (allow: Boole
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilledTonalButton(onClick = { answer(false, false) }, enabled = !busy) { Text(Copy.REQUEST_DENY) }
-                OutlinedButton(onClick = { answer(true, always) }, enabled = !busy) { Text(Copy.REQUEST_ALLOW) }
+                OutlinedButton(onClick = { answer(true, always && request.canAlwaysAllow) }, enabled = !busy) { Text(Copy.REQUEST_ALLOW) }
             }
         }
     }

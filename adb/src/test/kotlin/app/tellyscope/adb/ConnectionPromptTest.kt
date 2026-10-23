@@ -28,6 +28,11 @@ class ConnectionPromptTest {
         assertEquals(ConnectionRequest(fp), ConnectionPrompt(tv(dump())).pending())
     }
 
+    @Test fun aPromptWithoutTheTickBoxSaysSo() = runTest {
+        val noBox = dump().lines().filterNot { "alwaysUse" in it }.joinToString("\n")
+        assertEquals(ConnectionRequest(fp, canAlwaysAllow = false), ConnectionPrompt(tv(noBox)).pending())
+    }
+
     @Test fun noPromptNoDump() = runTest {
         val sh = tv(dump(), focus = "mCurrentFocus=Window{1 u0 com.spocky.projengmenu/.ui.MainActivity}")
         assertNull(ConnectionPrompt(sh).pending())
