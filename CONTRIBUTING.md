@@ -4,7 +4,7 @@ Thanks for helping! Tellyscope is young, so the code and its structure are still
 
 ## Ground rules
 
-- **Read the [safety rules](README.md#safety-rules) first.** A pull request that uninstalls packages, bypasses the protected list or skips recording what was already off won't be merged.
+- **Read the [safety rules](README.md#safety-rules) first.** A pull request that uninstalls apps that came with the TV, bypasses the protected list or skips recording what was already off won't be merged.
 - **Open pull requests against `dev`.** `main` is the release branch and only takes `dev`.
 - **One change per pull request.** Smaller is easier to review.
 - **`./gradlew build` must pass** before you open a PR. CI runs the same command.
@@ -37,7 +37,7 @@ They come from the screenshot tests, so they always show the current UI with sam
 python3 docs/screenshots/frame.py
 ```
 
-`frame.py` lists which test image becomes which README image. Keep the README at 8 images or fewer.
+`frame.py` lists which test image becomes which README image. Keep the README at 12 images or fewer.
 
 ## Style
 

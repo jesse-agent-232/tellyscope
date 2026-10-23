@@ -648,6 +648,33 @@ class ScreenshotTest {
         compose.onNodeWithText("wallpaper-mountains.jpg").assertExists()
     }
 
+    // Tall, like readme_history: frame.py scrolls it down to TV tweaks.
+    @Config(qualifiers = "w411dp-h2600dp-xxhdpi")
+    @Test fun readme_tweaks() {
+        val openTweaks = {
+            compose.onNodeWithText("Apps").performClick() // fold the long list away
+            compose.onNodeWithText(Copy.TWEAKS).performClick()
+            Unit
+        }
+        val tweaks = TvTweaks(dnsHost = TvSettings.ADGUARD, animationScale = null)
+        shot("29_readme_tweaks", before = openTweaks) { DeviceScreen(deviceState { copy(tweaks = tweaks) }, DeviceActions()) }
+        compose.onNodeWithText(Copy.dnsState(TvSettings.ADGUARD)).assertExists()
+    }
+
+    // Tall, like readme_history: frame.py scrolls it down to the confirm.
+    @Config(qualifiers = "w411dp-h2600dp-xxhdpi")
+    @Test fun readme_home() {
+        // Google TV's own launcher is Home; Projectivy, installed by the user, offers to replace it.
+        val stock = AppInfo("com.google.android.tvlauncher", "Google TV Home", 0xFF1A73E8, true, true, "this is your home screen", "1.0.4")
+        val state = deviceState {
+            val projectivy = { a: AppInfo -> a.copy(protectedReason = null, system = false, removable = true, homeInstead = stock.packageName) }
+            copy(apps = listOf(stock) + apps.map { if (it.packageName == "com.spocky.projengmenu") projectivy(it) else it }, pending = "com.spocky.projengmenu" to Action.Home)
+        }
+        val foldSuggested = { compose.onNodeWithText("Suggested for this TV").performClick(); Unit }
+        shot("30_readme_home", before = foldSuggested) { DeviceScreen(state, DeviceActions()) }
+        compose.onNodeWithText("Yes, switch home screen").assertExists()
+    }
+
     @Test fun readme_send() = shot("25_readme_send", screen = true) {
         val t = TransferUi("family-trip-2025.mp4", toTv = true, folder = TvFolder.MOVIES, progress = Progress(486_000_000, 812_000_000))
         DeviceScreen(deviceState { copy(transfer = t) }, DeviceActions())

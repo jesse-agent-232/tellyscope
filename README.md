@@ -41,6 +41,18 @@ Or get updates automatically with [Obtainium](#get-it).
     <td align="center"><sub>Send files to the TV</sub></td>
     <td align="center"><sub>Browse and save the TV's files</sub></td>
   </tr>
+  <tr>
+    <td><img src="docs/screenshots/tweaks.png" alt="TV tweaks: ad-blocking Private DNS on, faster animations, clear caches and screenshot"></td>
+    <td><img src="docs/screenshots/request.png" alt="Another device wants to control this TV: the key fingerprint, with Deny and Allow"></td>
+    <td><img src="docs/screenshots/home.png" alt="Making Projectivy Launcher the home screen: the confirm names both launchers"></td>
+    <td><img src="docs/screenshots/uninstall.png" alt="Uninstall Netflix? The dialog says it can't be undone"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Block ads and tweak the TV</sub></td>
+    <td align="center"><sub>Answer connection requests</sub></td>
+    <td align="center"><sub>Switch the home screen</sub></td>
+    <td align="center"><sub>Uninstall apps you added</sub></td>
+  </tr>
 </table>
 
 <sub>Rendered from the app's screenshot tests with sample data.</sub>
@@ -54,9 +66,9 @@ Tellyscope needs a phone on Android 8.0 or newer, on the same Wi-Fi as the TV, a
 
 ## Is it safe?
 
-- **Small and private.** Under 3 MB. No ads, no tracking, no accounts. Its only internet request fetches the debloat lists from this project's GitHub, or from your own fork if you point it there; everything else stays on your Wi-Fi.
-- **Reversible.** Tellyscope disables apps; it never uninstalls them, so nothing is deleted. Every change goes into History with an Undo, and **Restore everything** turns back on all it turned off.
-- **Protected list.** Apps the TV needs to start, update, stay on Wi-Fi, show its home screen or take input can't be stopped or disabled. There is no override.
+- **Small and private.** Under 3 MB. No ads, no tracking, no accounts. Its only internet request fetches the debloat lists from this project's GitHub, or from your own fork if you point it there; everything else stays on your Wi-Fi. Turning on Private DNS changes where the *TV* looks up addresses, not what the app sends.
+- **Reversible.** Apps that came with the TV are only ever disabled, never uninstalled, so nothing is deleted. Apps you installed yourself can also be uninstalled, after a confirm that says it can't be undone. Every change goes into History, all but Uninstall with an Undo, and **Restore everything** turns back on all it turned off.
+- **Protected list.** Apps the TV needs to start, update, stay on Wi-Fi, show its home screen or take input can't be stopped or disabled. They sit in their own **Can't be changed** section under Apps. There is no override.
 - **You see it first.** Debloat shows every app it will turn off, and the confirm names each one before anything runs.
 
 The full rules are under [Safety rules](#safety-rules).
@@ -70,11 +82,13 @@ Tellyscope is a phone app that talks to your Android TV, Google TV or Fire TV ov
 - **How it's doing.** The TV at a glance: maker and model, a one-line summary such as "Running fine" or "Storage almost full", its address, how long it's been on, its Android version and when its software was last updated. Below that, free space as a bar, then CPU, RAM, temperature and network speed.
 - **The main jobs up front.** Big **Install app**, **Debloat** and **Send file** buttons right under the vitals.
 - **Advanced.** Every number in one place: memory, storage, CPU, temperature, uptime and screen state, CPU and RAM by app, processes, network and data used, and the TV's address.
-- **Apps.** Every app on the TV with its real name and icon. Stop, disable or turn back on any app that isn't protected; each button says what it will do and asks first.
+- **Apps.** Every app on the TV with its real name and icon. Stop, disable or turn back on any app that isn't protected; each button says what it will do and asks first. Apps you installed yourself also offer **Uninstall**, which asks in a dialog that names the app and says it can't be undone. Protected apps are folded into their own **Can't be changed** section below the list.
 - **Another home screen.** With a second launcher such as Projectivy installed, its row in Apps offers **Make it your home screen**. Tellyscope makes it Home, checks that Home really opens it, and only then disables the old launcher, so the TV can't switch back by itself. One Undo in History turns the old launcher back on and makes it Home again. On Google TV, the Apps row and the Live tab are part of the old launcher and go with it.
 - **Debloat.** Tellyscope matches your TV to a tested clean-up list (adapted from [cleanyourtv](https://github.com/Gathin23/cleanyourtv)) and says how many of its apps are still on. **Debloat** first asks which TV it is, with the match already chosen, then shows every app it will turn off. Apps are pre-ticked only when the TV runs the Android version the list was tested on; untick anything you use, and you confirm before anything is disabled. If you'd rather not trust our lists, point the app at your own fork of them in Settings (see [CONTRIBUTING](CONTRIBUTING.md#using-your-own-lists)).
 - **History.** Every change is listed with an Undo, and **Restore everything** turns back on what Tellyscope turned off. Undoing a **Turn on** asks first, since it disables the app again. History is kept per TV, across restarts.
 - **Install apps.** Pick an APK, several split APKs or an `.apks`/`.xapk`/`.apkm` bundle on your phone. Before installing, Tellyscope shows the app's name, version and size and says whether it's new, an update, a reinstall or an older version. It won't install an older version over a newer one unless you tick the box. If the TV refuses, you get the reason in plain words.
+- **TV tweaks.** **Block ads with Private DNS** sends the TV's address lookups to an ad-blocking DNS provider (AdGuard by default, or any other you type in). Tellyscope then checks the TV can still look addresses up, and puts the old setting back if not. It needs Android 9 or newer. **Faster animations** makes menus move at twice the speed. Both land in History with an Undo. **Clear caches** frees space by clearing every app's temporary files; app data and sign-ins stay. **Take screenshot** saves what the TV shows to your phone.
+- **Connection requests.** When another device asks to debug the TV, Tellyscope shows the TV's "Allow debugging?" prompt on your phone, with the device's key fingerprint, so you can **Allow** or **Deny** it without the remote. **Always allow this device** appears when the TV's own prompt offers it.
 - **Files.** Send a file from your phone into the TV's Download or Movies folder, or save one from there to your phone. A file with the same name gets a " (1)" instead of being overwritten, and a cancelled copy leaves nothing half-written behind.
 
 ## Setting up your TV
@@ -90,7 +104,7 @@ The menu paths differ by brand; the app shows the exact steps for yours.
 
 Debloating a TV can break it if done carelessly. Tellyscope is built around these rules, and contributions must keep them:
 
-1. **Disable only, never uninstall.** Tellyscope uses `pm disable-user`, which is reversible from the app or with `pm enable`. It never runs `pm uninstall`, not even for the current user.
+1. **Disable what came with the TV, never uninstall it.** Tellyscope uses `pm disable-user`, which is reversible from the app or with `pm enable`. Uninstall is offered only for apps `pm list packages -3` lists as installed by the user, and runs plain `pm uninstall` after a confirm that says it can't be undone. Tellyscope never runs `pm uninstall --user 0`, the form that removes a TV's own apps.
 2. **Record before changing.** Before the first change on a TV, Tellyscope notes which apps were already off, so **Restore everything** turns back on only what Tellyscope turned off. Every change goes into the TV's history with an Undo. The history lives on the phone and is deleted if you uninstall Tellyscope; a disabled app still shows in the Apps list with **Turn on**.
 3. **Protected list.** Packages the TV needs to boot, install its updates, stay on Wi-Fi, show web pages, show the home screen or accept input are on a protected list. Tellyscope refuses to stop or disable them, and there is no override in the app. If the TV doesn't say which app is its home screen, Tellyscope refuses to stop or disable anything. The one exception is switching home screens: the old launcher is disabled only after another launcher has become Home and Home has been checked to open it, and the current home screen itself never can be. A TV's suggested list can protect more apps, never fewer.
 4. **No root, no exploits.** Only what ADB allows on a stock TV.

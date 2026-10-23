@@ -26,6 +26,10 @@ SHOTS = {
     "send": ("25_readme_send", 0),
     "files": ("24_readme_files", 400),
     "history": ("22_readme_history", 300),
+    "tweaks": ("29_readme_tweaks", 645),
+    "request": ("17_device_request", 0),
+    "home": ("30_readme_home", 600),
+    "uninstall": ("27_apps_uninstall_confirm", 0),
 }
 
 DP = 3  # the tests render at xxhdpi
