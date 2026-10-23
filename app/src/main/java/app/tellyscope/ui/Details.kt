@@ -54,7 +54,7 @@ fun Details(rows: List<Pair<String, String>>, modifier: Modifier = Modifier) {
 @Composable
 fun KeyValue(k: String, v: String) {
     Row(Modifier.padding(vertical = 2.dp)) {
-        Text(k, Modifier.width(96.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(k, Modifier.width(120.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(v, style = SmallNumber)
     }
 }

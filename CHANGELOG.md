@@ -22,3 +22,5 @@ until this file has a section for its version.
 - **Improved:** System updaters, Wi-Fi resources and Chrome's library are now protected. [#19](../../pull/19)
 - **Fixed:** Done and error messages stay on screen long enough to read. [#20](../../pull/20)
 - **Fixed:** Undo and results always go to the TV the action ran on. [#20](../../pull/20)
+- **New:** Debloat in two steps: pick your TV, then review every app it turns off. [#23](../../pull/23)
+- **Improved:** The TV page uses plain words; every number moves to a new Advanced screen. [#23](../../pull/23)

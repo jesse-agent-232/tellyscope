@@ -6,7 +6,8 @@ See inside your Android TV from your phone. Live stats, reversible debloat, app 
 
 <p>
   <img src="docs/screenshots/scan.png" width="200" alt="Finding TVs on the Wi-Fi">
-  <img src="docs/screenshots/tv-page.png" width="200" alt="A TV's page: memory, storage, CPU and temperature">
+  <img src="docs/screenshots/tv-page.png" width="200" alt="A TV's page: how it's doing, free space and suggested clean-up">
+  <img src="docs/screenshots/debloat.png" width="200" alt="Debloat: reviewing the apps it will turn off">
   <img src="docs/screenshots/install.png" width="200" alt="Installing an app on the TV">
 </p>
 
@@ -18,9 +19,10 @@ Tellyscope is a phone app that talks to your Android TV, Google TV or Fire TV ov
 
 - **Find and connect.** It looks for TVs on your Wi-Fi, or you add one by IP address. Classic network debugging (port 5555) and Android 11+ wireless debugging with a 6-digit pairing code both work. A step-by-step card shows how to turn debugging on for Google TV, Android TV, Fire TV, Xiaomi and XGIMI.
 - **Remembers your TVs.** They reconnect on their own after a restart of the app or the TV. You can rename a TV (the name stays on your phone) or forget it.
-- **Live stats.** Memory, storage, CPU, temperature and uptime, with a one-line summary such as "Running fine" or "Storage almost full".
+- **How it's doing.** A one-line summary such as "Running fine" or "Storage almost full", and how much space is free.
+- **Advanced.** Every number in one place: memory, storage, CPU, temperature, uptime and screen state, CPU and RAM by app, processes, network and data used, and the TV's address.
 - **Apps.** Every app on the TV with its real name and icon. Stop, disable, turn back on or open any app that isn't protected; each button says what it will do and asks first.
-- **Suggested for this TV.** Tellyscope matches your TV to a tested clean-up list (adapted from [cleanyourtv](https://github.com/Gathin23/cleanyourtv)) and shows the apps on it that are still on. Pick your model if it isn't matched. Apps are pre-ticked only when the TV runs the Android version the list was tested on, and you confirm before anything is disabled.
+- **Debloat.** Tellyscope matches your TV to a tested clean-up list (adapted from [cleanyourtv](https://github.com/Gathin23/cleanyourtv)) and says how many of its apps are still on. **Debloat** first asks which TV it is, with the match already chosen, then shows every app it will turn off. Apps are pre-ticked only when the TV runs the Android version the list was tested on; untick anything you use, and you confirm before anything is disabled.
 - **History.** Every change is listed with an Undo, and **Restore everything** turns back on what Tellyscope turned off. History is kept per TV, across restarts.
 - **Install apps.** Pick an APK, several split APKs or an `.apks`/`.xapk`/`.apkm` bundle on your phone. Before installing, Tellyscope shows the app's name, version and size and says whether it's new, an update, a reinstall or an older version. It won't install an older version over a newer one unless you tick the box. If the TV refuses, you get the reason in plain words.
 - **Files.** Send a file from your phone into the TV's Download or Movies folder, or save one from there to your phone. A file with the same name gets a " (1)" instead of being overwritten, and a cancelled copy leaves nothing half-written behind.

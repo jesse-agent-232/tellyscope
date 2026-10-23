@@ -12,6 +12,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
@@ -28,11 +30,15 @@ import app.tellyscope.data.Device
 import app.tellyscope.data.DeviceState
 import app.tellyscope.data.FakeDeviceSource
 import app.tellyscope.data.HistoryEntry
+import app.tellyscope.data.ListEntry
 import app.tellyscope.data.PickedApp
 import app.tellyscope.data.ScanHit
 import app.tellyscope.data.ScanKind
 import app.tellyscope.data.ScanProgress
 import app.tellyscope.data.Suggested
+import app.tellyscope.data.Suggestions
+import app.tellyscope.ui.AdvancedScreen
+import app.tellyscope.ui.DebloatScreen
 import app.tellyscope.ui.DeviceActions
 import app.tellyscope.ui.DeviceScreen
 import app.tellyscope.ui.Copy
@@ -151,12 +157,30 @@ class ScreenshotTest {
                 snapshot = fake.snapshot(d.id),
                 apps = fake.apps(d.id),
                 network = fake.network(d.id),
+                lists = lists(d.id),
             ).device(),
             now = now,
         )
     }
 
-    @Test fun device_overview() = shot("04_device") { DeviceScreen(deviceState(), DeviceActions()) }
+    /** The fake's list, among a few other models so "Which TV is this?" has a choice. */
+    private suspend fun lists(id: String): Suggestions.Ready {
+        val ready = fake.suggestions(id) as Suggestions.Ready
+        val others = listOf("Sony Bravia (Google TV)", "TCL C-series", "Xiaomi Mi Box S").map {
+            val slug = it.lowercase().replace(Regex("[^a-z]+"), "-").trim('-')
+            ListEntry(slug, it, null, 30, "devices/$slug.json", "0".repeat(64))
+        }
+        return ready.copy(devices = ready.devices + others)
+    }
+
+    @Test fun device_overview() {
+        shot("04_device") { DeviceScreen(deviceState(), DeviceActions()) }
+        // Plain words on the main page: no Details expander, no MB per app; numbers live on Advanced.
+        compose.onNodeWithText("Details").assertDoesNotExist()
+        compose.onNodeWithText("Advanced").assertExists()
+        compose.onNodeWithText("Running · ", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("Debloat").assertExists()
+    }
 
     @Test fun device_overview_dark() = shot("04_device", dark = true) { DeviceScreen(deviceState(), DeviceActions()) }
 
@@ -325,6 +349,42 @@ class ScreenshotTest {
     }
 
     @Test fun reboot() = shot("15_reboot", screen = true) { RebootDialog({}, {}) }
+
+    @Config(qualifiers = "w411dp-h2400dp-xxhdpi")
+    @Test fun advanced() = shot("17_advanced") { AdvancedScreen(deviceState(), back = {}) }
+
+    @Test fun debloat_pick() {
+        val lists = deviceState().device.lists
+        shot("18_debloat_pick") { DebloatScreen(lists, {}, {}, {}) }
+        compose.onNodeWithText("Next").assertIsEnabled() // the matched list is already chosen
+    }
+
+    @Test fun debloat_unknownModel() {
+        val ready = deviceState().device.lists as Suggestions.Ready
+        shot("18_debloat_pick_unknown") { DebloatScreen(Suggestions.Pick(null, ready.devices), {}, {}, {}) }
+        compose.onNodeWithText("Next").assertIsNotEnabled() // nothing guessed for a model it doesn't know
+    }
+
+    @Test fun debloat_review() {
+        val lists = deviceState().device.lists as Suggestions.Ready
+        val next = { compose.onNodeWithText("Next").performClick(); Unit }
+        shot("19_debloat_review", before = next) { DebloatScreen(lists, {}, {}, {}) }
+        val apps = lists.groups.flatMap { it.packages }
+        for (a in apps) compose.onNodeWithText(a.label).assertExists()
+        val ticked = apps.count { it.ticked }
+        compose.onNodeWithText("Disable $ticked ${if (ticked == 1) "app" else "apps"}").assertIsEnabled()
+    }
+
+    @Test fun debloat_review_otherAndroid() {
+        // A list tested on another Android version ticks nothing, the way the list builder hands it over.
+        val lists = (deviceState().device.lists as Suggestions.Ready).let { r ->
+            r.copy(sdk = 28, groups = r.groups.map { g -> g.copy(packages = g.packages.map { it.copy(ticked = false) }) })
+        }
+        val next = { compose.onNodeWithText("Next").performClick(); Unit }
+        shot("19_debloat_review_other_android", before = next) { DebloatScreen(lists, {}, {}, {}) }
+        compose.onNodeWithText("so nothing is ticked", substring = true).assertExists()
+        compose.onNodeWithText("Disable 0 apps").assertIsNotEnabled()
+    }
 
     @Test fun disableSuggested() {
         val apps = listOf(

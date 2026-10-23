@@ -34,7 +34,9 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import app.tellyscope.data.AdbDeviceSource
 import app.tellyscope.data.AndroidPhoneStorage
 import app.tellyscope.data.FakeDeviceSource
+import app.tellyscope.ui.AdvancedScreen
 import app.tellyscope.ui.Copy
+import app.tellyscope.ui.DebloatScreen
 import app.tellyscope.ui.DeviceActions
 import app.tellyscope.ui.DeviceScreen
 import app.tellyscope.ui.Done
@@ -123,6 +125,8 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
     val snackbar = remember { SnackbarHostState() }
     var adding by rememberSaveable { mutableStateOf(false) }
     var remote by rememberSaveable { mutableStateOf(false) }
+    var advanced by rememberSaveable { mutableStateOf(false) }
+    var debloat by rememberSaveable { mutableStateOf(false) }
 
     // "*/*": file managers label .apks and .xapk bundles inconsistently, so a narrower type would grey them out.
     val pickApp = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { vm.pickedApp(it) }
@@ -132,7 +136,7 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
     Snackbars(snackbar, vm.done, vm.notice, vm::doneShown, vm::noticeShown) { vm.undo(it.entry, it.deviceId) }
 
     // A newly connected TV becomes the selection; leave the add flow then, not on tap.
-    LaunchedEffect(state.selectedId) { adding = false; remote = false }
+    LaunchedEffect(state.selectedId) { adding = false; remote = false; advanced = false; debloat = false }
 
     if (state.selected == null || adding) {
         BackHandler(enabled = adding) { adding = false }
@@ -157,6 +161,18 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
                 reboot = vm::reboot,
                 back = { remote = false },
             ),
+        )
+    } else if (advanced) {
+        BackHandler { advanced = false }
+        AdvancedScreen(state, back = { advanced = false }, snackbar = snackbar)
+    } else if (debloat) {
+        // Its own back handler steps back from the review to the model before leaving.
+        DebloatScreen(
+            state.device.lists,
+            onPick = vm::pickList,
+            onDisable = vm::disableSuggested,
+            back = { debloat = false },
+            snackbar = snackbar,
         )
     } else {
         DeviceScreen(
@@ -184,9 +200,9 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
                 pickFile = { folder -> vm.folder(folder); pickFile.launch(arrayOf("*/*")) },
                 saveFile = { f -> vm.saving(f); saveFile.launch(f.name) },
                 cancelTransfer = vm::cancelTransfer,
-                pickList = vm::pickList,
-                disableSuggested = vm::disableSuggested,
                 remote = { remote = true },
+                debloat = { debloat = true },
+                advanced = { advanced = true },
             ),
         )
     }

@@ -15,10 +15,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -50,7 +48,6 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -86,13 +83,11 @@ import app.tellyscope.data.Device
 import app.tellyscope.data.DeviceState
 import app.tellyscope.data.HistoryBook
 import app.tellyscope.data.HistoryEntry
-import app.tellyscope.data.NetworkInfo
 import app.tellyscope.data.Proc
 import app.tellyscope.data.Snapshot
 import app.tellyscope.data.Suggestions
 import app.tellyscope.data.deviceKind
 import app.tellyscope.ui.theme.SmallNumber
-import app.tellyscope.ui.theme.StatNumber
 
 data class DeviceActions(
     val select: (String) -> Unit = {},
@@ -119,9 +114,11 @@ data class DeviceActions(
     /** Asks where to save [TvFile] on the phone, then copies it. */
     val saveFile: (TvFile) -> Unit = {},
     val cancelTransfer: () -> Unit = {},
-    val pickList: (String) -> Unit = {},
-    val disableSuggested: (List<String>) -> Unit = {},
     val remote: () -> Unit = {},
+    /** Opens the Debloat flow: pick the TV's list, then review the apps it turns off. */
+    val debloat: () -> Unit = {},
+    /** Opens the Advanced screen: every number, per-app CPU and RAM, processes and network. */
+    val advanced: () -> Unit = {},
 )
 
 /** Off while the remote is made faster: the device page hides its Remote button. */
@@ -149,7 +146,7 @@ fun DeviceScreen(
                         TextField(
                             value = state.query,
                             onValueChange = actions.query,
-                            placeholder = { Text("Search apps, processes, connections") },
+                            placeholder = { Text("Search apps") },
                             singleLine = true,
                             colors = TextFieldDefaults.colors(
                                 focusedContainerColor = Color.Transparent,
@@ -169,6 +166,7 @@ fun DeviceScreen(
                     title = { DevicePicker(state, actions) },
                     actions = {
                         if (REMOTE_ENABLED) TextButton(onClick = actions.remote, enabled = !offline) { Text("Remote") }
+                        TextButton(onClick = actions.advanced) { Text("Advanced") }
                         IconButton(onClick = { searching = true }, enabled = !offline) {
                             Icon(Icons.Default.Search, contentDescription = "Search")
                         }
@@ -183,19 +181,21 @@ fun DeviceScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
-                Text(
-                    listOfNotNull(device.model, device.android?.let { "Android $it" }).joinToString(" · "),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Details(
-                    listOfNotNull(
-                        "IP address" to device.hit.ip,
-                        "Port" to device.hit.port.toString(),
-                        (device.manufacturer ?: device.hit.maker)?.let { "Maker" to it },
-                        device.hit.hostname?.let { "Network name" to it },
-                    ),
-                )
+                // What the TV is on the left, where to find it on the right; the rest is on Advanced.
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        listOfNotNull(device.model, device.android?.let { "Android $it" }).joinToString(" · "),
+                        Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        listOfNotNull(device.hit.ip, device.manufacturer ?: device.hit.maker).joinToString(" · "),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                    )
+                }
             }
             val restart = state.restarting[device.id]
             if (restart != null) {
@@ -207,9 +207,12 @@ fun DeviceScreen(
             }
             val snap = ui.snapshot
             if (snap != null) {
-                if (!offline) item { HealthLine(Copy.health(snap, heaviest(snap, ui.apps))) }
-                // Offline: the last stats this phone saw, greyed and dated, rather than a grid of blanks.
-                item { Stats(snap, if (offline) state.now else null) }
+                // Plain words only: the health line already reads memory, CPU and heat; free space
+                // decides whether an install fits. Every number is on Advanced.
+                if (!offline) item {
+                    HealthLine(Copy.health(snap, heaviest(snap, ui.apps)))
+                    Copy.free(snap)?.let { FreeLine(it) }
+                }
             } else if (offline) {
                 item {
                     Text(
@@ -220,14 +223,10 @@ fun DeviceScreen(
                 }
             }
             if (!offline && q.isEmpty()) item { SendRow(actions) }
-            snap?.let {
-                // The :adb source has no per-process list yet; no bars beats an empty card.
-                if (q.isEmpty() && it.procs.isNotEmpty() && !offline) item { UsageCard(it, ui.apps) }
-            }
             if (!offline && q.isEmpty()) {
                 val count = (ui.lists as? Suggestions.Ready)?.groups?.sumOf { it.packages.size } ?: 0
-                section("lists", "Suggested for this TV", count) {
-                    SuggestionsBlock(ui.lists, ui.busy == DISABLING, actions.pickList, actions.disableSuggested)
+                section("lists", "Suggested for this TV", count, expandedByDefault = true) {
+                    SuggestionsSummary(ui.lists, ui.busy == DISABLING, actions.debloat)
                 }
             }
             // An offline TV can't list anything: sections with nothing in them stay out of the way.
@@ -245,12 +244,6 @@ fun DeviceScreen(
                 apps.forEach { app ->
                     AppRow(app, snap?.procs.orEmpty(), ui.pending, ui.busy == app.packageName, actions)
                 }
-            }
-            if (!offline || !snap?.procs.isNullOrEmpty()) section("procs", "Processes", snap?.procs?.size ?: 0, forceOpen = q.isNotEmpty()) {
-                ProcessTable(snap?.procs.orEmpty(), ui.apps, q)
-            }
-            if (!offline || ui.network != null) section("net", "Network", ui.network?.sockets?.size ?: 0, forceOpen = q.isNotEmpty()) {
-                ui.network?.let { NetworkBlock(it, q) }
             }
             if (!offline && q.isEmpty()) section("files", "Files on the TV", ui.files.list?.size ?: 0) {
                 FilesBlock(ui.files, state.now, actions)
@@ -512,101 +505,9 @@ private fun HealthLine(h: Copy.Health) {
     }
 }
 
-/**
- * Memory and storage as "75% used" with a bar, then the small stats. Missing stats show "—",
- * never 0. [staleSince] set means the TV is offline: these are its last numbers, greyed and dated.
- */
 @Composable
-private fun Stats(s: Snapshot, staleSince: Long?) {
-    val cells = listOf(
-        "CPU" to "${s.cpuPercent}%",
-        "Temperature" to s.tempC?.let { "$it°C" },
-        "On for" to Copy.uptime(s.uptimeSeconds),
-        "Screen" to s.screenOn?.let { if (it) "On" else "Off" },
-    )
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            if (staleSince != null) {
-                Text(
-                    "As of ${Copy.ago(s.at, staleSince)}",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Column(Modifier.alpha(if (staleSince != null) 0.5f else 1f), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Meter("Memory", s.ramUsedMb / 1024.0, s.ramTotalMb / 1024.0)
-                s.storageUsedGb?.let { u -> s.storageTotalGb?.let { t -> Meter("Storage", u, t) } }
-                Row(Modifier.fillMaxWidth()) {
-                    cells.forEach { (label, value) ->
-                        Column(Modifier.weight(1f)) {
-                            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(value ?: "—", style = MaterialTheme.typography.titleLarge.copy(fontFeatureSettings = "tnum"), maxLines = 1)
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun Meter(label: String, usedGb: Double, totalGb: Double) {
-    val frac = if (totalGb > 0) (usedGb / totalGb).toFloat().coerceIn(0f, 1f) else 0f
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(verticalAlignment = Alignment.Bottom) {
-            Column(Modifier.weight(1f)) {
-                Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("${(frac * 100).toInt()}% used", style = StatNumber)
-            }
-            Text(Copy.gbOf(usedGb, totalGb), style = SmallNumber, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        LinearProgressIndicator(
-            progress = { frac },
-            Modifier.fillMaxWidth(),
-            color = if (frac >= Copy.FULL) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-        )
-    }
-}
-
-/** Grey bars, no chart library: top 6 by value, the rest summed as "other". */
-@Composable
-private fun UsageCard(snap: Snapshot, apps: List<AppInfo>) {
-    val labels = apps.associate { it.packageName to it.label }
-    fun label(p: Proc) = p.packageName?.let { labels[it] ?: AppNames.fallback(it) } ?: Copy.ANDROID_SYSTEM
-    val byApp = snap.procs.groupBy(::label)
-    var cpu by rememberSaveable { mutableStateOf(false) }
-    val rows = byApp.map { (name, ps) ->
-        name to if (cpu) ps.sumOf { it.cpuPercent } else ps.sumOf { it.ramMb }.toDouble()
-    }
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(if (cpu) "CPU by app" else "RAM by app", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-                TextButton(onClick = { cpu = !cpu }) { Text(if (cpu) "Show RAM" else "Show CPU") }
-            }
-            Bars(rows, fmt = { if (cpu) "%.0f%%".format(it) else Copy.mb(it.toInt()) })
-        }
-    }
-}
-
-@Composable
-private fun Bars(rows: List<Pair<String, Double>>, fmt: (Double) -> String, top: Int = 6) {
-    val sorted = rows.sortedByDescending { it.second }
-    val rest = sorted.drop(top).sumOf { it.second }
-    val shown = sorted.take(top) + if (rest > 0) listOf("Other" to rest) else emptyList()
-    val max = shown.maxOfOrNull { it.second }?.coerceAtLeast(1.0) ?: 1.0
-    shown.forEach { (name, v) ->
-        val frac by animateFloatAsState((v / max).toFloat(), MaterialTheme.motionScheme.defaultSpatialSpec(), label = "bar")
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            // Long app names wrap to two lines rather than cut off; the value column only needs "1.2 GB".
-            Text(name, Modifier.width(148.dp), style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Spacer(Modifier.width(8.dp))
-            Box(Modifier.weight(1f).height(12.dp).clip(MaterialTheme.shapes.small).background(MaterialTheme.colorScheme.surfaceContainerHigh)) {
-                Box(Modifier.fillMaxHeight().fillMaxWidth(frac).clip(MaterialTheme.shapes.small).background(MaterialTheme.colorScheme.primary))
-            }
-            Text(fmt(v), Modifier.width(60.dp), style = SmallNumber, textAlign = androidx.compose.ui.text.style.TextAlign.End)
-        }
-    }
+private fun FreeLine(text: String) {
+    Text(text, Modifier.padding(start = 32.dp), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 /** A collapsible card section. */
@@ -645,7 +546,7 @@ private fun LazyListScope.section(
 }
 
 @Composable
-private fun EmptyLine(q: String) {
+internal fun EmptyLine(q: String) {
     Text(
         if (q.isEmpty()) "Nothing here yet." else "Nothing matches \"$q\".",
         style = MaterialTheme.typography.bodyMedium,
@@ -683,7 +584,7 @@ private fun AppRow(
     val ram = procs.filter { it.packageName == app.packageName }.sumOf { it.ramMb }
     val status = when {
         !app.enabled -> "Disabled"
-        ram > 0 -> "Running · ${Copy.mb(ram)}"
+        ram > 0 -> "Running"
         else -> "Not running"
     }
     Column(Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).clickable(enabled = app.protectedReason == null) { open = !open }.padding(vertical = 8.dp)) {
@@ -724,78 +625,6 @@ private fun AppRow(
             }
         }
     }
-}
-
-@Composable
-private fun ProcessTable(procs: List<Proc>, apps: List<AppInfo>, q: String) {
-    val labels = apps.associate { it.packageName to it.label }
-    val groups = procs
-        .groupBy { p -> p.packageName?.let { labels[it] ?: AppNames.fallback(it) } ?: Copy.ANDROID_SYSTEM }
-        .filter { (name, ps) -> q.isEmpty() || name.lowercase().contains(q) || ps.any { it.name.lowercase().contains(q) } }
-        .toList()
-        .sortedByDescending { (_, ps) -> ps.sumOf { it.cpuPercent } }
-    if (groups.isEmpty()) return EmptyLine(q)
-    Row {
-        Text("App", Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text("CPU", Modifier.width(56.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.End)
-        Text("RAM", Modifier.width(72.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.End)
-    }
-    groups.forEach { (name, ps) ->
-        var open by rememberSaveable(name) { mutableStateOf(false) }
-        Column(Modifier.fillMaxWidth().clickable { open = !open }.padding(vertical = 6.dp)) {
-            Row {
-                Text(
-                    if (ps.size > 1) "$name  ×${ps.size}" else name,
-                    Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                )
-                Text("%.0f%%".format(ps.sumOf { it.cpuPercent }), Modifier.width(56.dp), style = SmallNumber, textAlign = androidx.compose.ui.text.style.TextAlign.End)
-                Text(Copy.mb(ps.sumOf { it.ramMb }), Modifier.width(72.dp), style = SmallNumber, textAlign = androidx.compose.ui.text.style.TextAlign.End)
-            }
-            if (open) ps.forEach { p ->
-                Row(Modifier.padding(start = 12.dp, top = 2.dp)) {
-                    Text("${p.pid}  ${p.name}", Modifier.weight(1f), style = SmallNumber, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text("%.1f%%".format(p.cpuPercent), Modifier.width(56.dp), style = SmallNumber, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.End)
-                    Text(Copy.mb(p.ramMb), Modifier.width(72.dp), style = SmallNumber, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.End)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun NetworkBlock(n: NetworkInfo, q: String) {
-    if (q.isEmpty()) {
-        KeyValue("Connection", listOfNotNull(if (n.iface == "wifi" || n.iface.startsWith("wlan")) "Wi-Fi" else "Ethernet", n.ssid).joinToString(" · "))
-        n.rssi?.let { r -> KeyValue("Signal", signalWord(r).replaceFirstChar(Char::uppercase)) }
-        Details(
-            listOfNotNull(
-                "IP address" to n.ip,
-                n.mac?.let { "MAC" to it },
-                n.rssi?.let { "Signal" to "$it dBm" },
-                n.linkMbps?.let { "Link speed" to "$it Mbps" },
-            ),
-        )
-        Spacer(Modifier.height(8.dp))
-        Text("Data used", style = MaterialTheme.typography.titleSmall)
-        Bars(n.traffic.map { it.app to (it.rxMb + it.txMb).toDouble() }, fmt = { Copy.mb(it.toInt()) })
-        Spacer(Modifier.height(8.dp))
-    }
-    Text("Open connections", style = MaterialTheme.typography.titleSmall)
-    val socks = n.sockets.filter { q.isEmpty() || it.app.lowercase().contains(q) || it.remote.lowercase().contains(q) }
-    if (socks.isEmpty()) EmptyLine(q)
-    socks.forEach { s ->
-        Row(Modifier.padding(vertical = 2.dp)) {
-            Text(s.app, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(s.remote, style = SmallNumber, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
-
-private fun signalWord(rssi: Int) = when {
-    rssi >= -55 -> "strong"
-    rssi >= -67 -> "good"
-    rssi >= -75 -> "weak"
-    else -> "very weak"
 }
 
 @Composable
