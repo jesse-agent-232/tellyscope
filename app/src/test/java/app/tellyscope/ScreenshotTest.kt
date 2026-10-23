@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
@@ -156,6 +157,13 @@ class ScreenshotTest {
     @Test fun device_overview() = shot("04_device") { DeviceScreen(deviceState(), DeviceActions()) }
 
     @Test fun device_overview_dark() = shot("04_device", dark = true) { DeviceScreen(deviceState(), DeviceActions()) }
+
+    @Test fun device_picker() = shot("04_device_picker", screen = true, before = {
+        compose.onNodeWithContentDescription("Switch TV").performClick()
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.onNodeWithText("Add a TV").assertExists()
+        Unit
+    }) { DeviceScreen(deviceState().copy(showOffline = true), DeviceActions()) }
 
     @Config(qualifiers = "w411dp-h1500dp-xxhdpi")
     @Test fun device_confirmDisable() {

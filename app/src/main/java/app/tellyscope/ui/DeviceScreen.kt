@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.CircleShape
@@ -91,6 +90,7 @@ import app.tellyscope.data.NetworkInfo
 import app.tellyscope.data.Proc
 import app.tellyscope.data.Snapshot
 import app.tellyscope.data.Suggestions
+import app.tellyscope.data.deviceKind
 import app.tellyscope.ui.theme.SmallNumber
 import app.tellyscope.ui.theme.StatNumber
 
@@ -284,7 +284,7 @@ private fun DevicePicker(state: UiState, actions: DeviceActions) {
             Modifier.clip(MaterialTheme.shapes.large).clickable { open = true }.padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            BrandBadge(device)
+            KindBadge(device)
             Column(Modifier.weight(1f, fill = false)) {
                 Text(name(device), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -300,15 +300,23 @@ private fun DevicePicker(state: UiState, actions: DeviceActions) {
                 .filter { state.showOffline || it.state == DeviceState.Online || it.id == state.selectedId }
                 .forEach { d ->
                     DropdownMenuItem(
-                        text = { Text(name(d)) },
-                        leadingIcon = { StateDot(d.state) },
-                        trailingIcon = {
-                            Text(
-                                if (d.state == DeviceState.Online) Copy.state(d.state)
-                                else d.lastSeen?.let { "${Copy.state(d.state)}, seen ${Copy.ago(it, state.now)}" } ?: Copy.state(d.state),
-                                style = MaterialTheme.typography.labelSmall,
-                            )
+                        // Name over state, like the top bar: a long name gets the full width.
+                        text = {
+                            Column {
+                                Text(name(d), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    StateDot(d.state)
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        if (d.state == DeviceState.Online) Copy.state(d.state)
+                                        else d.lastSeen?.let { "${Copy.state(d.state)}, seen ${Copy.ago(it, state.now)}" } ?: Copy.state(d.state),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
                         },
+                        leadingIcon = { Icon(DeviceIcons.of(deviceKind(d)), contentDescription = deviceKind(d).word()) },
                         onClick = { open = false; actions.select(d.id) },
                     )
                 }
@@ -386,32 +394,18 @@ fun RenameDialog(current: String, networkName: String, onSave: (String) -> Unit,
     )
 }
 
-/**
- * The maker's name on a tile, when the TV said who made it. A wordmark in the app's own colours,
- * not the maker's logo: no third-party artwork ships in the app.
- */
+/** What kind of device it is, on a tile: TV, projector or streaming stick. Generic shapes, never a maker's logo. */
 @Composable
-private fun BrandBadge(d: Device) {
-    val maker = (d.manufacturer ?: d.hit.maker)?.let(::brand) ?: return
+private fun KindBadge(d: Device) {
+    val kind = deviceKind(d)
     Box(
-        Modifier.padding(end = 10.dp).widthIn(min = 52.dp).height(36.dp).clip(MaterialTheme.shapes.medium)
-            .background(MaterialTheme.colorScheme.secondaryContainer).padding(horizontal = 8.dp),
+        Modifier.padding(end = 10.dp).size(40.dp).clip(MaterialTheme.shapes.medium)
+            .background(MaterialTheme.colorScheme.secondaryContainer),
         contentAlignment = Alignment.Center,
     ) {
-        Text(maker, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSecondaryContainer, maxLines = 1)
+        Icon(DeviceIcons.of(kind), contentDescription = kind.word(), tint = MaterialTheme.colorScheme.onSecondaryContainer)
     }
 }
-
-/** Makers of Android TVs and boxes, as they write their own name. Chip makers (Amlogic) don't count. */
-private fun brand(maker: String): String? {
-    val words = maker.split(Regex("[^A-Za-z]+"))
-    return BRANDS.firstOrNull { b -> words.any { it.equals(b, ignoreCase = true) } }
-}
-
-private val BRANDS = listOf(
-    "XGIMI", "Google", "Sony", "TCL", "Xiaomi", "Philips", "Hisense", "NVIDIA", "Amazon", "Nokia",
-    "Toshiba", "Sharp", "Skyworth", "Haier", "Panasonic", "Nebula", "Dangbei", "Formovie", "onn",
-)
 
 /** Forgetting only touches this phone; the TV keeps its own list of allowed computers. */
 @Composable

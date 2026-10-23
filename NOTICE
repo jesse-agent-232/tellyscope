@@ -19,6 +19,12 @@ Used as a library (via Kadb): SPAKE2 key exchange for Android 11+ wireless
 debugging pairing.
 
 --------------------------------------------------------------------------------
+Material Icons — https://github.com/google/material-design-icons
+License: Apache License 2.0
+The TV and HDMI (streaming stick) device icons use the path data of the
+"tv" and "settings_input_hdmi" icons.
+
+--------------------------------------------------------------------------------
 cleanyourtv — https://github.com/Gathin23/cleanyourtv
 License: MIT, Copyright (c) 2026 Gathin
 Debloat package lists are adapted from this project.
