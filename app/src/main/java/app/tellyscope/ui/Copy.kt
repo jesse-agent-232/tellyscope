@@ -6,6 +6,7 @@ import app.tellyscope.adb.InstallKind
 import app.tellyscope.adb.InstallRefusal
 import app.tellyscope.adb.TvFolder
 import app.tellyscope.data.Action
+import app.tellyscope.data.AppNames
 import app.tellyscope.data.DeviceState
 import app.tellyscope.data.Snapshot
 
@@ -81,7 +82,7 @@ object Copy {
         else -> "Disabled $done of $of apps; the TV refused the rest. Undo any of them from History."
     }
 
-    const val ANDROID_SYSTEM = "Android system"
+    const val ANDROID_SYSTEM = AppNames.SYSTEM
 
     /** The word next to the status dot, so the state never rests on colour alone. */
     fun state(s: DeviceState) = when (s) {

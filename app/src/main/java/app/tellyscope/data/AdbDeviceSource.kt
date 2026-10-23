@@ -18,6 +18,7 @@ import app.tellyscope.adb.Connector
 import app.tellyscope.adb.DeviceLink
 import app.tellyscope.adb.LabelHelper
 import app.tellyscope.adb.LanScanner
+import app.tellyscope.adb.NetworkStats
 import app.tellyscope.adb.Parsers
 import app.tellyscope.adb.Protected
 import app.tellyscope.adb.ProtectedReason
@@ -48,10 +49,8 @@ import app.tellyscope.adb.DeviceState as AdbState
 import app.tellyscope.adb.ScanHit as AdbHit
 
 /**
- * [DeviceSource] on real TVs through `:adb`. Device id is the TV's IP. Known devices live for the
- * app process only (persisting them is a later slice), and `procs` / network details beyond the
- * IP are empty for now: slice 1 is scan → connect → live CPU/RAM. App names and icons come from
- * the label helper through [AppNames].
+ * [DeviceSource] on real TVs through `:adb`. Device id is the TV's IP. Wi-Fi name, signal, MAC and
+ * link speed are empty for now. App names and icons come from the label helper through [AppNames].
  */
 class AdbDeviceSource(context: Context) : DeviceSource {
     private val appContext = context.applicationContext
@@ -240,8 +239,8 @@ class AdbDeviceSource(context: Context) : DeviceSource {
                     storageTotalGb = s.storage?.let { it.totalKb / 1_048_576.0 },
                     tempC = s.temperatureC?.toInt(),
                     uptimeSeconds = s.uptimeSeconds ?: 0,
-                    screenOn = null,
-                    procs = emptyList(),
+                    screenOn = s.screenOn,
+                    procs = s.processes.map { Proc(it.pid, it.name, it.packageName, it.cpuPercent, (it.rssKb / 1024).toInt()) },
                 )
             }
     }
@@ -283,15 +282,38 @@ class AdbDeviceSource(context: Context) : DeviceSource {
     }
 
     override suspend fun network(deviceId: String): NetworkInfo {
-        val out = session(deviceId).shell("ip -o -4 addr show").output
+        val shell = session(deviceId)
+        val out = shell.shell("ip -o -4 addr show").output
         val line = out.lineSequence().firstOrNull { "inet " in it && " lo " !in it }
         val f = line?.trim()?.split(Regex("\\s+")).orEmpty()
+        val packages = links[deviceId]?.stats?.value?.packages.orEmpty()
         return NetworkInfo(
             iface = f.getOrElse(1) { "" },
             ip = f.getOrNull(3)?.substringBefore('/') ?: deviceId,
             mac = null, ssid = null, rssi = null, linkMbps = null,
-            sockets = emptyList(), traffic = emptyList(),
+            sockets = NetworkStats(shell).connections().map { Socket(uidLabel(it.uid, packages), it.remote, tcpState(it.state)) },
+            traffic = traffic(deviceId, packages),
         )
+    }
+
+    /** `dumpsys netstats` is long, so data used is read at most once a minute per TV. */
+    private val trafficCache = ConcurrentHashMap<String, Pair<Long, List<AppTraffic>>>()
+
+    private suspend fun traffic(deviceId: String, packages: Map<Int, List<String>>): List<AppTraffic> {
+        val now = System.currentTimeMillis()
+        trafficCache[deviceId]?.takeIf { now - it.first < 60_000 }?.let { return it.second }
+        val list = NetworkStats(session(deviceId)).traffic().filterKeys { it >= 0 }.entries
+            .groupBy({ uidLabel(it.key, packages) }, { it.value })
+            .map { (app, ts) -> AppTraffic(app, (ts.sumOf { it.rxBytes } shr 20).toInt(), (ts.sumOf { it.txBytes } shr 20).toInt()) }
+            .filter { it.rxMb + it.txMb > 0 }
+        trafficCache[deviceId] = now to list
+        return list
+    }
+
+    /** An app's name for a uid; system uids and unknown ones read as Android system. */
+    private fun uidLabel(uid: Int, packages: Map<Int, List<String>>): String {
+        val pkg = packages[uid]?.takeIf { uid % 100_000 >= 10_000 }?.firstOrNull() ?: return AppNames.SYSTEM
+        return labels[pkg] ?: AppNames.fallback(pkg)
     }
 
     override suspend fun act(deviceId: String, action: Action, packageName: String, undoing: Long?): HistoryEntry {
@@ -447,6 +469,12 @@ class AdbDeviceSource(context: Context) : DeviceSource {
             lastSeen = link?.lastSeenMillis ?: saved[id]?.lastSeen,
             nickname = names[keys[id] ?: id],
         )
+    }
+
+    private fun tcpState(st: Int) = when (st) {
+        Parsers.TcpSocket.ESTABLISHED -> "established"
+        Parsers.TcpSocket.SYN_SENT, Parsers.TcpSocket.SYN_RECV -> "connecting"
+        else -> "closing"
     }
 
     /** Copy from the protected-apps table in the UX copy doc. */

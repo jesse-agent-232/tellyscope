@@ -63,6 +63,9 @@ class AppNames(private val dir: File) {
          */
         fun fallback(pkg: String): String = KnownLabels[pkg] ?: humanise(pkg)
 
+        /** What native daemons and system uids are listed as, in place of an app name. */
+        const val SYSTEM = "Android system"
+
         private val GENERIC = setOf("com", "net", "org", "io", "co", "android", "google", "tv", "app", "apps")
 
         /** Makers whose name isn't simply capitalised. */

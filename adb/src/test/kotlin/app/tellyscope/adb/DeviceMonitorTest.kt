@@ -47,4 +47,27 @@ class DeviceMonitorTest {
         val hung = AdbShell { kotlinx.coroutines.awaitCancellation() }
         assertFailsWith<IOException> { DeviceMonitor(hung).stats().first() }
     }
+
+    @Test fun processesCarryTheirPackageAndScreenState() = runTest {
+        val tv = AdbShell { cmd ->
+            when {
+                cmd.startsWith("cat /proc/stat") -> ok("cpu  25 0 0 75 0 0 0 0\n${sep}MemTotal: 2000 kB\nMemAvailable: 500 kB\n")
+                cmd.startsWith("top") -> ok(
+                    "PID USER RES %CPU NAME\n2201 u0_a87 312M 3.5 com.google.android.youtube.tv\n512 system 120M 9.0 system_server\n" +
+                        "$sep  mWakefulness=Asleep\n",
+                )
+                else -> ok("$sep$sep$sep${sep}package:com.google.android.youtube.tv uid:10087\n")
+            }
+        }
+        val s = DeviceMonitor(tv).stats().first()
+        assertEquals(
+            listOf(
+                AppProcess(2201, "com.google.android.youtube.tv", "com.google.android.youtube.tv", 3.5, 312 * 1024),
+                AppProcess(512, "system_server", null, 9.0, 120 * 1024),
+            ),
+            s.processes,
+        )
+        assertEquals(false, s.screenOn)
+        assertEquals(mapOf(10087 to listOf("com.google.android.youtube.tv")), s.packages)
+    }
 }

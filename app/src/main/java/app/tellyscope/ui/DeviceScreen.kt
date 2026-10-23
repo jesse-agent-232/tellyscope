@@ -768,7 +768,7 @@ private fun ProcessTable(procs: List<Proc>, apps: List<AppInfo>, q: String) {
 @Composable
 private fun NetworkBlock(n: NetworkInfo, q: String) {
     if (q.isEmpty()) {
-        KeyValue("Connection", listOfNotNull(if (n.iface == "wifi") "Wi-Fi" else "Ethernet", n.ssid).joinToString(" · "))
+        KeyValue("Connection", listOfNotNull(if (n.iface == "wifi" || n.iface.startsWith("wlan")) "Wi-Fi" else "Ethernet", n.ssid).joinToString(" · "))
         n.rssi?.let { r -> KeyValue("Signal", signalWord(r).replaceFirstChar(Char::uppercase)) }
         Details(
             listOfNotNull(

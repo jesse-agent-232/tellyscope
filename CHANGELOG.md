@@ -16,3 +16,5 @@ until this file has a section for its version.
 - **New:** Send files to the TV's Download or Movies folder, and save them back. [#9](../../pull/9)
 - **New:** Suggested apps to disable, from a tested list for your TV. [#11](../../pull/11)
 - **New:** A remote: D-pad, volume, Play / Pause, typing, Sleep and Restart. [#12](../../pull/12)
+- **Fixed:** Processes, screen state, connections and data used now show on real TVs. [#17](../../pull/17)
+- **Fixed:** A TV on Wi-Fi no longer shows its connection as Ethernet. [#17](../../pull/17)

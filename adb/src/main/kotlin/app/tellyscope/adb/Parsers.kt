@@ -101,6 +101,126 @@ object Parsers {
         return m.groupValues[1].toInt() * 100_000 + 10_000 + m.groupValues[2].toInt()
     }
 
+    /**
+     * The package a process belongs to, from [byUid] (`pm list packages -U`). The process name wins
+     * (`com.foo:remote` is com.foo, even under the shared system uid); otherwise the app uid's package
+     * whose name starts the process name, else its first. Null for native daemons.
+     */
+    fun owner(p: Process, byUid: Map<Int, List<String>>, known: Set<String> = byUid.values.flatten().toSet()): String? {
+        val base = p.name.substringBefore(':')
+        if (base in known) return base
+        val pkgs = appUid(p.user)?.let { byUid[it] }.orEmpty()
+        return pkgs.firstOrNull { p.name.startsWith(it) } ?: pkgs.firstOrNull()
+    }
+
+    /** Uid → its packages; shared uids hold several. */
+    fun byUid(packages: List<Package>): Map<Int, List<String>> =
+        packages.filter { it.uid != null }.groupBy({ it.uid!! }, { it.name })
+
+    /**
+     * `dumpsys power`, or just its wakefulness lines. Dreaming is a screensaver, so the screen is on.
+     * Null when neither line is there.
+     */
+    fun screenOn(power: String): Boolean? {
+        Regex("mWakefulness=(\\w+)").find(power)?.let { return it.groupValues[1] in setOf("Awake", "Dreaming") }
+        return Regex("mScreenOn=(true|false)").find(power)?.groupValues?.get(1)?.toBooleanStrict()
+    }
+
+    data class TcpSocket(val uid: Int, val remoteIp: String, val remotePort: Int, val state: Int) {
+        /** Loopback or unconnected: nothing leaves the TV. */
+        val local get() = remotePort == 0 || remoteIp.startsWith("127.") || remoteIp == "0:0:0:0:0:0:0:1"
+
+        /** Talking to another machine now: not listening, and not already closed (TIME_WAIT has lost its uid). */
+        val open get() = !local && state != LISTEN && state != TIME_WAIT && state != CLOSE
+
+        val remote get() = if (':' in remoteIp) "[$remoteIp]:$remotePort" else "$remoteIp:$remotePort"
+
+        companion object {
+            /** Kernel TCP states, as /proc/net/tcp numbers them. */
+            const val ESTABLISHED = 0x01
+            const val SYN_SENT = 0x02
+            const val SYN_RECV = 0x03
+            const val TIME_WAIT = 0x06
+            const val CLOSE = 0x07
+            const val LISTEN = 0x0A
+        }
+    }
+
+    /**
+     * `/proc/net/tcp` and `tcp6` rows: `sl local rem st queues timers retrnsmt uid ...`. Addresses are
+     * hex in the kernel's byte order (each 32-bit word little-endian); IPv4-mapped IPv6 comes out as IPv4.
+     */
+    fun tcpSockets(procNet: String): List<TcpSocket> = procNet.lineSequence().mapNotNull { line ->
+        val f = line.trim().split(Regex("\\s+"))
+        if (f.size < 8 || !f[0].endsWith(':')) return@mapNotNull null
+        val remote = f[2].split(':').takeIf { it.size == 2 } ?: return@mapNotNull null
+        val ip = hexIp(remote[0]) ?: return@mapNotNull null
+        val port = remote[1].toIntOrNull(16) ?: return@mapNotNull null
+        val state = f[3].toIntOrNull(16) ?: return@mapNotNull null
+        val uid = f[7].toIntOrNull() ?: return@mapNotNull null
+        TcpSocket(uid, ip, port, state)
+    }.toList()
+
+    private fun hexIp(hex: String): String? {
+        if (hex.length != 8 && hex.length != 32) return null
+        val bytes = hex.chunked(8).flatMap { word ->
+            word.chunked(2).map { it.toIntOrNull(16) ?: return null }.reversed()
+        }
+        val v4 = when {
+            bytes.size == 4 -> bytes
+            bytes.take(10).all { it == 0 } && bytes[10] == 0xff && bytes[11] == 0xff -> bytes.drop(12)
+            else -> null
+        }
+        if (v4 != null) return v4.joinToString(".")
+        return java.net.InetAddress.getByAddress(ByteArray(16) { bytes[it].toByte() }).hostAddress?.substringBefore('%')
+    }
+
+    data class Traffic(val rxBytes: Long, val txBytes: Long)
+
+    /**
+     * Bytes per uid from the `UID stats:` section of `dumpsys netstats --uid`: `ident=... uid=N ...`
+     * lines, each followed by `st=... rb=... tb=...` buckets that add up.
+     */
+    fun netstatsTraffic(dump: String): Map<Int, Traffic> {
+        val out = mutableMapOf<Int, Traffic>()
+        var inUid = false
+        var uid: Int? = null
+        for (line in dump.lineSequence()) {
+            if (line.isNotEmpty() && !line[0].isWhitespace()) {
+                inUid = line.trim() == "UID stats:"
+                uid = null
+                continue
+            }
+            if (!inUid) continue
+            val ident = Regex("\\buid=(-?\\d+)").find(line)
+            if (ident != null) {
+                uid = ident.groupValues[1].toInt()
+                continue
+            }
+            val u = uid ?: continue
+            val rb = Regex("\\brb=(\\d+)").find(line)?.groupValues?.get(1)?.toLong() ?: continue
+            val tb = Regex("\\btb=(\\d+)").find(line)?.groupValues?.get(1)?.toLong() ?: 0
+            val t = out[u] ?: Traffic(0, 0)
+            out[u] = Traffic(t.rxBytes + rb, t.txBytes + tb)
+        }
+        return out
+    }
+
+    /** `/proc/net/xt_qtaguid/stats`, untagged rows only (tagged ones are already in them). */
+    fun qtaguidTraffic(stats: String): Map<Int, Traffic> {
+        val out = mutableMapOf<Int, Traffic>()
+        stats.lineSequence().drop(1).forEach { line ->
+            val f = line.trim().split(Regex("\\s+"))
+            if (f.size < 8 || f[2] != "0x0") return@forEach
+            val uid = f[3].toIntOrNull() ?: return@forEach
+            val rx = f[5].toLongOrNull() ?: return@forEach
+            val tx = f[7].toLongOrNull() ?: return@forEach
+            val t = out[uid] ?: Traffic(0, 0)
+            out[uid] = Traffic(t.rxBytes + rx, t.txBytes + tx)
+        }
+        return out
+    }
+
     internal fun sizeKb(s: String): Long? {
         val n = s.dropLast(1).toDoubleOrNull()
         return when (s.lastOrNull()?.uppercaseChar()) {

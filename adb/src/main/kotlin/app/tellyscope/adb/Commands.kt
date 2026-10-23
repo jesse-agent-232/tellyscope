@@ -19,9 +19,21 @@ internal object Commands {
         "df -k /data",
         "cat /proc/uptime",
         THERMAL,
+        PACKAGES,
     ).batch()
 
-    const val PROCESSES = "top -b -n 1 -o PID,USER,RES,%CPU,NAME"
+    /** Every 10 s and on open: processes and whether the screen is on. */
+    val MEDIUM = listOf(
+        "top -b -n 1 -o PID,USER,RES,%CPU,NAME",
+        "dumpsys power | grep -E 'mWakefulness=|mScreenOn='",
+    ).batch()
+
+    /** Open TCP connections, IPv4 and IPv6. */
+    const val SOCKETS = "cat /proc/net/tcp /proc/net/tcp6"
+
+    /** Bytes per app since boot; xt_qtaguid answers on kernels from before Android 10's eBPF accounting. */
+    val TRAFFIC = listOf("dumpsys netstats --uid", "cat /proc/net/xt_qtaguid/stats").batch()
+
     const val PACKAGES = "pm list packages -U"
     const val HOME_ACTIVITY = "cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME"
     const val HOME_ACTIVITIES = "cmd package query-activities --brief -a android.intent.action.MAIN -c android.intent.category.HOME"
