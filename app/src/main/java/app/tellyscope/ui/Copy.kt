@@ -290,9 +290,10 @@ object Copy {
     const val TWEAKS = "TV tweaks"
     const val DNS_TITLE = "Block ads with Private DNS"
     fun dnsState(host: String?) = host?.let { "On: $it" } ?: "Off. Turn on to block ads and trackers in every app on the TV."
+    const val DNS_TOO_OLD = "Needs Android 9 or newer. This TV is older."
     const val DNS_DIALOG = "Block ads on the whole TV?"
     const val DNS_TEXT = "The TV will look up every address through this ad-blocking DNS provider. AdGuard is free and needs no account. " +
-        "If the TV loses its internet afterwards, tap Undo in History to put it back."
+        "Tellyscope then checks the TV can still look addresses up, and puts it back if not. Undo is in History."
     const val DNS_FIELD = "DNS provider"
     const val DNS_BAD = "Enter a hostname like dns.adguard-dns.com. An IP address won't work here."
     const val DNS_CONFIRM = "Turn on"

@@ -311,7 +311,7 @@ class FakeDeviceSource(
 
     override suspend fun tweaks(deviceId: String): TvTweaks {
         val s = settingsFor(deviceId)
-        return TvSettings.tweaks(s, s)
+        return TvSettings.tweaks(s, s, sdk = 30)
     }
 
     override suspend fun change(deviceId: String, tweak: Tweak, values: Map<String, String?>, undoing: Long?): HistoryEntry {

@@ -402,14 +402,24 @@ class AdbDeviceSource(context: Context) : DeviceSource {
 
     override suspend fun tweaks(deviceId: String): TvTweaks {
         val t = Tweaks(session(deviceId))
-        return TvSettings.tweaks(t.read(Tweak.PRIVATE_DNS), t.read(Tweak.ANIMATIONS))
+        return TvSettings.tweaks(t.read(Tweak.PRIVATE_DNS), t.read(Tweak.ANIMATIONS), sdk(deviceId))
     }
+
+    private suspend fun sdk(deviceId: String) = session(deviceId).shell("getprop ro.build.version.sdk").output.trim().toIntOrNull()
 
     override suspend fun change(deviceId: String, tweak: Tweak, values: Map<String, String?>, undoing: Long?): HistoryEntry {
         val t = Tweaks(session(deviceId))
+        val strictDns = tweak == Tweak.PRIVATE_DNS && values["private_dns_mode"] == "hostname"
+        if (strictDns && (sdk(deviceId) ?: TvSettings.DNS_SDK) < TvSettings.DNS_SDK) throw IllegalStateException(TvSettings.DNS_TOO_OLD)
         // Only the keys being written: Undo must not touch the ones this change left alone.
         val before = t.read(tweak).filterKeys { it in values }
         if (!t.write(tweak, values)) throw IllegalStateException("the TV didn't accept the change")
+        // Strict Private DNS fails closed: a provider the network can't reach takes the TV
+        // offline. Put it back on the spot; ADB stays up, it's the LAN by address.
+        if (strictDns && !t.resolves()) {
+            t.write(tweak, before)
+            throw IllegalStateException(TvSettings.dnsUnreachable(values["private_dns_specifier"]))
+        }
         return book.record(
             deviceId = key(deviceId),
             at = System.currentTimeMillis(),

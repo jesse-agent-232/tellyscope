@@ -41,7 +41,13 @@ fun TweaksBlock(ui: DeviceUi, actions: DeviceActions) {
     var askDns by rememberSaveable { mutableStateOf(false) }
     val dnsOn = tweaks?.dnsHost != null
     if (ui.busy in TWEAK_BUSY) LinearProgressIndicator(Modifier.fillMaxWidth())
-    SwitchRow(Copy.DNS_TITLE, Copy.dnsState(tweaks?.dnsHost), dnsOn, enabled = tweaks != null && ui.busy == null) { on ->
+    val dnsOk = tweaks?.dnsSupported != false
+    SwitchRow(
+        Copy.DNS_TITLE,
+        if (dnsOk) Copy.dnsState(tweaks?.dnsHost) else Copy.DNS_TOO_OLD,
+        dnsOn,
+        enabled = tweaks != null && dnsOk && ui.busy == null,
+    ) { on ->
         if (on) askDns = true else actions.setDns(null)
     }
     val fast = tweaks?.animationScale == TvSettings.FAST

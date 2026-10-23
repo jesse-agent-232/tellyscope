@@ -11,17 +11,21 @@ object TvSettings {
     const val FAST = "0.5"
     /** History's name for a cache clear: "Cleared app caches". */
     const val CACHES = "app caches"
+    /** Android 9, the first with Private DNS. */
+    const val DNS_SDK = 28
 
     /** Off goes back to Automatic, Android's default, rather than turning encrypted DNS off. */
     fun dns(host: String?): Map<String, String?> =
         if (host == null) mapOf("private_dns_mode" to "opportunistic")
-        else mapOf("private_dns_mode" to "hostname", "private_dns_specifier" to host)
+        else mapOf("private_dns_specifier" to host, "private_dns_mode" to "hostname")
 
     fun animations(fast: Boolean): Map<String, String?> = Tweak.ANIMATIONS.keys.associateWith { if (fast) FAST else "1.0" }
 
-    fun tweaks(dns: Map<String, String?>, animations: Map<String, String?>) = TvTweaks(
+    fun tweaks(dns: Map<String, String?>, animations: Map<String, String?>, sdk: Int?) = TvTweaks(
         dnsHost = dns["private_dns_specifier"]?.takeIf { dns["private_dns_mode"] == "hostname" },
         animationScale = animations["window_animation_scale"],
+        // A TV that doesn't say is let through: the lookup check after the change still guards it.
+        dnsSupported = sdk == null || sdk >= DNS_SDK,
     )
 
     /** History's line for a change that left the TV at [values]. */
@@ -37,4 +41,9 @@ object TvSettings {
             else -> "Animations at ${v.toString().removeSuffix(".0")}×"
         }
     }
+
+    const val DNS_TOO_OLD = "Private DNS needs Android 9 or newer, and this TV is older"
+
+    fun dnsUnreachable(host: String?) =
+        "the TV couldn't look anything up through $host, so Private DNS was put back. The network may block encrypted DNS (port 853)"
 }

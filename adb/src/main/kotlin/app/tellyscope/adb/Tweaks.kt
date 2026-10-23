@@ -2,17 +2,22 @@
 package app.tellyscope.adb
 
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import okio.Sink
 import java.io.IOException
 
 /**
  * A group of global settings read and written together, so a change can be put back exactly: a
- * key that wasn't set before is deleted again, never set to a guess at the default.
+ * key that wasn't set before is deleted again, never set to a guess at the default. Keys are
+ * written in [keys] order.
  */
 enum class Tweak(val keys: List<String>) {
-    /** Android 9+. Mode `hostname` sends every lookup to `private_dns_specifier` over TLS. */
-    PRIVATE_DNS(listOf("private_dns_mode", "private_dns_specifier")),
+    /**
+     * Android 9+. Mode `hostname` sends every lookup to `private_dns_specifier` over TLS. The
+     * provider goes first, so a failed write never leaves strict mode aimed at the old one.
+     */
+    PRIVATE_DNS(listOf("private_dns_specifier", "private_dns_mode")),
     ANIMATIONS(listOf("window_animation_scale", "transition_animation_scale", "animator_duration_scale")),
 }
 
@@ -21,6 +26,7 @@ class Tweaks(private val session: AdbSession) {
 
     /** Every key of [tweak]; null for a key that isn't set. */
     suspend fun read(tweak: Tweak): Map<String, String?> {
+        // `settings get` prints exactly one line per key, "null" when unset.
         val out = session.shell(tweak.keys.joinToString("; ") { "settings get global $it" }).output.lines()
         return tweak.keys.withIndex().associate { (i, k) ->
             k to out.getOrNull(i)?.trim()?.takeUnless { it.isEmpty() || it == "null" }
@@ -30,11 +36,26 @@ class Tweaks(private val session: AdbSession) {
     /** Writes [values] (keys of [tweak] only); null deletes the key. False when the TV refused. */
     suspend fun write(tweak: Tweak, values: Map<String, String?>): Boolean {
         require(values.isNotEmpty() && tweak.keys.containsAll(values.keys)) { "not keys of $tweak: ${values.keys}" }
-        val cmd = values.entries.joinToString(" && ") { (k, v) ->
+        val cmd = tweak.keys.filter { it in values }.joinToString(" && ") { k ->
+            val v = values[k]
             if (v == null) "settings delete global $k" else "settings put global $k ${shellQuote(v)}"
         }
         val r = session.shell("$cmd 2>&1")
         return r.exitCode == 0 && "Exception" !in r.output
+    }
+
+    /**
+     * Whether the TV can look names up, tried a few times while a new Private DNS provider is
+     * checked. Strict Private DNS fails closed, so a provider the network blocks takes the whole
+     * TV offline. Only "unknown host" counts as failing: a resolved name whose ping gets no
+     * answer still resolved, and a TV without ping can't tell, so it passes.
+     */
+    suspend fun resolves(host: String = "connectivitycheck.gstatic.com", tries: Int = 3, wait: Long = 2_000): Boolean {
+        repeat(tries) { i ->
+            if ("unknown host" !in session.shell("ping -c1 -W3 $host 2>&1").output.lowercase()) return true
+            if (i < tries - 1) delay(wait)
+        }
+        return false
     }
 
     /**

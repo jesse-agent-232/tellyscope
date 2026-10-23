@@ -142,4 +142,6 @@ data class TvTweaks(
     val dnsHost: String?,
     /** Window animation scale, e.g. "1.0"; null when unset (Android's 1×). */
     val animationScale: String?,
+    /** Private DNS came in Android 9: older TVs accept the setting and ignore it. */
+    val dnsSupported: Boolean = true,
 )
