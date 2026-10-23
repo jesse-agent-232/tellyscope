@@ -165,4 +165,25 @@ class ParsersTest {
         """.trimIndent()
         assertEquals(mapOf(10087 to Parsers.Traffic(1500, 300), 0 to Parsers.Traffic(40, 60)), Parsers.qtaguidTraffic(stats))
     }
+    @Test fun netBytesSumsEveryInterfaceButLoopback() {
+        val dev = """
+            Inter-|   Receive                                                |  Transmit
+             face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
+                lo:   5000      50    0    0    0     0          0         0     5000      50    0    0    0     0       0          0
+             wlan0:1200000    900    0    0    0     0          0         0   300000     400    0    0    0     0       0          0
+              eth0:     10       1    0    0    0     0          0         0       20       1    0    0    0     0       0          0
+        """.trimIndent()
+        assertEquals(1_500_030L, Parsers.netBytes(dev))
+        assertEquals(null, Parsers.netBytes("cat: /proc/net/dev: Permission denied\n"))
+    }
+
+    @Test fun softwareMonthPrefersTheSecurityPatch() {
+        assertEquals(
+            java.time.YearMonth.of(2023, 5),
+            Parsers.softwareMonth(mapOf("ro.build.version.security_patch" to "2023-05-05", "ro.build.date.utc" to "1600000000")),
+        )
+        // 1600000000 is 13 September 2020, UTC.
+        assertEquals(java.time.YearMonth.of(2020, 9), Parsers.softwareMonth(mapOf("ro.build.date.utc" to "1600000000")))
+        assertEquals(null, Parsers.softwareMonth(mapOf("ro.build.version.security_patch" to "", "ro.build.date.utc" to "0")))
+    }
 }

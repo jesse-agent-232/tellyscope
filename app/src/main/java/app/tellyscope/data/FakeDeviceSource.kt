@@ -10,6 +10,7 @@ import app.tellyscope.adb.RemoteKey
 import app.tellyscope.adb.TvFile
 import app.tellyscope.adb.TvFolder
 import java.io.File
+import java.time.YearMonth
 import kotlin.random.Random
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -157,6 +158,8 @@ class FakeDeviceSource(
             uptimeSeconds = 3 * 86_400L + 4 * 3_600L,
             screenOn = true,
             procs = procs,
+            netBytesPerSec = 2_400_000L + random.nextLong(-200_000, 200_000),
+            softwareMonth = YearMonth.of(2023, 5),
         )
     }
 

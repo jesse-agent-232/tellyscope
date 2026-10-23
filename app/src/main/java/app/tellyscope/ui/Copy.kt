@@ -9,6 +9,8 @@ import app.tellyscope.data.Action
 import app.tellyscope.data.AppNames
 import app.tellyscope.data.DeviceState
 import app.tellyscope.data.Snapshot
+import java.time.YearMonth
+import java.time.format.DateTimeFormatter
 
 /**
  * Every user-facing sentence about actions and time lives here so wording is
@@ -73,6 +75,26 @@ object Copy {
             else -> "${m}m"
         }
     }
+
+    /** Uptime for people: the largest unit or two, spelled out. */
+    fun upFor(s: Long): String {
+        fun n(v: Long, unit: String) = "$v $unit${if (v == 1L) "" else "s"}"
+        val d = s / 86_400
+        val h = (s % 86_400) / 3600
+        val m = (s % 3600) / 60
+        return when {
+            d > 0 && h > 0 -> "${n(d, "day")}, ${n(h, "hour")}"
+            d > 0 -> n(d, "day")
+            h > 0 -> n(h, "hour")
+            else -> n(m, "minute")
+        }
+    }
+
+    /** "May 2023", in the phone's language. */
+    fun month(m: YearMonth): String = m.format(DateTimeFormatter.ofPattern("MMMM yyyy"))
+
+    /** Network speed in the same units as [bytes], so a download's size and speed line up. */
+    fun speed(bytesPerSec: Long) = bytes(bytesPerSec) + "/s"
 
     fun mb(v: Int) = if (v >= 1024) "%.1f GB".format(v / 1024.0) else "$v MB"
 

@@ -179,7 +179,9 @@ class ScreenshotTest {
         compose.onNodeWithText("Details").assertDoesNotExist()
         compose.onNodeWithText("Advanced").assertExists()
         compose.onNodeWithText("Running · ", substring = true).assertDoesNotExist()
-        compose.onNodeWithText("Debloat").assertExists()
+        // The three main actions sit under the system widget, Debloat among them.
+        for (t in listOf("Install app", "Debloat", "Send file")) compose.onNodeWithText(t).assertIsEnabled()
+        for (t in listOf("Up for", "Last software update", "Internal storage", "Network")) compose.onNodeWithText(t).assertExists()
     }
 
     @Test fun device_overview_dark() = shot("04_device", dark = true) { DeviceScreen(deviceState(), DeviceActions()) }
@@ -205,6 +207,10 @@ class ScreenshotTest {
         shot("06_device_offline") {
             DeviceScreen(base.copy(selectedId = off.id, device = DeviceUi(snapshot = last), showOffline = true), DeviceActions())
         }
+        // Old numbers don't speak for a TV that's away; what it is still does.
+        compose.onNodeWithText("Up for").assertDoesNotExist()
+        compose.onNodeWithText("Internal storage").assertDoesNotExist()
+        compose.onNodeWithText("Last software update").assertExists()
     }
 
     @Test fun device_storageFull() {

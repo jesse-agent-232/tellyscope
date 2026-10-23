@@ -19,12 +19,10 @@ import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.LoadingIndicator
@@ -32,6 +30,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -41,6 +40,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
@@ -55,24 +58,20 @@ import app.tellyscope.ui.theme.SmallNumber
  */
 private val Sticky = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
 
-/** The two ways onto the TV, under the stats. */
+/**
+ * The three things people come to a TV's page for, as big tiles under the system widget.
+ * Debloat is the filled one: it's what most people open the app to do.
+ */
 @Composable
-fun SendRow(actions: DeviceActions) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        FilledTonalButton(onClick = actions.pickApp, Modifier.weight(1f)) {
-            Icon(Icons.Default.Add, null, Modifier.size(ButtonDefaults.IconSize))
-            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-            Text("Install an app")
-        }
+fun ActionTiles(actions: DeviceActions, canDebloat: Boolean, disabling: Boolean) {
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Tile(Icons.Default.Add, "Install app", actions.pickApp, Modifier.weight(1f))
+        Tile(Broom, if (disabling) "Disabling…" else "Debloat", actions.debloat, Modifier.weight(1f), enabled = canDebloat && !disabling, primary = true)
         // Where the file lands is the user's choice, every time, not whatever folder was last shown.
         var choosing by remember { mutableStateOf(false) }
         Box(Modifier.weight(1f)) {
-            FilledTonalButton(onClick = { choosing = true }, Modifier.fillMaxWidth()) {
-                @Suppress("DEPRECATION") // the AutoMirrored set isn't in icons-core
-                Icon(Icons.Default.Send, null, Modifier.size(ButtonDefaults.IconSize))
-                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                Text("Send a file")
-            }
+            @Suppress("DEPRECATION") // the AutoMirrored set isn't in icons-core
+            Tile(Icons.Default.Send, "Send file", { choosing = true }, Modifier.fillMaxWidth())
             DropdownMenu(choosing, onDismissRequest = { choosing = false }) {
                 TvFolder.entries.forEach { f ->
                     DropdownMenuItem(
@@ -84,6 +83,56 @@ fun SendRow(actions: DeviceActions) {
         }
     }
 }
+
+@Composable
+private fun Tile(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    primary: Boolean = false,
+) {
+    val c = MaterialTheme.colorScheme
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        shape = MaterialTheme.shapes.large,
+        // Material's disabled colours, so a greyed-out Debloat doesn't still read as the main button.
+        color = when {
+            !enabled -> c.onSurface.copy(alpha = 0.12f)
+            primary -> c.primary
+            else -> c.secondaryContainer
+        },
+        contentColor = when {
+            !enabled -> c.onSurface.copy(alpha = 0.38f)
+            primary -> c.onPrimary
+            else -> c.onSecondaryContainer
+        },
+    ) {
+        Column(
+            Modifier.padding(vertical = 20.dp, horizontal = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Icon(icon, contentDescription = null, Modifier.size(28.dp))
+            Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 1)
+        }
+    }
+}
+
+/** Material Icons "cleaning_services" (Apache-2.0, see NOTICE); icons-core has no broom. */
+private val Broom = ImageVector.Builder("Broom", 24.dp, 24.dp, 24f, 24f)
+    .addPath(
+        PathParser().parsePathString(
+            "M16 11h-1V3c0-1.1-.9-2-2-2h-2c-1.1 0-2 .9-2 2v8H8c-2.76 0-5 2.24-5 5v7h18v-7c0-2.76-2.24-5-5-5z" +
+                "m3 10h-2v-3c0-.55-.45-1-1-1s-1 .45-1 1v3h-2v-3c0-.55-.45-1-1-1s-1 .45-1 1v3H9v-3c0-.55-.45-1-1-1s-1 .45-1 1v3H5v-5" +
+                "c0-1.65 1.35-3 3-3h8c1.65 0 3 1.35 3 3v5z",
+        ).toNodes(),
+        fill = SolidColor(Color.Black),
+    )
+    .build()
 
 /** Body of the Files section: the folder switch, then the folder's files, each one tap from the phone. */
 @Composable

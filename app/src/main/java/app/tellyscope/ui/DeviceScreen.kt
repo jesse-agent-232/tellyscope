@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -48,6 +49,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -163,7 +165,7 @@ fun DeviceScreen(
                 )
             } else {
                 TopAppBar(
-                    title = { DevicePicker(state, actions) },
+                    title = { Text("Your TV", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     actions = {
                         if (REMOTE_ENABLED) TextButton(onClick = actions.remote, enabled = !offline) { Text("Remote") }
                         TextButton(onClick = actions.advanced) { Text("Advanced") }
@@ -180,23 +182,10 @@ fun DeviceScreen(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            item {
-                // What the TV is on the left, where to find it on the right; the rest is on Advanced.
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        listOfNotNull(device.model, device.android?.let { "Android $it" }).joinToString(" · "),
-                        Modifier.weight(1f),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        listOfNotNull(device.hit.ip, device.manufacturer ?: device.hit.maker).joinToString(" · "),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.End,
-                    )
-                }
-            }
+            val snap = ui.snapshot
+            // A reading from before the TV went away is stale: it doesn't speak for the TV now.
+            val live = snap?.takeIf { !offline }
+            item { TvCard(state, live, actions) }
             val restart = state.restarting[device.id]
             if (restart != null) {
                 item { RestartingCard(restart, state.now) }
@@ -205,15 +194,9 @@ fun DeviceScreen(
             } else if (offline) {
                 item { OfflineCard(device, state.now, actions.reconnect) }
             }
-            val snap = ui.snapshot
-            if (snap != null) {
-                // Plain words only: the health line already reads memory, CPU and heat; free space
-                // decides whether an install fits. Every number is on Advanced.
-                if (!offline) item {
-                    HealthLine(Copy.health(snap, heaviest(snap, ui.apps)))
-                    Copy.free(snap)?.let { FreeLine(it) }
-                }
-            } else if (offline) {
+            if (live != null) {
+                item { SystemWidget(live) }
+            } else if (offline && snap == null) {
                 item {
                     Text(
                         Copy.noStats(device.state),
@@ -222,11 +205,17 @@ fun DeviceScreen(
                     )
                 }
             }
-            if (!offline && q.isEmpty()) item { SendRow(actions) }
             if (!offline && q.isEmpty()) {
+                item {
+                    ActionTiles(
+                        actions,
+                        canDebloat = ui.lists is Suggestions.Pick || ui.lists is Suggestions.Ready,
+                        disabling = ui.busy == DISABLING,
+                    )
+                }
                 val count = (ui.lists as? Suggestions.Ready)?.groups?.sumOf { it.packages.size } ?: 0
                 section("lists", "Suggested for this TV", count, expandedByDefault = true) {
-                    SuggestionsSummary(ui.lists, ui.busy == DISABLING, actions.debloat)
+                    SuggestionsSummary(ui.lists)
                 }
             }
             // An offline TV can't list anything: sections with nothing in them stay out of the way.
@@ -257,6 +246,101 @@ fun DeviceScreen(
     }
 }
 
+/**
+ * The TV at a glance, with room to breathe: which TV (tap to switch), how it's doing, and the
+ * few facts people look up. Everything else is on Advanced.
+ */
+@Composable
+private fun TvCard(state: UiState, live: Snapshot?, actions: DeviceActions) {
+    val device = state.selected ?: return
+    val facts = listOfNotNull(
+        "IP address" to device.hit.ip,
+        live?.uptimeSeconds?.takeIf { it > 0 }?.let { "Up for" to Copy.upFor(it) },
+        device.android?.let { "Android" to it },
+        // Not live: the software doesn't change while the TV is away.
+        state.device.snapshot?.softwareMonth?.let { "Last software update" to Copy.month(it) },
+    )
+    Card(
+        Modifier.fillMaxWidth().padding(top = 4.dp),
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            DevicePicker(state, actions)
+            if (live != null) {
+                HealthLine(Copy.health(live, heaviest(live, state.device.apps)))
+            } else {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    StateDot(device.state)
+                    Spacer(Modifier.width(8.dp))
+                    Text(Copy.state(device.state), style = MaterialTheme.typography.titleMedium)
+                }
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                facts.chunked(2).forEach { pair ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        pair.forEach { (k, v) -> Fact(k, v, Modifier.weight(1f)) }
+                        if (pair.size == 1) Spacer(Modifier.weight(1f))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun Fact(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(modifier) {
+        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/**
+ * The TV's vitals in one small card: internal storage as a full bar, since it decides whether an
+ * install fits, then CPU, RAM, temperature and network speed as plain numbers.
+ */
+@Composable
+private fun SystemWidget(s: Snapshot) {
+    val dash = "\u2014"
+    Card(
+        Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            val used = s.storageUsedGb
+            val total = s.storageTotalGb?.takeIf { it > 0 }
+            if (used != null && total != null) {
+                Row {
+                    Text("Internal storage", Modifier.weight(1f), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("${Copy.gbOf(used, total)} used", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Copy.free(s)?.let { Text(it, style = MaterialTheme.typography.titleLarge) }
+                val full = used / total
+                LinearProgressIndicator(
+                    progress = { full.toFloat().coerceIn(0f, 1f) },
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 16.dp).height(8.dp),
+                    color = if (full >= Copy.FULL) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                )
+            }
+            Row {
+                Vital("CPU", "${s.cpuPercent}%", Modifier.weight(1f))
+                Vital("RAM", if (s.ramTotalMb > 0) "${s.ramUsedMb * 100 / s.ramTotalMb}%" else dash, Modifier.weight(1f))
+                Vital("Temp", s.tempC?.let { "$it\u00b0C" } ?: dash, Modifier.weight(1f))
+                Vital("Network", s.netBytesPerSec?.let(Copy::speed) ?: dash, Modifier.weight(1.3f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun Vital(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(modifier) {
+        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"), maxLines = 1)
+    }
+}
+
 @Composable
 private fun DevicePicker(state: UiState, actions: DeviceActions) {
     var open by remember { mutableStateOf(false) }
@@ -277,16 +361,15 @@ private fun DevicePicker(state: UiState, actions: DeviceActions) {
     val offlineCount = state.devices.count { it.state != DeviceState.Online }
     Box {
         Row(
-            Modifier.clip(MaterialTheme.shapes.large).clickable { open = true }.padding(horizontal = 8.dp, vertical = 4.dp),
+            Modifier.clip(MaterialTheme.shapes.large).clickable { open = true }.padding(vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             KindBadge(device)
             Column(Modifier.weight(1f, fill = false)) {
-                Text(name(device), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    StateDot(device.state)
-                    Spacer(Modifier.width(6.dp))
-                    Text(Copy.state(device.state), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(name(device), style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                val made = made(device.manufacturer ?: device.hit.maker, device.model)
+                if (made.isNotEmpty()) {
+                    Text(made, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
             Icon(Icons.Default.ArrowDropDown, contentDescription = "Switch TV")
@@ -363,6 +446,12 @@ fun RestoreDialog(count: Int, onRestore: () -> Unit, onDismiss: () -> Unit) {
     )
 }
 
+/** "XGIMI · Horizon Pro": many models already start with the maker's name, so it isn't said twice. */
+private fun made(maker: String?, model: String?): String {
+    val m = if (maker != null && model != null && model.startsWith(maker, ignoreCase = true)) model.drop(maker.length).trim() else model
+    return listOfNotNull(maker, m?.takeIf { it.isNotEmpty() }).joinToString(" · ")
+}
+
 private fun name(d: Device) = d.nickname ?: networkName(d)
 
 private fun networkName(d: Device) = d.hit.hostname ?: d.model ?: d.hit.ip
@@ -395,11 +484,11 @@ fun RenameDialog(current: String, networkName: String, onSave: (String) -> Unit,
 private fun KindBadge(d: Device) {
     val kind = deviceKind(d)
     Box(
-        Modifier.padding(end = 10.dp).size(40.dp).clip(MaterialTheme.shapes.medium)
+        Modifier.padding(end = 14.dp).size(56.dp).clip(MaterialTheme.shapes.large)
             .background(MaterialTheme.colorScheme.secondaryContainer),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(DeviceIcons.of(kind), contentDescription = kind.word(), tint = MaterialTheme.colorScheme.onSecondaryContainer)
+        Icon(DeviceIcons.of(kind), contentDescription = kind.word(), Modifier.size(30.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
     }
 }
 
@@ -503,11 +592,6 @@ private fun HealthLine(h: Copy.Health) {
         Spacer(Modifier.width(8.dp))
         Text(h.text, style = MaterialTheme.typography.titleMedium)
     }
-}
-
-@Composable
-private fun FreeLine(text: String) {
-    Text(text, Modifier.padding(start = 32.dp), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 /** A collapsible card section. */

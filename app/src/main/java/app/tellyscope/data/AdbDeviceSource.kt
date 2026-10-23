@@ -241,6 +241,8 @@ class AdbDeviceSource(context: Context) : DeviceSource {
                     uptimeSeconds = s.uptimeSeconds ?: 0,
                     screenOn = s.screenOn,
                     procs = s.processes.map { Proc(it.pid, it.name, it.packageName, it.cpuPercent, (it.rssKb / 1024).toInt()) },
+                    netBytesPerSec = s.netBytesPerSec,
+                    softwareMonth = s.softwareMonth,
                 )
             }
     }

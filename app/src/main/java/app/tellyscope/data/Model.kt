@@ -2,6 +2,8 @@
 
 package app.tellyscope.data
 
+import java.time.YearMonth
+
 /** How a TV was found: legacy network ADB on 5555, or Android 11+ wireless debugging (TLS + pairing code). */
 enum class ScanKind { Classic, Wireless }
 
@@ -77,6 +79,10 @@ data class Snapshot(
     val uptimeSeconds: Long,
     val screenOn: Boolean?,
     val procs: List<Proc>,
+    /** Whole-TV network traffic, in and out. */
+    val netBytesPerSec: Long? = null,
+    /** When the TV's software was last updated. */
+    val softwareMonth: YearMonth? = null,
 )
 
 data class AppInfo(

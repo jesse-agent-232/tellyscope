@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package app.tellyscope.adb
 
+import java.time.Instant
+import java.time.YearMonth
+import java.time.ZoneOffset
+
 /** Parsers for raw shell output. Pure functions; every one returns null rather than guessing. */
 object Parsers {
 
@@ -236,4 +240,26 @@ object Parsers {
         val m = Regex("""\[(.+?)]: \[(.*)]""").matchEntire(line.trim()) ?: return@mapNotNull null
         m.groupValues[1] to m.groupValues[2]
     }.toMap()
+
+    /**
+     * Bytes in plus out since boot over every interface but loopback, from `/proc/net/dev`; null
+     * when nothing readable. Loopback is the TV talking to itself, not network traffic.
+     */
+    fun netBytes(procNetDev: String): Long? {
+        val totals = procNetDev.lineSequence().mapNotNull { line ->
+            val iface = line.substringBefore(':', "").trim().takeIf { it.isNotEmpty() && it != "lo" } ?: return@mapNotNull null
+            val f = line.substringAfter(':').trim().split(Regex("\\s+")).mapNotNull(String::toLongOrNull)
+            if (f.size < 9) null else f[0] + f[8] // rx bytes, tx bytes
+        }.toList()
+        return totals.takeIf { it.isNotEmpty() }?.sum()
+    }
+
+    /**
+     * When the TV's software was last updated: the security patch month, which an update moves,
+     * else the month the build was made. Null when the TV reports neither.
+     */
+    fun softwareMonth(props: Map<String, String>): YearMonth? =
+        props["ro.build.version.security_patch"]?.let { runCatching { YearMonth.parse(it.take(7)) }.getOrNull() }
+            ?: props["ro.build.date.utc"]?.toLongOrNull()?.takeIf { it > 0 }
+                ?.let { YearMonth.from(Instant.ofEpochSecond(it).atZone(ZoneOffset.UTC)) }
 }

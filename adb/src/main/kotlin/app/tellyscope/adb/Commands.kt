@@ -10,8 +10,8 @@ internal object Commands {
     const val THERMAL =
         "for z in /sys/class/thermal/thermal_zone*; do echo \"$(cat \$z/type 2>/dev/null)=$(cat \$z/temp 2>/dev/null)\"; done"
 
-    /** Every 2 s: CPU counters and memory. */
-    val FAST = listOf("cat /proc/stat", "cat /proc/meminfo").batch()
+    /** Every 2 s: CPU counters, memory and the byte counters for network speed. */
+    val FAST = listOf("cat /proc/stat", "cat /proc/meminfo", "cat /proc/net/dev").batch()
 
     /** Every 60 s and on open: identity, storage, uptime, temperature. */
     val SLOW = listOf(

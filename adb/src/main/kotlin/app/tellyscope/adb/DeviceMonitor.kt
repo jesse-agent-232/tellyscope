@@ -6,6 +6,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.IOException
+import java.time.YearMonth
+import kotlin.time.ComparableTimeMark
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
@@ -25,6 +27,9 @@ data class Stats(
     val packages: Map<Int, List<String>> = emptyMap(),
     val processes: List<AppProcess> = emptyList(),
     val screenOn: Boolean? = null,
+    /** Bytes in and out per second over the whole TV, between the last two fast readings. */
+    val netBytesPerSec: Long? = null,
+    val softwareMonth: YearMonth? = null,
 )
 
 /** One process and the package it belongs to; null for native daemons. */
@@ -36,7 +41,7 @@ fun interface MonitorSource {
 }
 
 /**
- * Live stats on three tiers: CPU/RAM every [fast], processes and screen state every [medium],
+ * Live stats on three tiers: CPU/RAM/network speed every [fast], processes and screen state every [medium],
  * identity/storage/uptime/temperature/packages every [slow].
  * The first emission comes after one fast interval, since CPU % needs two samples.
  * Shell failures and reads slower than [readTimeout] throw [IOException], so the caller can mark
@@ -48,13 +53,15 @@ class DeviceMonitor(
     private val medium: Duration = 10.seconds,
     private val slow: Duration = 60.seconds,
     private val readTimeout: Duration = 10.seconds,
+    /** Times network speed; tests pass the test scheduler's clock. */
+    private val clock: TimeSource.WithComparableMarks = TimeSource.Monotonic,
 ) : MonitorSource {
     override fun stats(): Flow<Stats> = flow {
         var slowStats = readSlow()
         var lastSlow = TimeSource.Monotonic.markNow()
         var mediumStats = readMedium(slowStats.packages)
         var lastMedium = TimeSource.Monotonic.markNow()
-        var prevCpu = readFast().first
+        var prev = readFast()
 
         while (true) {
             delay(fast)
@@ -66,10 +73,18 @@ class DeviceMonitor(
                 mediumStats = readMedium(slowStats.packages)
                 lastMedium = TimeSource.Monotonic.markNow()
             }
-            val (cpu, mem) = readFast()
-            val pct = if (prevCpu != null && cpu != null) Parsers.cpuPercent(prevCpu, cpu) else null
-            prevCpu = cpu
-            emit(slowStats.copy(cpuPercent = pct, memory = mem, processes = mediumStats.first, screenOn = mediumStats.second))
+            val now = readFast()
+            val pct = if (prev.cpu != null && now.cpu != null) Parsers.cpuPercent(prev.cpu, now.cpu) else null
+            emit(
+                slowStats.copy(
+                    cpuPercent = pct,
+                    memory = now.memory,
+                    processes = mediumStats.first,
+                    screenOn = mediumStats.second,
+                    netBytesPerSec = rate(prev, now),
+                ),
+            )
+            prev = now
         }
     }
 
@@ -77,9 +92,18 @@ class DeviceMonitor(
         withTimeoutOrNull(readTimeout) { shell.shell(command).output }
             ?: throw IOException("no answer in $readTimeout")
 
-    private suspend fun readFast(): Pair<Parsers.CpuTimes?, Parsers.Memory?> {
-        val (stat, meminfo) = Commands.split(run(Commands.FAST), 2)
-        return Parsers.cpuTimes(stat) to Parsers.memory(meminfo)
+    private class Fast(val cpu: Parsers.CpuTimes?, val memory: Parsers.Memory?, val netBytes: Long?, val at: ComparableTimeMark)
+
+    private suspend fun readFast(): Fast {
+        val (stat, meminfo, netDev) = Commands.split(run(Commands.FAST), 3)
+        return Fast(Parsers.cpuTimes(stat), Parsers.memory(meminfo), Parsers.netBytes(netDev), clock.markNow())
+    }
+
+    /** Null across a counter reset (an interface going down and up), never a negative speed. */
+    private fun rate(prev: Fast, now: Fast): Long? {
+        val bytes = (now.netBytes ?: return null) - (prev.netBytes ?: return null)
+        val ms = (now.at - prev.at).inWholeMilliseconds
+        return if (bytes < 0 || ms <= 0) null else bytes * 1000 / ms
     }
 
     private suspend fun readMedium(packages: Map<Int, List<String>>): Pair<List<AppProcess>, Boolean?> {
@@ -104,6 +128,7 @@ class DeviceMonitor(
             manufacturer = props["ro.product.manufacturer"],
             androidVersion = props["ro.build.version.release"],
             sdk = props["ro.build.version.sdk"]?.toIntOrNull(),
+            softwareMonth = Parsers.softwareMonth(props),
             packages = Parsers.byUid(Parsers.packages(pm)),
         )
     }

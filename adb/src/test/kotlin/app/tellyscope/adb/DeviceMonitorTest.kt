@@ -39,6 +39,22 @@ class DeviceMonitorTest {
         assertEquals(30, s.sdk)
     }
 
+    @Test fun networkSpeedIsBytesPerSecondBetweenFastReadings() = runTest {
+        var tick = 0L
+        val tv = AdbShell { cmd ->
+            if (cmd.startsWith("cat /proc/stat")) {
+                tick++
+                // 4000 bytes in and 1000 out per reading on wlan0; loopback moves too but isn't counted.
+                ok("cpu  0 0 0 0\n${sep}MemTotal: 2000 kB\n$sep" +
+                    "Inter-|   Receive |  Transmit\n face |bytes packets errs drop fifo frame compressed multicast|bytes packets\n" +
+                    "    lo: ${tick * 999} 1 0 0 0 0 0 0 ${tick * 999} 1 0 0 0 0 0 0\n" +
+                    " wlan0: ${tick * 4000} 1 0 0 0 0 0 0 ${tick * 1000} 1 0 0 0 0 0 0\n")
+            } else ok("")
+        }
+        val s = DeviceMonitor(tv, clock = testScheduler.timeSource).stats().first()
+        assertEquals(2500L, s.netBytesPerSec) // 5000 bytes over the default 2 s
+    }
+
     @Test fun keepsEmitting() = runTest {
         assertEquals(3, DeviceMonitor(device()).stats().take(3).toList().size)
     }

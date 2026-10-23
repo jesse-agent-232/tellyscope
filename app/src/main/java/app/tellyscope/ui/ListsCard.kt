@@ -50,17 +50,16 @@ import androidx.compose.ui.unit.dp
 import app.tellyscope.data.Suggested
 import app.tellyscope.data.Suggestions
 
-/** Body of the "Suggested for this TV" section: one line on what the list offers, and the way in. */
+/** Body of the "Suggested for this TV" section: one line on what the list offers; the Debloat tile is the way in. */
 @Composable
-fun SuggestionsSummary(lists: Suggestions?, disabling: Boolean, onDebloat: () -> Unit) {
+fun SuggestionsSummary(lists: Suggestions?) {
     when (lists) {
         null -> Muted("Looking up this TV's list…")
         Suggestions.Unavailable -> Muted(
             "Couldn't load the device lists. They download the first time you open a TV; check the phone's internet and open this TV again.",
         )
         is Suggestions.Pick -> {
-            Text("Tellyscope doesn't know this model yet. Pick your TV to see what's usually safe to turn off.", style = MaterialTheme.typography.bodyMedium)
-            DebloatButton(disabling, onDebloat)
+            Text("Tellyscope doesn't know this model yet. Tap Debloat to pick your TV and see what's usually safe to turn off.", style = MaterialTheme.typography.bodyMedium)
         }
         is Suggestions.Ready -> {
             val n = lists.groups.sumOf { it.packages.size }
@@ -69,17 +68,9 @@ fun SuggestionsSummary(lists: Suggestions?, disabling: Boolean, onDebloat: () ->
             } else {
                 Text("$n ${if (n == 1) "app" else "apps"} usually safe to turn off on this TV.", style = MaterialTheme.typography.bodyMedium)
             }
-            DebloatButton(disabling, onDebloat)
         }
     }
     if (lists is Suggestions.Pick || lists is Suggestions.Ready) Muted("Lists adapted from cleanyourtv (MIT).")
-}
-
-@Composable
-private fun DebloatButton(disabling: Boolean, onDebloat: () -> Unit) {
-    Button(onClick = onDebloat, enabled = !disabling, modifier = Modifier.padding(vertical = 4.dp)) {
-        Text(if (disabling) "Disabling…" else "Debloat")
-    }
 }
 
 @Composable
