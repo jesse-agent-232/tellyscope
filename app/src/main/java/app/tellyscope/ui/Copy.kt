@@ -245,7 +245,7 @@ object Copy {
 
     fun installRefused(reason: InstallRefusal, app: String) = when (reason) {
         InstallRefusal.SIGNATURE ->
-            "The $app on the TV comes from a different developer, so Android won't replace it. Tellyscope never uninstalls, so if you're sure, uninstall it on the TV first."
+            "The $app on the TV comes from a different developer, so Android won't replace it. If you're sure, uninstall it first: from Apps here if you installed it, or on the TV."
         InstallRefusal.DOWNGRADE -> "The TV has a newer $app and won't go back to an older one."
         InstallRefusal.NO_SPACE -> "The TV is out of space. Disable or uninstall something there, then try again."
         InstallRefusal.TV_SAID_NO ->
