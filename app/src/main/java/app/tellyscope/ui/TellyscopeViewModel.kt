@@ -117,6 +117,9 @@ data class UiState(
     val selected: Device? get() = devices.firstOrNull { it.id == selectedId }
 }
 
+/** An action that went through on [deviceId]; the snackbar offers its undo. */
+data class Done(val deviceId: String, val entry: HistoryEntry)
+
 /** A restart in progress: [down] once the TV has dropped, so its coming back can be told apart from not having left. */
 data class Restart(val since: Long, val down: Boolean = false)
 
@@ -136,9 +139,9 @@ class TellyscopeViewModel(
     private val _state = MutableStateFlow(UiState(now = clock()))
     val state: StateFlow<UiState> = _state.asStateFlow()
 
-    /** One-shot "done, undo?" messages for the snackbar. */
-    private val _done = MutableStateFlow<HistoryEntry?>(null)
-    val done: StateFlow<HistoryEntry?> = _done.asStateFlow()
+    /** One-shot "done, undo?" messages for the snackbar, with the TV they happened on. */
+    private val _done = MutableStateFlow<Done?>(null)
+    val done: StateFlow<Done?> = _done.asStateFlow()
 
     /** One-shot snackbar lines: the TV refused, went away mid-action, or a restore or copy finished. */
     private val _notice = MutableStateFlow<String?>(null)
@@ -283,7 +286,9 @@ class TellyscopeViewModel(
         mediumJob = viewModelScope.launch {
             // A TV that drops mid-read throws; the live flow ends and the offline card takes over.
             try {
-                _state.update { it.copy(device = it.device.copy(apps = source.apps(id!!))) }
+                // Read first: update {} may run its block again, and must never call the TV.
+                val apps = source.apps(id!!)
+                updateDevice(id) { it.copy(apps = apps) }
                 loadFiles()
                 while (true) {
                     val net = source.network(id!!)
@@ -348,14 +353,22 @@ class TellyscopeViewModel(
         run(pkg, action)
     }
 
-    fun undo(entry: HistoryEntry) {
+    /**
+     * Undoes [entry] on the TV it happened on. The snackbar passes [deviceId] because the user may
+     * have switched TVs since; History only lists the selected TV's entries.
+     */
+    fun undo(entry: HistoryEntry, deviceId: String? = _state.value.selectedId) {
         val undo = entry.undo ?: return
-        run(entry.packageName, undo, undoing = entry.id)
+        run(entry.packageName, undo, undoing = entry.id, id = deviceId)
     }
 
-    private fun run(pkg: String, action: Action, undoing: Long? = null) {
-        val id = _state.value.selectedId ?: return
-        _state.update { it.copy(device = it.device.copy(pending = null, busy = pkg)) }
+    /** Changes [id]'s page only while it is still the one shown; a result for another TV is dropped. */
+    private fun updateDevice(id: String, f: (DeviceUi) -> DeviceUi) =
+        _state.update { s -> if (s.selectedId == id) s.copy(device = f(s.device)) else s }
+
+    private fun run(pkg: String, action: Action, undoing: Long? = null, id: String? = _state.value.selectedId) {
+        if (id == null) return
+        updateDevice(id) { it.copy(pending = null, busy = pkg) }
         viewModelScope.launch {
             // The source throws with the user-facing reason when the TV refuses.
             val (entry, apps) = try {
@@ -364,13 +377,13 @@ class TellyscopeViewModel(
                 throw e
             } catch (e: Exception) {
                 // Anything else (a dropped socket) still must not crash the app.
-                _state.update { it.copy(device = it.device.copy(busy = null)) }
+                updateDevice(id) { it.copy(busy = null) }
                 _notice.value = e.message?.replaceFirstChar(Char::uppercase) ?: "That didn't work."
                 return@launch
             }
             val history = source.history(id)
-            _state.update { s -> s.copy(device = s.device.copy(apps = apps, busy = null, history = history)) }
-            if (undoing == null) _done.value = entry
+            updateDevice(id) { it.copy(apps = apps, busy = null, history = history) }
+            if (undoing == null) _done.value = Done(id, entry)
         }
     }
 
@@ -391,7 +404,7 @@ class TellyscopeViewModel(
             } catch (_: Exception) {
                 SideloadUi(SideloadUi.Step.Failed, error = Copy.SIDELOAD_LOST)
             }
-            setSideload(ui)
+            updateDevice(id) { it.copy(sideload = ui) }
         }
     }
 
@@ -409,16 +422,16 @@ class TellyscopeViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
-                return@launch setSideload(ready.copy(step = SideloadUi.Step.Failed, error = Copy.SIDELOAD_LOST))
+                return@launch updateDevice(id) { it.copy(sideload = ready.copy(step = SideloadUi.Step.Failed, error = Copy.SIDELOAD_LOST)) }
             }
             when (r) {
                 InstallResult.Done -> {
-                    setSideload(ready.copy(step = SideloadUi.Step.Installed))
-                    runCatching { source.apps(id) }.onSuccess { apps -> _state.update { it.copy(device = it.device.copy(apps = apps)) } }
+                    updateDevice(id) { it.copy(sideload = ready.copy(step = SideloadUi.Step.Installed)) }
+                    runCatching { source.apps(id) }.onSuccess { apps -> updateDevice(id) { it.copy(apps = apps) } }
                 }
-                is InstallResult.Refused -> setSideload(
-                    ready.copy(step = SideloadUi.Step.Failed, error = Copy.installRefused(r.reason, app.label), detail = r.detail),
-                )
+                is InstallResult.Refused -> updateDevice(id) {
+                    it.copy(sideload = ready.copy(step = SideloadUi.Step.Failed, error = Copy.installRefused(r.reason, app.label), detail = r.detail))
+                }
             }
         }
     }
@@ -565,9 +578,7 @@ class TellyscopeViewModel(
             }
             val apps = runCatching { source.apps(id) }.getOrNull()
             val history = source.history(id)
-            _state.update { s ->
-                s.copy(device = s.device.copy(apps = apps ?: s.device.apps, busy = null, history = history))
-            }
+            updateDevice(id) { it.copy(apps = apps ?: it.apps, busy = null, history = history) }
         }
     }
 
@@ -610,26 +621,25 @@ class TellyscopeViewModel(
             _notice.value = Copy.disabledSuggested(done, packages.size)
             val apps = runCatching { source.apps(id) }.getOrNull()
             val history = source.history(id)
-            _state.update { s ->
-                s.copy(device = s.device.copy(apps = apps ?: s.device.apps, busy = null, history = history))
-            }
+            updateDevice(id) { it.copy(apps = apps ?: it.apps, busy = null, history = history) }
             loadLists(id)
         }
     }
 
     /**
-     * Sends one key and waits for the TV to take it. The remote screen holds a D-pad key by
-     * calling this in a loop. A lost TV shows once, not once per repeat.
+     * Sends one key and waits for the TV to take it; false when it didn't. The remote screen holds
+     * a D-pad key by calling this in a loop, which stops at the first false, so a lost TV shows once.
      */
-    suspend fun press(key: RemoteKey) {
-        val id = _state.value.selectedId ?: return
-        keys.withLock {
+    suspend fun press(key: RemoteKey): Boolean {
+        val id = _state.value.selectedId ?: return false
+        return keys.withLock {
             try {
-                if (!source.press(id, key)) _notice.value = Copy.KEY_REFUSED
+                source.press(id, key).also { if (!it) _notice.value = Copy.KEY_REFUSED }
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
                 _notice.value = Copy.REMOTE_LOST
+                false
             }
         }
     }

@@ -81,10 +81,11 @@ import app.tellyscope.adb.RemoteKey
 import app.tellyscope.data.DeviceState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.yield
 
 data class RemoteActions(
-    /** Suspends until the TV took the key, so a held key never queues up presses. */
-    val press: suspend (RemoteKey) -> Unit = {},
+    /** Suspends until the TV answers, so a held key never queues up presses. False when it didn't take the key. */
+    val press: suspend (RemoteKey) -> Boolean = { true },
     /** Returns why the text can't be typed, or null once it's sent. */
     val type: (String) -> String? = { null },
     val reboot: () -> Unit = {},
@@ -93,6 +94,17 @@ data class RemoteActions(
 
 /** A held key repeats after this, then as fast as the TV takes them. */
 private const val REPEAT_AFTER_MS = 400L
+
+/**
+ * One press, then repeats while [held] for keys that repeat. Stops at the first key the TV didn't
+ * take (refused, dropped, or no TV selected), and yields between repeats, so a press that answers
+ * at once can't keep the main thread busy.
+ */
+internal suspend fun repeatWhileHeld(key: RemoteKey, held: () -> Boolean, press: suspend (RemoteKey) -> Boolean) {
+    if (!press(key) || !key.repeats) return
+    delay(REPEAT_AFTER_MS)
+    while (held() && press(key)) yield()
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -171,7 +183,7 @@ fun RemoteScreen(
 
 /** The four arrows around a big OK, shaped like the remote in the user's other hand. */
 @Composable
-private fun DPad(enabled: Boolean, press: suspend (RemoteKey) -> Unit) {
+private fun DPad(enabled: Boolean, press: suspend (RemoteKey) -> Boolean) {
     Surface(Modifier.size(272.dp), shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
         Box {
             val arrow = Modifier.size(80.dp)
@@ -199,7 +211,7 @@ private fun DPad(enabled: Boolean, press: suspend (RemoteKey) -> Unit) {
 }
 
 @Composable
-private fun RoundKey(key: RemoteKey, label: String, enabled: Boolean, press: suspend (RemoteKey) -> Unit, icon: @Composable () -> Unit) {
+private fun RoundKey(key: RemoteKey, label: String, enabled: Boolean, press: suspend (RemoteKey) -> Boolean, icon: @Composable () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         KeySurface(key, label, enabled, press, CircleShape, MaterialTheme.colorScheme.secondaryContainer, Modifier.size(64.dp), icon)
         Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -211,7 +223,7 @@ private fun PillKey(
     key: RemoteKey,
     label: String,
     enabled: Boolean,
-    press: suspend (RemoteKey) -> Unit,
+    press: suspend (RemoteKey) -> Boolean,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) = KeySurface(key, label, enabled, press, MaterialTheme.shapes.extraLarge, MaterialTheme.colorScheme.secondaryContainer, modifier.height(56.dp), content)
@@ -225,7 +237,7 @@ private fun KeySurface(
     key: RemoteKey,
     label: String,
     enabled: Boolean,
-    press: suspend (RemoteKey) -> Unit,
+    press: suspend (RemoteKey) -> Boolean,
     shape: Shape,
     color: Color,
     modifier: Modifier = Modifier,
@@ -253,12 +265,7 @@ private fun KeySurface(
                     interactions.tryEmit(p)
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     var held = true
-                    scope.launch {
-                        press(key)
-                        if (!key.repeats) return@launch
-                        delay(REPEAT_AFTER_MS)
-                        while (held) press(key)
-                    }
+                    scope.launch { repeatWhileHeld(key, { held }, press) }
                     waitForUpOrCancellation()
                     held = false
                     interactions.tryEmit(PressInteraction.Release(p))

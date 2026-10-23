@@ -37,12 +37,15 @@ import app.tellyscope.data.FakeDeviceSource
 import app.tellyscope.ui.Copy
 import app.tellyscope.ui.DeviceActions
 import app.tellyscope.ui.DeviceScreen
+import app.tellyscope.ui.Done
 import app.tellyscope.ui.PermissionScreen
 import app.tellyscope.ui.RemoteActions
 import app.tellyscope.ui.RemoteScreen
 import app.tellyscope.ui.ScanScreen
 import app.tellyscope.ui.TellyscopeViewModel
 import app.tellyscope.ui.theme.TellyscopeTheme
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.filterNotNull
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -117,8 +120,6 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun TellyscopeApp(vm: TellyscopeViewModel) {
     val state by vm.state.collectAsStateWithLifecycle()
-    val done by vm.done.collectAsStateWithLifecycle()
-    val notice by vm.notice.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     var adding by rememberSaveable { mutableStateOf(false) }
     var remote by rememberSaveable { mutableStateOf(false) }
@@ -128,22 +129,7 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
     val pickFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let(vm::push) }
     val saveFile = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream"), vm::saveTo)
 
-    LaunchedEffect(done) {
-        val entry = done ?: return@LaunchedEffect
-        vm.doneShown()
-        val result = snackbar.showSnackbar(
-            message = Copy.done(entry.action, entry.label),
-            actionLabel = entry.undo?.let(Copy::undo),
-            duration = SnackbarDuration.Long,
-        )
-        if (result == SnackbarResult.ActionPerformed) vm.undo(entry)
-    }
-
-    LaunchedEffect(notice) {
-        val message = notice ?: return@LaunchedEffect
-        vm.noticeShown()
-        snackbar.showSnackbar(message, duration = SnackbarDuration.Long)
-    }
+    Snackbars(snackbar, vm.done, vm.notice, vm::doneShown, vm::noticeShown) { vm.undo(it.entry, it.deviceId) }
 
     // A newly connected TV becomes the selection; leave the add flow then, not on tap.
     LaunchedEffect(state.selectedId) { adding = false; remote = false }
@@ -203,5 +189,37 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
                 remote = { remote = true },
             ),
         )
+    }
+}
+
+/**
+ * Shows each done and notice message once. They are collected rather than used as effect keys:
+ * clearing a message changes the key, which would cancel its own snackbar before anyone saw it.
+ */
+@Composable
+internal fun Snackbars(
+    host: SnackbarHostState,
+    done: StateFlow<Done?>,
+    notice: StateFlow<String?>,
+    doneShown: () -> Unit,
+    noticeShown: () -> Unit,
+    undo: (Done) -> Unit,
+) {
+    LaunchedEffect(host, done) {
+        done.filterNotNull().collect { d ->
+            doneShown()
+            val result = host.showSnackbar(
+                message = Copy.done(d.entry.action, d.entry.label),
+                actionLabel = d.entry.undo?.let(Copy::undo),
+                duration = SnackbarDuration.Long,
+            )
+            if (result == SnackbarResult.ActionPerformed) undo(d)
+        }
+    }
+    LaunchedEffect(host, notice) {
+        notice.filterNotNull().collect { message ->
+            noticeShown()
+            host.showSnackbar(message, duration = SnackbarDuration.Long)
+        }
     }
 }

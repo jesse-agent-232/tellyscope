@@ -21,3 +21,6 @@ until this file has a section for its version.
 - **New:** An icon shows whether each device is a TV, projector, Fire TV or stick. [#18](../../pull/18)
 - **Improved:** The confirm before disabling suggested apps names every app. [#19](../../pull/19)
 - **Improved:** System updaters, Wi-Fi resources and Chrome's library are now protected. [#19](../../pull/19)
+- **Fixed:** Done and error messages stay on screen long enough to read. [#20](../../pull/20)
+- **Fixed:** Undo and results always go to the TV the action ran on. [#20](../../pull/20)
+- **Fixed:** Holding a remote key no longer freezes the app or outlives the TV. [#20](../../pull/20)
