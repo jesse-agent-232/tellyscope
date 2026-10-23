@@ -1,6 +1,21 @@
-# Tellyscope
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/logo/header-dark.svg">
+    <img src="docs/logo/header.svg" alt="Tellyscope" width="420">
+  </picture>
+</h1>
 
-See inside your Android TV from your phone. Check how it's doing, turn off the apps it doesn't need, install apps and send files, all over Wi-Fi. No root, no PC, and every change can be undone.
+Debloat your Android TV, install apps, and browse and transfer files on it, all from your phone. No root, no PC.
+
+<p>
+  <img src="https://img.shields.io/badge/size-under%203%20MB-00696B" alt="Under 3 MB">
+  <img src="https://img.shields.io/badge/tracking-none-00696B" alt="No tracking">
+  <img src="https://img.shields.io/badge/root-not%20needed-00696B" alt="No root">
+  <img src="https://img.shields.io/badge/license-GPL--3.0-00696B" alt="GPL-3.0">
+  <a href="../../releases/latest"><img src="https://img.shields.io/github/v/release/man15h/tellyscope?color=00696B&label=release" alt="Latest release"></a>
+</p>
+
+No ads, no tracking, no accounts. Its only internet request fetches the debloat lists from this project's GitHub; everything else stays on your Wi-Fi.
 
 <table>
   <tr>
@@ -40,6 +55,7 @@ Tellyscope needs a phone on Android 8.0 or newer, on the same Wi-Fi as the TV, a
 
 ## Is it safe?
 
+- **Small and private.** Under 3 MB. No ads, no tracking, no accounts. Its only internet request fetches the debloat lists from this project's GitHub; everything else stays on your Wi-Fi.
 - **Reversible.** Tellyscope disables apps; it never uninstalls them, so nothing is deleted. Every change goes into History with an Undo, and **Restore everything** turns back on all it turned off.
 - **Protected list.** Apps the TV needs to start, update, stay on Wi-Fi, show its home screen or take input can't be stopped or disabled. There is no override.
 - **You see it first.** Debloat shows every app it will turn off, and the confirm names each one before anything runs.
