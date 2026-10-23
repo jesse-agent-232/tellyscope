@@ -1,6 +1,6 @@
 # Tellyscope
 
-See inside your Android TV from your phone. Live stats, reversible debloat, app installs, file copies and a remote, all over Wi-Fi ADB. No root, no PC.
+See inside your Android TV from your phone. Live stats, reversible debloat, app installs and file copies, all over Wi-Fi ADB. No root, no PC.
 
 > **Status: alpha.** Tellyscope connects to real TVs and makes real changes, but it has only been tried on a few models. Expect rough edges, and keep the TV's own remote nearby.
 
@@ -8,7 +8,6 @@ See inside your Android TV from your phone. Live stats, reversible debloat, app 
   <img src="docs/screenshots/scan.png" width="200" alt="Finding TVs on the Wi-Fi">
   <img src="docs/screenshots/tv-page.png" width="200" alt="A TV's page: memory, storage, CPU and temperature">
   <img src="docs/screenshots/install.png" width="200" alt="Installing an app on the TV">
-  <img src="docs/screenshots/remote.png" width="200" alt="The remote control">
 </p>
 
 <sub>Rendered from the app's screenshot tests with sample data.</sub>
@@ -25,7 +24,6 @@ Tellyscope is a phone app that talks to your Android TV, Google TV or Fire TV ov
 - **History.** Every change is listed with an Undo, and **Restore everything** turns back on what Tellyscope turned off. History is kept per TV, across restarts.
 - **Install apps.** Pick an APK, several split APKs or an `.apks`/`.xapk`/`.apkm` bundle on your phone. Before installing, Tellyscope shows the app's name, version and size and says whether it's new, an update, a reinstall or an older version. It won't install an older version over a newer one unless you tick the box. If the TV refuses, you get the reason in plain words.
 - **Files.** Send a file from your phone into the TV's Download or Movies folder, or save one from there to your phone. A file with the same name gets a " (1)" instead of being overwritten, and a cancelled copy leaves nothing half-written behind.
-- **Remote.** D-pad and OK, Back, Home, Menu, volume and mute, Play / Pause and Sleep. Type into the TV's search boxes from your phone (plain letters, numbers and symbols, one line at a time). Restart the TV; Tellyscope reconnects when it's back.
 
 ## Setting up your TV
 

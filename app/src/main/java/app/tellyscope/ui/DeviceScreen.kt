@@ -124,6 +124,9 @@ data class DeviceActions(
     val remote: () -> Unit = {},
 )
 
+/** Off while the remote is made faster: the device page hides its Remote button. */
+internal const val REMOTE_ENABLED = false
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DeviceScreen(
@@ -165,7 +168,7 @@ fun DeviceScreen(
                 TopAppBar(
                     title = { DevicePicker(state, actions) },
                     actions = {
-                        TextButton(onClick = actions.remote, enabled = !offline) { Text("Remote") }
+                        if (REMOTE_ENABLED) TextButton(onClick = actions.remote, enabled = !offline) { Text("Remote") }
                         IconButton(onClick = { searching = true }, enabled = !offline) {
                             Icon(Icons.Default.Search, contentDescription = "Search")
                         }
