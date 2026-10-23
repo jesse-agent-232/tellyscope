@@ -66,6 +66,41 @@ class ActionsTest {
         assertTrue(Actions(sh).run(Action.DISABLE, "com.foo") is ActionResult.Failed)
     }
 
+    @Test fun uninstallsOnlyWhatTheUserInstalled() = runTest {
+        val sh = FakeShell(mapOf(
+            home,
+            "pm list packages -3" to ok("package:com.netflix.ninja\npackage:com.amazon.amazonvideo.livingroom\n"),
+            "pm uninstall" to ok("Success\n"),
+        ))
+        assertEquals(ActionResult.Done(null), Actions(sh).run(Action.UNINSTALL, "com.netflix.ninja"))
+        assertTrue(sh.ran.contains("pm uninstall com.netflix.ninja 2>&1"))
+    }
+
+    @Test fun refusesToUninstallWhatCameWithTheTv() = runTest {
+        val sh = FakeShell(mapOf(home, "pm list packages -3" to ok("package:com.netflix.ninja\n")))
+        assertEquals(ActionResult.Refused(ProtectedReason.CAME_WITH_TV), Actions(sh).run(Action.UNINSTALL, "com.google.android.youtube.tv"))
+        assertTrue(sh.ran.none { it.startsWith("pm uninstall") })
+    }
+
+    @Test fun neverUninstallsForOneUser() = runTest {
+        val sh = FakeShell(mapOf(home, "pm list packages -3" to ok("package:com.netflix.ninja\n"), "pm uninstall" to ok("Success\n")))
+        Actions(sh).run(Action.UNINSTALL, "com.netflix.ninja")
+        assertTrue(sh.ran.none { "--user" in it && "uninstall" in it })
+    }
+
+    @Test fun uninstallRefusesProtectedAndUnknownHome() = runTest {
+        val user = "pm list packages -3" to ok("package:com.google.android.gms\npackage:com.foo.ads\n")
+        assertEquals(ActionResult.Refused(ProtectedReason.PLAY_SERVICES), Actions(FakeShell(mapOf(home, user))).run(Action.UNINSTALL, "com.google.android.gms"))
+        val noHome = FakeShell(mapOf(user, "cmd package" to ShellResult("/system/bin/sh: cmd: not found\n", 127)))
+        assertEquals(ActionResult.Refused(ProtectedReason.UNKNOWN_HOME), Actions(noHome).run(Action.UNINSTALL, "com.foo.ads"))
+        assertTrue(noHome.ran.none { it.startsWith("pm uninstall") })
+    }
+
+    @Test fun uninstallFailureIsReported() = runTest {
+        val sh = FakeShell(mapOf(home, "pm list packages -3" to ok("package:com.foo\n"), "pm uninstall" to ok("Failure [DELETE_FAILED_INTERNAL_ERROR]\n")))
+        assertTrue(Actions(sh).run(Action.UNINSTALL, "com.foo") is ActionResult.Failed)
+    }
+
     @Test fun openFallsBackToPhoneLauncher() = runTest {
         val sh = FakeShell(mapOf(
             "monkey -p com.foo -c android.intent.category.LEANBACK_LAUNCHER" to ok("** No activities found to run, monkey aborted.\n"),

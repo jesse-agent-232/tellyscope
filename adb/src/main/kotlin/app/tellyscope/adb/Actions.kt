@@ -2,10 +2,10 @@
 package app.tellyscope.adb
 
 /**
- * The only changes Tellyscope makes. There is no uninstall, by design. Undo for [STOP] is
- * [OPEN] ("open again"); a real undo isn't possible.
+ * The only changes Tellyscope makes. Undo for [STOP] is [OPEN] ("open again"); a real undo isn't
+ * possible. [UNINSTALL] has no undo at all, so it only ever runs on apps the user installed.
  */
-enum class Action { STOP, DISABLE, ENABLE, OPEN }
+enum class Action { STOP, DISABLE, ENABLE, OPEN, UNINSTALL }
 
 sealed interface ActionResult {
     data class Done(val undo: Action?) : ActionResult
@@ -27,7 +27,19 @@ class Actions(private val shell: AdbShell) {
             Action.DISABLE -> exec("pm disable-user --user 0 $pkg", Action.ENABLE) { "disabled-user" in it }
             Action.ENABLE -> exec("pm enable --user 0 $pkg", Action.DISABLE) { "enabled" in it }
             Action.OPEN -> open(pkg)
+            Action.UNINSTALL -> uninstall(pkg)
         }
+    }
+
+    /**
+     * Only for packages `pm list packages -3` lists, i.e. installed by the user. Plain
+     * `pm uninstall`, never `--user 0`: that form removes system apps for a user, and Tellyscope
+     * never does that.
+     */
+    private suspend fun uninstall(pkg: String): ActionResult {
+        val userApps = Parsers.packages(shell.shell(Commands.USER_PACKAGES).output).map { it.name }
+        if (pkg !in userApps) return ActionResult.Refused(ProtectedReason.CAME_WITH_TV)
+        return exec("pm uninstall $pkg", undo = null) { "Success" in it }
     }
 
     /**
@@ -55,7 +67,7 @@ class Actions(private val shell: AdbShell) {
         return ActionResult.Failed(last.trim())
     }
 
-    private suspend fun exec(command: String, undo: Action, ok: (String) -> Boolean = { true }): ActionResult {
+    private suspend fun exec(command: String, undo: Action?, ok: (String) -> Boolean = { true }): ActionResult {
         val r = shell.shell("$command 2>&1")
         return if (r.exitCode == 0 && ok(r.output)) ActionResult.Done(undo) else ActionResult.Failed(r.output.trim())
     }

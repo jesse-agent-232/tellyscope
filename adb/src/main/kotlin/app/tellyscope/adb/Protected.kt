@@ -8,6 +8,9 @@ enum class ProtectedReason {
 
     /** The TV didn't say which app is its home screen, so nothing is stopped or disabled. */
     UNKNOWN_HOME,
+
+    /** Not installed by the user, so it can't be uninstalled; it can still be disabled. */
+    CAME_WITH_TV,
 }
 
 /**
