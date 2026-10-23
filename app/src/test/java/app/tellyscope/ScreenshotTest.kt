@@ -22,6 +22,7 @@ import app.tellyscope.adb.ApkInfo
 import app.tellyscope.adb.InstallRefusal
 import app.tellyscope.adb.InstalledVersion
 import app.tellyscope.adb.Progress
+import app.tellyscope.adb.TvFile
 import app.tellyscope.adb.TvFolder
 import app.tellyscope.data.Action
 import app.tellyscope.data.AppInfo
@@ -157,7 +158,7 @@ class ScreenshotTest {
             selectedId = d.id,
             device = DeviceUi(
                 snapshot = fake.snapshot(d.id),
-                apps = fake.apps(d.id),
+                apps = fake.apps(d.id).map { it.copy(icon = sampleIcons[it.packageName]) },
                 network = fake.network(d.id),
                 lists = lists(d.id),
             ).device(),
@@ -283,6 +284,63 @@ class ScreenshotTest {
 
     private fun app(pkg: String, label: String, icon: ByteArray?) =
         AppInfo(pkg, label, null, pkg.startsWith("com.xgimi"), true, null, "", icon)
+
+    /**
+     * Generic icons for the sample apps, so device shots look like a real TV's list. Each is the
+     * app's avatar colour with a plain glyph: no brand artwork in the repo, test-only.
+     */
+    private val sampleIcons: Map<String, ByteArray> by lazy {
+        val white = Paint().apply { color = android.graphics.Color.WHITE; isAntiAlias = true }
+        val line = Paint(white).apply { style = Paint.Style.STROKE; strokeWidth = 7f; strokeCap = Paint.Cap.ROUND }
+        fun icon(argb: Long, glyph: Canvas.() -> Unit): ByteArray {
+            val b = Bitmap.createBitmap(96, 96, Bitmap.Config.ARGB_8888)
+            Canvas(b).apply { drawColor(argb.toInt()); glyph() }
+            return ByteArrayOutputStream().also { b.compress(Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()
+        }
+        fun Canvas.squares() = listOf(26f, 52f).forEach { x -> listOf(26f, 52f).forEach { y -> drawRoundRect(x, y, x + 18f, y + 18f, 4f, 4f, white) } }
+        fun Canvas.screen() { drawRoundRect(22f, 26f, 74f, 62f, 6f, 6f, line); drawLine(38f, 72f, 58f, 72f, line) }
+        fun Canvas.film() {
+            drawRoundRect(30f, 22f, 66f, 74f, 4f, 4f, white)
+            val hole = Paint().apply { color = 0xFF141414.toInt() }
+            listOf(28f, 40f, 52f, 64f).forEach { y -> drawRect(33f, y, 38f, y + 5f, hole); drawRect(58f, y, 63f, y + 5f, hole) }
+        }
+        fun Canvas.stack() = listOf(28f, 44f, 60f).forEach { y -> drawRoundRect(24f, y, 72f, y + 10f, 5f, 5f, white) }
+        fun Canvas.mic() { drawRoundRect(38f, 20f, 58f, 52f, 10f, 10f, white); drawArc(30f, 34f, 66f, 64f, 0f, 180f, false, line); drawLine(48f, 66f, 48f, 76f, line) }
+        fun Canvas.arrow() { drawLine(48f, 22f, 48f, 62f, line); drawLine(34f, 48f, 48f, 62f, line); drawLine(62f, 48f, 48f, 62f, line); drawLine(28f, 74f, 68f, 74f, line) }
+        fun Canvas.star() = drawPath(
+            android.graphics.Path().apply {
+                (0 until 10).forEach { i ->
+                    val r = if (i % 2 == 0) 28f else 12f
+                    val a = Math.toRadians(i * 36.0 - 90)
+                    val x = 48f + r * Math.cos(a).toFloat()
+                    val y = 50f + r * Math.sin(a).toFloat()
+                    if (i == 0) moveTo(x, y) else lineTo(x, y)
+                }
+                close()
+            },
+            white,
+        )
+        fun Canvas.gear() { drawCircle(48f, 48f, 20f, line); drawCircle(48f, 48f, 6f, white) }
+        fun Canvas.dots() = listOf(30f, 48f, 66f).forEach { drawCircle(it, 48f, 6f, white) }
+        fun Canvas.keys() {
+            drawRoundRect(20f, 32f, 76f, 66f, 6f, 6f, line)
+            listOf(32f, 44f, 56f, 64f).forEach { x -> drawCircle(x, 44f, 3f, white) }
+            drawLine(36f, 56f, 60f, 56f, line)
+        }
+        mapOf(
+            "com.spocky.projengmenu" to icon(0xFF3D5AFE) { squares() },
+            "com.google.android.youtube.tv" to icon(0xFFC4302B) { screen() },
+            "com.netflix.ninja" to icon(0xFF141414) { film() },
+            "org.jellyfin.androidtv" to icon(0xFF7B5EA7) { stack() },
+            "com.xgimi.assistant" to icon(0xFF00897B) { mic() },
+            "com.xgimi.ota" to icon(0xFF00838F) { arrow() },
+            "com.google.android.tvrecommendations" to icon(0xFFF9A825) { star() },
+            "com.android.systemui" to icon(0xFF546E7A) { dots() },
+            "com.android.tv.settings" to icon(0xFF607D8B) { gear() },
+            "com.google.android.gms" to icon(0xFF1E88E5) { gear() },
+            "com.google.android.inputmethod.latin" to icon(0xFF5C6BC0) { keys() },
+        )
+    }
 
     @Test fun apps_helperNames() {
         val labels = listOf("YouTube", "Netflix", "Jellyfin", "Weather Box", "XGIMI Assistant")
@@ -489,5 +547,38 @@ class ScreenshotTest {
         }
         shot("22_readme_history", before = openHistory) { DeviceScreen(deviceState { copy(history = history) }, DeviceActions()) }
         compose.onNodeWithText("Restore everything (2)").assertExists()
+    }
+    @Test fun readme_install() {
+        // An update, since the sample TV already has Netflix: the dialog says what changes.
+        val netflix = PickedApp(
+            listOf(apk("base.apk", 38_000_000), apk("split_config.armeabi_v7a.apk", 7_200_000), apk("split_config.xxhdpi.apk", 1_400_000)),
+            ApkInfo("com.netflix.ninja", 11_300, "11.3.0"),
+            "Netflix",
+        )
+        sideload("23_readme_install", SideloadUi(SideloadUi.Step.Ready, netflix, InstalledVersion(11_200, "11.2.0")))
+    }
+
+    // Tall, like readme_history: frame.py scrolls it down to Files.
+    @Config(qualifiers = "w411dp-h2600dp-xxhdpi")
+    @Test fun readme_files() {
+        val files = listOf(
+            TvFile("subtitles.srt", 61_000, now - 40 * 60_000L),
+            TvFile("kodi-21.1-armeabi-v7a.apk", 74_000_000, now - 5 * 3_600_000L),
+            TvFile("projectivy-backup.plbackup", 48_200, now - 26 * 3_600_000L),
+            TvFile("holiday-2025.mp4", 812_000_000, now - 3 * 86_400_000L),
+            TvFile("wallpaper-mountains.jpg", 2_400_000, now - 9 * 86_400_000L),
+        )
+        val openFiles = {
+            compose.onNodeWithText("Apps").performClick() // fold the long list away
+            compose.onNodeWithText("Files on the TV").performClick()
+            Unit
+        }
+        shot("24_readme_files", before = openFiles) { DeviceScreen(deviceState { copy(files = FilesUi(TvFolder.DOWNLOAD, files)) }, DeviceActions()) }
+        compose.onNodeWithText("wallpaper-mountains.jpg").assertExists()
+    }
+
+    @Test fun readme_send() = shot("25_readme_send", screen = true) {
+        val t = TransferUi("family-trip-2025.mp4", toTv = true, folder = TvFolder.MOVIES, progress = Progress(486_000_000, 812_000_000))
+        DeviceScreen(deviceState { copy(transfer = t) }, DeviceActions())
     }
 }

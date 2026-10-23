@@ -20,12 +20,12 @@ OUT = Path(__file__).parent
 # Tall renders are cut to one phone screen; a scrolled one keeps its top bar, as on a phone.
 SHOTS = {
     "tv-page": ("04_device", 0),
-    "tv-page-dark": ("04_device_dark", 0),
     "debloat": ("20_readme_debloat", 0),
     "debloat-confirm": ("21_readme_confirm", 0),
     "advanced": ("17_advanced", 0),
-    "scan": ("01_scan_in_progress", 0),
-    "install": ("10_sideload_new", 0),
+    "install": ("23_readme_install", 0),
+    "send": ("25_readme_send", 0),
+    "files": ("24_readme_files", 400),
     "history": ("22_readme_history", 300),
 }
 
