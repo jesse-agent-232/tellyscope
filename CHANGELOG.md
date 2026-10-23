@@ -12,6 +12,7 @@ until this file has a section for its version.
 
 ## Unreleased
 
+- **New:** A new app icon: a telescope with a TV screen for a lens. [#28](../../pull/28)
 - **New:** Install apps on the TV from an APK, split APKs or a bundle. [#9](../../pull/9)
 - **New:** Send files to the TV's Download or Movies folder, and save them back. [#9](../../pull/9)
 - **New:** Suggested apps to disable, from a tested list for your TV. [#11](../../pull/11)
