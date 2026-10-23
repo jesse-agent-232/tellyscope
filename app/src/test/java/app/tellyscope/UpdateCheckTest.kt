@@ -75,15 +75,15 @@ class UpdateCheckTest {
         assertNull(check.check())
     }
 
-    @Test fun `a release build asks again after 6 hours, not before`() = runTest {
+    @Test fun `a release build asks again after 30 minutes, not before`() = runTest {
         var now = 1_000_000L
         var calls = 0
         val check = UpdateCheck(tmp.newFile(), "0.1.0", alpha = false, clock = { now }) { calls++; releases(release("v0.2.0")).toByteArray() }
         assertEquals("0.2.0", check.check()?.version)
-        now += 6 * hour - minute
+        now += 30 * minute - 1
         assertNull(check.check())
         assertEquals(1, calls)
-        now += minute
+        now += 1
         assertEquals("0.2.0", check.check()?.version)
         assertEquals(2, calls)
     }

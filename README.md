@@ -66,7 +66,7 @@ Tellyscope needs a phone on Android 8.0 or newer, on the same Wi-Fi as the TV, a
 
 ## Is it safe?
 
-- **Small and private.** Under 3 MB. No ads, no tracking, no accounts. It makes two internet requests: one fetches the debloat lists from this project's GitHub, or from your own fork if you point it there; the other asks GitHub every 6 hours whether a newer version is out, and you can turn it off in Settings. Everything else stays on your Wi-Fi. Turning on Private DNS changes where the *TV* looks up addresses, not what the app sends.
+- **Small and private.** Under 3 MB. No ads, no tracking, no accounts. It makes two internet requests: one fetches the debloat lists from this project's GitHub, or from your own fork if you point it there; the other asks GitHub every 30 minutes whether a newer version is out, and you can turn it off in Settings. Everything else stays on your Wi-Fi. Turning on Private DNS changes where the *TV* looks up addresses, not what the app sends.
 - **Reversible.** Apps that came with the TV are only ever disabled, never uninstalled, so nothing is deleted. Apps you installed yourself can also be uninstalled, after a confirm that says it can't be undone. Every change goes into History, all but Uninstall with an Undo, and **Restore everything** turns back on all it turned off.
 - **Protected list.** Apps the TV needs to start, update, stay on Wi-Fi, show its home screen or take input can't be stopped or disabled. They sit in their own **Can't be changed** section under Apps. There is no override.
 - **You see it first.** Debloat shows every app it will turn off, and the confirm names each one before anything runs.

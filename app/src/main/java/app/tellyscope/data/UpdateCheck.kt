@@ -13,15 +13,15 @@ import java.util.Properties
 const val RELEASES = "https://github.com/man15h/tellyscope/releases"
 private const val RELEASES_API = "https://api.github.com/repos/man15h/tellyscope/releases?per_page=20"
 
-/** How long a check counts for: release builds ask every 6 hours, alpha builds every 5 minutes for testing. */
-private const val RELEASE_INTERVAL_MS = 6 * 60 * 60 * 1000L
+/** How long a check counts for: release builds ask every 30 minutes, alpha builds every 5 minutes for testing. */
+private const val RELEASE_INTERVAL_MS = 30 * 60 * 1000L
 private const val ALPHA_INTERVAL_MS = 5 * 60 * 1000L
 
 /** A newer Tellyscope than the one running. */
 data class Update(val version: String, val notes: String, val url: String)
 
 /**
- * Asks GitHub, at most every 6 hours (5 minutes on alpha builds), whether a newer release is out. No auth and no download: it
+ * Asks GitHub, at most every 30 minutes (5 minutes on alpha builds), whether a newer release is out. No auth and no download: it
  * only reads the release list. Off switch, last check and a skipped version live in [file].
  * Release builds look at full releases only; alpha builds at `-alpha` pre-releases too.
  */
