@@ -25,13 +25,23 @@ object DeviceIcons {
             "M16 10.5a1.5 1.5 0 1 1 0 3a1.5 1.5 0 1 1 0-3z" +
             "M5 9h5v1.5H5z M5 12h5v1.5H5z M4 18h3v1.5H4z M17 18h3v1.5h-3z"
 
+    /** A stick with its plug down and a small remote beside it, for Fire TV; Amazon's logo is theirs. */
+    private const val FIRE_TV =
+        "M5 2h4c.55 0 1 .45 1 1v12c0 .55-.45 1-1 1H5c-.55 0-1-.45-1-1V3c0-.55.45-1 1-1z" +
+            "M5.5 16h3v4h-3z" +
+            "M15 6h4c.83 0 1.5.67 1.5 1.5v13c0 .83-.67 1.5-1.5 1.5h-4c-.83 0-1.5-.67-1.5-1.5v-13c0-.83.67-1.5 1.5-1.5z" +
+            "M17 8.25a1.75 1.75 0 1 0 0 3.5a1.75 1.75 0 1 0 0-3.5z" +
+            "M15.5 14h3v1.5h-3z M15.5 17h3v1.5h-3z"
+
     val Tv = icon("Tv", TV)
+    val FireTv = icon("FireTv", FIRE_TV)
     val Stick = icon("Stick", STICK)
     val Projector = icon("Projector", PROJECTOR)
 
     fun of(kind: DeviceKind) = when (kind) {
         DeviceKind.Tv -> Tv
         DeviceKind.Projector -> Projector
+        DeviceKind.FireTv -> FireTv
         DeviceKind.Stick -> Stick
     }
 
@@ -44,5 +54,6 @@ object DeviceIcons {
 fun DeviceKind.word() = when (this) {
     DeviceKind.Tv -> "TV"
     DeviceKind.Projector -> "Projector"
+    DeviceKind.FireTv -> "Fire TV"
     DeviceKind.Stick -> "Streaming device"
 }

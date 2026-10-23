@@ -25,8 +25,14 @@ class DeviceKindTest {
         assertEquals(DeviceKind.Projector, kind(manufacturer = "Amlogic", hostname = "living-room-projector"))
     }
 
+    @Test fun fireTv() {
+        assertEquals(DeviceKind.FireTv, kind(manufacturer = "Amazon", model = "AFTMM"))
+        assertEquals(DeviceKind.FireTv, kind(model = "AFTKA"))
+        assertEquals(DeviceKind.FireTv, kind(maker = "Amazon"))
+        assertEquals(DeviceKind.FireTv, kind(hostname = "bedroom-firetv"))
+    }
+
     @Test fun sticksAndBoxes() {
-        assertEquals(DeviceKind.Stick, kind(manufacturer = "Amazon", model = "AFTMM"))
         assertEquals(DeviceKind.Stick, kind(manufacturer = "Google", model = "Chromecast"))
         assertEquals(DeviceKind.Stick, kind(manufacturer = "Xiaomi", model = "Mi TV Stick"))
         assertEquals(DeviceKind.Stick, kind(manufacturer = "NVIDIA", model = "SHIELD Android TV"))
