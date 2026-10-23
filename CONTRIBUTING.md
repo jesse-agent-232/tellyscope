@@ -1,6 +1,6 @@
 # Contributing to Tellyscope
 
-Thanks for helping! Tellyscope is in alpha, so the code and its structure are still moving.
+Thanks for helping! Tellyscope is young, so the code and its structure are still moving.
 
 ## Ground rules
 
