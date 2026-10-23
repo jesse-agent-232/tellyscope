@@ -1,9 +1,4 @@
-<h1>
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/logo/header-dark.svg">
-    <img src="docs/logo/header.svg" alt="Tellyscope" width="420">
-  </picture>
-</h1>
+# <img src="docs/logo/icon.svg" alt="" width="64" height="64" align="middle"> Tellyscope
 
 Debloat your Android TV, install apps, and browse and transfer files on it, all from your phone. No root, no PC.
 
