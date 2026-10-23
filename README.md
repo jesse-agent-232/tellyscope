@@ -17,6 +17,10 @@ Debloat your Android TV, install apps, and browse and transfer files on it, all 
 
 No ads, no tracking, no accounts. Its only internet request fetches the debloat lists from this project's GitHub; everything else stays on your Wi-Fi.
 
+<a href="../../releases/latest"><img src="https://img.shields.io/badge/Download-signed%20APK-00696B?style=for-the-badge&logo=android&logoColor=white" alt="Download the signed APK" height="40"></a>
+
+Or get updates automatically with [Obtainium](#get-it).
+
 <table>
   <tr>
     <td width="25%"><img src="docs/screenshots/tv-page.png" alt="A TV's page: the TV at a glance, its vitals, and the Install, Debloat and Send buttons"></td>
