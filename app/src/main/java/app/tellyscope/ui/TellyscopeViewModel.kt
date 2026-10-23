@@ -13,6 +13,7 @@ import app.tellyscope.adb.Remote
 import app.tellyscope.adb.RemoteKey
 import app.tellyscope.adb.TvFile
 import app.tellyscope.adb.TvFolder
+import app.tellyscope.adb.Tweak
 import app.tellyscope.adb.installKind
 import app.tellyscope.data.Action
 import app.tellyscope.data.AppInfo
@@ -30,6 +31,8 @@ import app.tellyscope.data.ScanHit
 import app.tellyscope.data.ScanProgress
 import app.tellyscope.data.Snapshot
 import app.tellyscope.data.Suggestions
+import app.tellyscope.data.TvSettings
+import app.tellyscope.data.TvTweaks
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -75,6 +78,8 @@ data class DeviceUi(
     val transfer: TransferUi? = null,
     /** The TV's debloat list; null while it loads. */
     val lists: Suggestions? = null,
+    /** Private DNS and animation speed; null until read, or when the TV wouldn't say. */
+    val tweaks: TvTweaks? = null,
 )
 
 data class SideloadUi(
@@ -128,6 +133,10 @@ const val RESTORING = "restore"
 
 /** [DeviceUi.busy] value while the ticked suggestions are being disabled. */
 const val DISABLING = "lists"
+
+/** [DeviceUi.busy] values for the TV tweaks; a setting change uses its [Tweak] name. */
+const val CLEARING = "caches"
+const val SCREENSHOT = "screenshot"
 
 class TellyscopeViewModel(
     private val source: DeviceSource,
@@ -290,6 +299,8 @@ class TellyscopeViewModel(
                 // Read first: update {} may run its block again, and must never call the TV.
                 val apps = source.apps(id!!)
                 updateDevice(id) { it.copy(apps = apps) }
+                val tweaks = source.tweaks(id)
+                updateDevice(id) { it.copy(tweaks = tweaks) }
                 loadFiles()
                 while (true) {
                     val net = source.network(id!!)
@@ -360,7 +371,73 @@ class TellyscopeViewModel(
      */
     fun undo(entry: HistoryEntry, deviceId: String? = _state.value.selectedId) {
         val undo = entry.undo ?: return
-        run(entry.packageName, undo, undoing = entry.id, id = deviceId)
+        if (entry.action == Action.Change) {
+            change(Tweak.valueOf(entry.packageName), entry.previous.orEmpty(), undoing = entry.id, id = deviceId)
+        } else {
+            run(entry.packageName, undo, undoing = entry.id, id = deviceId)
+        }
+    }
+
+    /** Ad-blocking Private DNS through [host], or back to Automatic with null. */
+    fun setDns(host: String?) = change(Tweak.PRIVATE_DNS, TvSettings.dns(host))
+
+    fun setFastAnimations(fast: Boolean) = change(Tweak.ANIMATIONS, TvSettings.animations(fast))
+
+    private fun change(tweak: Tweak, values: Map<String, String?>, undoing: Long? = null, id: String? = _state.value.selectedId) {
+        if (id == null) return
+        updateDevice(id) { it.copy(busy = tweak.name) }
+        viewModelScope.launch {
+            val (entry, tweaks) = try {
+                source.change(id, tweak, values, undoing) to source.tweaks(id)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                updateDevice(id) { it.copy(busy = null) }
+                _notice.value = e.message?.replaceFirstChar(Char::uppercase) ?: "That didn't work."
+                return@launch
+            }
+            val history = source.history(id)
+            updateDevice(id) { it.copy(tweaks = tweaks, busy = null, history = history) }
+            if (undoing == null) _done.value = Done(id, entry)
+        }
+    }
+
+    fun clearCaches() {
+        val id = _state.value.selectedId ?: return
+        updateDevice(id) { it.copy(busy = CLEARING) }
+        viewModelScope.launch {
+            _notice.value = try {
+                Copy.cachesCleared(source.clearCaches(id))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                e.message?.replaceFirstChar(Char::uppercase) ?: "That didn't work."
+            }
+            val history = source.history(id)
+            updateDevice(id) { it.copy(busy = null, history = history) }
+        }
+    }
+
+    /** The "save as" picker's answer for a screenshot; null when the user backed out. */
+    fun screenshotTo(uri: Uri?) {
+        val id = _state.value.selectedId ?: return
+        val storage = storage ?: return
+        if (uri == null) return
+        updateDevice(id) { it.copy(busy = SCREENSHOT) }
+        viewModelScope.launch {
+            try {
+                storage.create(uri).use { sink -> source.screenshot(id, sink) }
+                _notice.value = Copy.SCREENSHOT_SAVED
+            } catch (e: CancellationException) {
+                storage.delete(uri)
+                throw e
+            } catch (_: Exception) {
+                storage.delete(uri)
+                _notice.value = Copy.SCREENSHOT_FAILED
+            } finally {
+                updateDevice(id) { it.copy(busy = null) }
+            }
+        }
     }
 
     /** Changes [id]'s page only while it is still the one shown; a result for another TV is dropped. */

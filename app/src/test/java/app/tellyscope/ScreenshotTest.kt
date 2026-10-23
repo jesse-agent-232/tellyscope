@@ -33,6 +33,8 @@ import app.tellyscope.data.Device
 import app.tellyscope.data.DeviceState
 import app.tellyscope.data.FakeDeviceSource
 import app.tellyscope.data.HistoryEntry
+import app.tellyscope.data.TvSettings
+import app.tellyscope.data.TvTweaks
 import app.tellyscope.data.ListEntry
 import app.tellyscope.data.PickedApp
 import app.tellyscope.data.ScanHit
@@ -46,6 +48,7 @@ import app.tellyscope.ui.DebloatScreen
 import app.tellyscope.ui.DeviceActions
 import app.tellyscope.ui.DeviceScreen
 import app.tellyscope.ui.Copy
+import app.tellyscope.ui.TweaksBlock
 import app.tellyscope.ui.DeviceUi
 import app.tellyscope.ui.DisableDialog
 import app.tellyscope.ui.ForgetDialog
@@ -394,6 +397,32 @@ class ScreenshotTest {
     @Test fun device_files() = shot("09_device_files") {
         val files = runBlocking { fake.files(xgimi.ip, TvFolder.DOWNLOAD) }
         Surface { Column(Modifier.padding(16.dp)) { FilesBlock(FilesUi(TvFolder.DOWNLOAD, files), now, DeviceActions()) } }
+    }
+
+    @Test fun device_tweaks() = shot("16_device_tweaks") {
+        val ui = DeviceUi(tweaks = TvTweaks(dnsHost = TvSettings.ADGUARD, animationScale = null))
+        Surface { Column(Modifier.padding(16.dp)) { TweaksBlock(ui, DeviceActions()) } }
+    }
+
+    @Test fun device_tweaksDns() = shot("16_device_tweaks_dns", screen = true, before = {
+        compose.onNodeWithText(Copy.DNS_TITLE).performClick()
+        Unit
+    }) {
+        Surface { Column(Modifier.padding(16.dp)) { TweaksBlock(DeviceUi(tweaks = TvTweaks(null, null)), DeviceActions()) } }
+    }
+
+    @Config(qualifiers = "w411dp-h2600dp-xxhdpi")
+    @Test fun device_tweaksInHistory() {
+        val history = listOf(
+            HistoryEntry(3, xgimi.ip, now - 20_000, Action.ClearCaches, "", TvSettings.CACHES, null, null),
+            HistoryEntry(2, xgimi.ip, now - 60_000, Action.Change, "ANIMATIONS", "Animations at 0.5×", Action.Change, null, mapOf("window_animation_scale" to null)),
+            HistoryEntry(1, xgimi.ip, now - 90_000, Action.Change, "PRIVATE_DNS", "Private DNS set to ${TvSettings.ADGUARD}", Action.Change, null, mapOf("private_dns_mode" to "opportunistic")),
+        )
+        shot("16_device_tweaks_history", before = {
+            compose.onNodeWithText("Apps").performClick()
+            compose.onNodeWithText("History").performClick()
+            Unit
+        }) { DeviceScreen(deviceState { copy(history = history) }, DeviceActions()) }
     }
 
     private val dir = Files.createTempDirectory("shots").toFile()

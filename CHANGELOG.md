@@ -15,6 +15,10 @@ until this file has a section for its version.
 - **New:** Uninstall apps you installed yourself; apps that came with the TV can only be disabled. [#33](../../pull/33)
 - **Improved:** Apps that can't be changed fold into their own section below the list. [#33](../../pull/33)
 - **Fixed:** App icons that failed to load once now come back, with a fallback to the banner. [#34](../../pull/34)
+- **New:** Block ads on the whole TV with Private DNS, AdGuard by default. [#35](../../pull/35)
+- **New:** Faster animations: menus move at twice the speed. [#35](../../pull/35)
+- **New:** Clear every app's cache in one tap; app data stays. [#35](../../pull/35)
+- **New:** Save a screenshot of the TV to your phone. [#35](../../pull/35)
 
 ## 0.1.0 — 2026-10-23
 

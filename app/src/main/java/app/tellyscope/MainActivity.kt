@@ -132,6 +132,7 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
     val pickApp = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { vm.pickedApp(it) }
     val pickFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let(vm::push) }
     val saveFile = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream"), vm::saveTo)
+    val saveScreenshot = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("image/png"), vm::screenshotTo)
 
     Snackbars(snackbar, vm.done, vm.notice, vm::doneShown, vm::noticeShown) { vm.undo(it.entry, it.deviceId) }
 
@@ -203,6 +204,10 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
                 remote = { remote = true },
                 debloat = { debloat = true },
                 advanced = { advanced = true },
+                setDns = vm::setDns,
+                setFastAnimations = vm::setFastAnimations,
+                clearCaches = vm::clearCaches,
+                screenshot = { saveScreenshot.launch(Copy.screenshotName(System.currentTimeMillis())) },
             ),
         )
     }

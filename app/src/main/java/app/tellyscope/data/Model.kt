@@ -116,7 +116,11 @@ data class NetworkInfo(
     val traffic: List<AppTraffic>,
 )
 
-enum class Action { Stop, Disable, Enable, Open, Uninstall }
+/**
+ * [Change] sets one [app.tellyscope.adb.Tweak]: its entry's packageName is the tweak's name and
+ * [HistoryEntry.previous] holds what Undo writes back. [ClearCaches] has no undo.
+ */
+enum class Action { Stop, Disable, Enable, Open, Uninstall, Change, ClearCaches }
 
 data class HistoryEntry(
     val id: Long,
@@ -128,4 +132,14 @@ data class HistoryEntry(
     /** What the undo button runs; null when there is nothing to undo. */
     val undo: Action?,
     val undoneAt: Long?,
+    /** For [Action.Change]: the settings as they were before, null for a key that wasn't set. */
+    val previous: Map<String, String?>? = null,
+)
+
+/** The TV-wide settings shown on its page; null for one the TV doesn't report. */
+data class TvTweaks(
+    /** The Private DNS provider, when one is set and in use; null means Automatic or Off. */
+    val dnsHost: String?,
+    /** Window animation scale, e.g. "1.0"; null when unset (Android's 1×). */
+    val animationScale: String?,
 )

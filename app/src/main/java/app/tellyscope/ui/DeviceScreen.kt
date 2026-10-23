@@ -122,6 +122,12 @@ data class DeviceActions(
     val debloat: () -> Unit = {},
     /** Opens the Advanced screen: every number, per-app CPU and RAM, processes and network. */
     val advanced: () -> Unit = {},
+    /** Ad-blocking Private DNS through the given hostname; null goes back to Automatic. */
+    val setDns: (String?) -> Unit = {},
+    val setFastAnimations: (Boolean) -> Unit = {},
+    val clearCaches: () -> Unit = {},
+    /** Asks where to save a screenshot of the TV on the phone, then takes it. */
+    val screenshot: () -> Unit = {},
 )
 
 /** Off while the remote is made faster: the device page hides its Remote button. */
@@ -249,6 +255,9 @@ fun DeviceScreen(
             }
             if (!offline && q.isEmpty()) section("files", "Files on the TV", ui.files.list?.size ?: 0) {
                 FilesBlock(ui.files, state.now, actions)
+            }
+            if (!offline && q.isEmpty()) section("tweaks", Copy.TWEAKS, 0) {
+                TweaksBlock(ui, actions)
             }
             section("history", "History", ui.history.size) {
                 HistoryList(ui.history, state.now, actions.undo, restoring = ui.busy == RESTORING, onRestoreAll = actions.restoreAll)

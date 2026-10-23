@@ -9,8 +9,12 @@ import app.tellyscope.data.Action
 import app.tellyscope.data.AppNames
 import app.tellyscope.data.DeviceState
 import app.tellyscope.data.Snapshot
+import app.tellyscope.data.TvSettings
+import java.text.SimpleDateFormat
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
+import java.util.Date
+import java.util.Locale
 
 /**
  * Every user-facing sentence about actions and time lives here so wording is
@@ -23,6 +27,7 @@ object Copy {
         Action.Enable -> "Turn on"
         Action.Open -> "Open"
         Action.Uninstall -> "Uninstall"
+        Action.Change, Action.ClearCaches -> error("$action isn't an app action")
     }
 
     fun confirm(action: Action) = when (action) {
@@ -31,6 +36,7 @@ object Copy {
         Action.Enable -> "Yes, turn it on"
         Action.Open -> "Yes, open it"
         Action.Uninstall -> "Yes, uninstall it"
+        Action.Change, Action.ClearCaches -> error("$action isn't an app action")
     }
 
     /**
@@ -44,6 +50,7 @@ object Copy {
             Action.Enable -> "Turns $who back on."
             Action.Open -> "Opens $who on the TV."
             Action.Uninstall -> "Removes $who and everything saved in it. This can't be undone; to get it back, install it again."
+            Action.Change, Action.ClearCaches -> error("$action isn't an app action")
         }
     }
 
@@ -53,6 +60,9 @@ object Copy {
         Action.Enable -> "Turned on $app"
         Action.Open -> "Opened $app"
         Action.Uninstall -> "Uninstalled $app"
+        // A setting's label is the whole sentence: "Private DNS set to …".
+        Action.Change -> app
+        Action.ClearCaches -> "Cleared $app"
     }
 
     /**
@@ -276,4 +286,30 @@ object Copy {
     fun restarting(minutes: Long) =
         if (minutes < 3) "Tellyscope reconnects on its own when the TV is back, usually within a couple of minutes."
         else "Taking a while. Some TVs turn network debugging off when they restart. If it doesn't come back, turn it on again in the TV's Developer options."
+
+    const val TWEAKS = "TV tweaks"
+    const val DNS_TITLE = "Block ads with Private DNS"
+    fun dnsState(host: String?) = host?.let { "On: $it" } ?: "Off. Turn on to block ads and trackers in every app on the TV."
+    const val DNS_DIALOG = "Block ads on the whole TV?"
+    const val DNS_TEXT = "The TV will look up every address through this ad-blocking DNS provider. AdGuard is free and needs no account. " +
+        "If the TV loses its internet afterwards, tap Undo in History to put it back."
+    const val DNS_FIELD = "DNS provider"
+    const val DNS_BAD = "Enter a hostname like dns.adguard-dns.com. An IP address won't work here."
+    const val DNS_CONFIRM = "Turn on"
+    const val ANIMATIONS_TITLE = "Faster animations"
+    fun animationsState(scale: String?) =
+        if (scale == TvSettings.FAST) "On: menus move at twice the speed"
+        else "Off. Turn on to make menus feel snappier."
+    const val CACHES_TITLE = "Clear all app caches"
+    const val CACHES_TEXT = "Frees space by clearing every app's temporary files. App data and sign-ins stay."
+    const val CACHES_BUTTON = "Clear caches"
+    fun cachesCleared(freedKb: Long?) =
+        if (freedKb == null || freedKb <= 0) "Cleared app caches" else "Cleared app caches, freed ${bytes(freedKb * 1024)}"
+    const val SCREENSHOT_TITLE = "Screenshot"
+    const val SCREENSHOT_TEXT = "Saves what the TV shows to your phone. Protected video, like most streaming apps, shows as black."
+    const val SCREENSHOT_BUTTON = "Take screenshot"
+    fun screenshotName(at: Long) =
+        "TV screenshot " + SimpleDateFormat("yyyy-MM-dd HH.mm.ss", Locale.ROOT).format(Date(at)) + ".png"
+    const val SCREENSHOT_SAVED = "Screenshot saved to your phone"
+    const val SCREENSHOT_FAILED = "Couldn't take a screenshot. Check the TV is still connected."
 }

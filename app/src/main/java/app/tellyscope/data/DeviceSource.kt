@@ -9,6 +9,7 @@ import app.tellyscope.adb.Progress
 import app.tellyscope.adb.RemoteKey
 import app.tellyscope.adb.TvFile
 import app.tellyscope.adb.TvFolder
+import app.tellyscope.adb.Tweak
 import kotlinx.coroutines.flow.Flow
 import okio.Sink
 import okio.Source
@@ -98,4 +99,19 @@ interface DeviceSource {
 
     /** Restarts the TV. The link drops and reconnects on its own once the TV is back. False if the TV refused. */
     suspend fun reboot(deviceId: String): Boolean
+
+    /** Private DNS and animation speed as the TV has them now. */
+    suspend fun tweaks(deviceId: String): TvTweaks
+
+    /**
+     * Writes [values] for [tweak] and records the values from before, so Undo puts them back
+     * exactly. [undoing] is the history entry this reverses. Throws with the reason when refused.
+     */
+    suspend fun change(deviceId: String, tweak: Tweak, values: Map<String, String?>, undoing: Long? = null): HistoryEntry
+
+    /** Frees every app's cache, keeping app data and sign-ins, and records it. Returns KB freed, or null when the TV can't say. */
+    suspend fun clearCaches(deviceId: String): Long?
+
+    /** A PNG of what the TV shows right now, into [sink]. */
+    suspend fun screenshot(deviceId: String, sink: Sink)
 }

@@ -25,6 +25,8 @@ import app.tellyscope.adb.ProtectedReason
 import app.tellyscope.adb.Remote
 import app.tellyscope.adb.RemoteKey
 import app.tellyscope.adb.PairResult
+import app.tellyscope.adb.Tweak
+import app.tellyscope.adb.Tweaks
 import com.flyfishxu.kadb.mdns.KadbMdnsAndroid
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -397,6 +399,36 @@ class AdbDeviceSource(context: Context) : DeviceSource {
     override suspend fun type(deviceId: String, text: String) = Remote(session(deviceId)).type(text)
 
     override suspend fun reboot(deviceId: String) = Remote(session(deviceId)).reboot()
+
+    override suspend fun tweaks(deviceId: String): TvTweaks {
+        val t = Tweaks(session(deviceId))
+        return TvSettings.tweaks(t.read(Tweak.PRIVATE_DNS), t.read(Tweak.ANIMATIONS))
+    }
+
+    override suspend fun change(deviceId: String, tweak: Tweak, values: Map<String, String?>, undoing: Long?): HistoryEntry {
+        val t = Tweaks(session(deviceId))
+        // Only the keys being written: Undo must not touch the ones this change left alone.
+        val before = t.read(tweak).filterKeys { it in values }
+        if (!t.write(tweak, values)) throw IllegalStateException("the TV didn't accept the change")
+        return book.record(
+            deviceId = key(deviceId),
+            at = System.currentTimeMillis(),
+            action = Action.Change,
+            packageName = tweak.name,
+            label = TvSettings.label(tweak, t.read(tweak)),
+            undo = Action.Change,
+            undoing = undoing,
+            previous = before,
+        )
+    }
+
+    override suspend fun clearCaches(deviceId: String): Long? {
+        val freed = Tweaks(session(deviceId)).clearCaches()
+        book.record(key(deviceId), System.currentTimeMillis(), Action.ClearCaches, "", TvSettings.CACHES, undo = null)
+        return freed
+    }
+
+    override suspend fun screenshot(deviceId: String, sink: Sink) = Tweaks(session(deviceId)).screenshot(sink)
 
     /**
      * The history key for a TV, read from it once connected and saved with it. Until it has

@@ -3,6 +3,8 @@
 package app.tellyscope.data
 
 import java.io.File
+import java.net.URLDecoder
+import java.net.URLEncoder
 import kotlinx.coroutines.CancellationException
 
 /**
@@ -42,12 +44,13 @@ class HistoryBook(private val file: File? = null) {
         label: String,
         undo: Action?,
         undoing: Long? = null,
+        previous: Map<String, String?>? = null,
     ): HistoryEntry {
         if (undoing != null) {
             val i = entries.indexOfFirst { it.id == undoing }
             if (i >= 0) entries[i] = entries[i].copy(undoneAt = at)
         }
-        val entry = HistoryEntry((entries.maxOfOrNull { it.id } ?: 0) + 1, deviceId, at, action, packageName, label, undo, null)
+        val entry = HistoryEntry((entries.maxOfOrNull { it.id } ?: 0) + 1, deviceId, at, action, packageName, label, undo, null, previous)
         entries += entry
         save()
         return entry
@@ -100,7 +103,7 @@ class HistoryBook(private val file: File? = null) {
                 listOf(
                     VERSION, "e", e.deviceId, e.id.toString(), e.at.toString(), e.action.name, e.packageName,
                     clean(e.label), e.undo?.name.orEmpty(), e.undoneAt?.toString().orEmpty(),
-                )
+                ) + listOfNotNull(e.previous?.let(::encode))
             }
         val tmp = File(f.path + ".tmp")
         tmp.writeText(lines.joinToString("") { it.joinToString("\t") + "\n" })
@@ -116,7 +119,8 @@ class HistoryBook(private val file: File? = null) {
         if (f.size < 4 || f[0] != VERSION) return
         when (f[1]) {
             "b" -> baselines[f[2]] = f[3].split(',').filter { it.isNotEmpty() }.toSet()
-            "e" -> if (f.size == 10) {
+            // An 11th field carries a setting's previous values; older entries have 10.
+            "e" -> if (f.size == 10 || f.size == 11) {
                 entries += HistoryEntry(
                     id = f[3].toLongOrNull() ?: return,
                     deviceId = f[2],
@@ -126,6 +130,7 @@ class HistoryBook(private val file: File? = null) {
                     label = f[7],
                     undo = action(f[8]),
                     undoneAt = f[9].toLongOrNull(),
+                    previous = f.getOrNull(10)?.let(::decode),
                 )
             }
         }
@@ -134,6 +139,14 @@ class HistoryBook(private val file: File? = null) {
     private fun action(s: String) = Action.entries.firstOrNull { it.name == s }
 
     private fun clean(s: String) = s.replace(Regex("[\\t\\r\\n]"), " ")
+
+    /** "key=value,key" with values URL-encoded; a bare key was unset. */
+    private fun encode(m: Map<String, String?>) =
+        m.entries.joinToString(",") { (k, v) -> if (v == null) k else "$k=" + URLEncoder.encode(v, "UTF-8") }
+
+    private fun decode(s: String): Map<String, String?> = s.split(',').filter { it.isNotEmpty() }.associate {
+        it.substringBefore('=') to (if ('=' in it) URLDecoder.decode(it.substringAfter('='), "UTF-8") else null)
+    }
 }
 
 private const val VERSION = "v1"

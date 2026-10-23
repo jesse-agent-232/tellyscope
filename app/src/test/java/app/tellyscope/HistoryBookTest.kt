@@ -22,6 +22,13 @@ class HistoryBookTest {
 
     private val tv = "tv-1"
 
+    @Test fun aSettingsPreviousValuesSurviveARestart() {
+        val file = tmp.root.resolve("history.tsv")
+        val previous = mapOf("private_dns_mode" to "opportunistic", "private_dns_specifier" to null, "odd" to "a=b,c")
+        val change = HistoryBook(file).record(tv, 1_000, Action.Change, "PRIVATE_DNS", "Private DNS set to x", Action.Change, previous = previous)
+        assertEquals(listOf(change), HistoryBook(file).entries(tv))
+    }
+
     @Test fun historyAndUndoSurviveARestart() {
         val file = tmp.root.resolve("history.tsv")
         val before = HistoryBook(file)

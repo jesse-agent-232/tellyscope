@@ -9,7 +9,9 @@ import app.tellyscope.adb.Progress
 import app.tellyscope.adb.RemoteKey
 import app.tellyscope.adb.TvFile
 import app.tellyscope.adb.TvFolder
+import app.tellyscope.adb.Tweak
 import java.io.File
+import java.io.IOException
 import java.time.YearMonth
 import kotlin.random.Random
 import kotlinx.coroutines.currentCoroutineContext
@@ -199,13 +201,13 @@ class FakeDeviceSource(
             Action.Disable -> list[i] = app.copy(enabled = false)
             Action.Enable -> list[i] = app.copy(enabled = true)
             Action.Uninstall -> list.removeAt(i)
-            Action.Stop, Action.Open -> Unit
+            Action.Stop, Action.Open, Action.Change, Action.ClearCaches -> Unit
         }
         val undo = when (action) {
             Action.Stop -> Action.Open
             Action.Disable -> Action.Enable
             Action.Enable -> Action.Disable
-            Action.Open, Action.Uninstall -> null
+            Action.Open, Action.Uninstall, Action.Change, Action.ClearCaches -> null
         }
         return book.record(deviceId, clock(), action, packageName, app.label, undo, undoing)
     }
@@ -300,6 +302,35 @@ class FakeDeviceSource(
         remembered[deviceId]?.let { remembered[deviceId] = it.copy(state = DeviceState.Offline) }
         backAt[deviceId] = clock() + 20_000
         return true
+    }
+
+    /** Global settings per TV, for the tweaks card. */
+    private val settings = mutableMapOf<String, MutableMap<String, String?>>()
+
+    private fun settingsFor(deviceId: String) = settings.getOrPut(deviceId) { mutableMapOf("private_dns_mode" to "opportunistic") }
+
+    override suspend fun tweaks(deviceId: String): TvTweaks {
+        val s = settingsFor(deviceId)
+        return TvSettings.tweaks(s, s)
+    }
+
+    override suspend fun change(deviceId: String, tweak: Tweak, values: Map<String, String?>, undoing: Long?): HistoryEntry {
+        delay(300)
+        val s = settingsFor(deviceId)
+        val before = values.keys.associateWith { s[it] }
+        s.putAll(values)
+        return book.record(deviceId, clock(), Action.Change, tweak.name, TvSettings.label(tweak, s), Action.Change, undoing, before)
+    }
+
+    override suspend fun clearCaches(deviceId: String): Long {
+        delay(800)
+        book.record(deviceId, clock(), Action.ClearCaches, "", TvSettings.CACHES, undo = null)
+        return 1_340_000
+    }
+
+    override suspend fun screenshot(deviceId: String, sink: Sink) {
+        delay(500)
+        throw IOException("the demo TV has no screen to capture")
     }
 
     private companion object {

@@ -1,0 +1,78 @@
+// SPDX-License-Identifier: GPL-3.0-only
+package app.tellyscope.adb
+
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
+import okio.Sink
+import java.io.IOException
+
+/**
+ * A group of global settings read and written together, so a change can be put back exactly: a
+ * key that wasn't set before is deleted again, never set to a guess at the default.
+ */
+enum class Tweak(val keys: List<String>) {
+    /** Android 9+. Mode `hostname` sends every lookup to `private_dns_specifier` over TLS. */
+    PRIVATE_DNS(listOf("private_dns_mode", "private_dns_specifier")),
+    ANIMATIONS(listOf("window_animation_scale", "transition_animation_scale", "animator_duration_scale")),
+}
+
+/** Settings and housekeeping that touch the whole TV rather than one app. */
+class Tweaks(private val session: AdbSession) {
+
+    /** Every key of [tweak]; null for a key that isn't set. */
+    suspend fun read(tweak: Tweak): Map<String, String?> {
+        val out = session.shell(tweak.keys.joinToString("; ") { "settings get global $it" }).output.lines()
+        return tweak.keys.withIndex().associate { (i, k) ->
+            k to out.getOrNull(i)?.trim()?.takeUnless { it.isEmpty() || it == "null" }
+        }
+    }
+
+    /** Writes [values] (keys of [tweak] only); null deletes the key. False when the TV refused. */
+    suspend fun write(tweak: Tweak, values: Map<String, String?>): Boolean {
+        require(values.isNotEmpty() && tweak.keys.containsAll(values.keys)) { "not keys of $tweak: ${values.keys}" }
+        val cmd = values.entries.joinToString(" && ") { (k, v) ->
+            if (v == null) "settings delete global $k" else "settings put global $k ${shellQuote(v)}"
+        }
+        val r = session.shell("$cmd 2>&1")
+        return r.exitCode == 0 && "Exception" !in r.output
+    }
+
+    /**
+     * Asks Android to free cache space from every app (`pm trim-caches` with more than any TV
+     * has); app data and sign-ins stay. Returns the space freed in KB, or null when the TV
+     * doesn't report its storage.
+     */
+    suspend fun clearCaches(): Long? {
+        val before = freeKb()
+        val r = session.shell("pm trim-caches 999G 2>&1")
+        if (r.exitCode != 0 || "Exception" in r.output || "Error" in r.output) {
+            throw IOException(r.output.trim().ifEmpty { "the TV refused" })
+        }
+        val after = freeKb()
+        return if (before != null && after != null) (after - before).coerceAtLeast(0) else null
+    }
+
+    private suspend fun freeKb() = Parsers.storage(session.shell("df -k /data").output)?.let { it.totalKb - it.usedKb }
+
+    /**
+     * A PNG of what the TV shows, into [sink]. `screencap` writes to a file on the TV first: shell
+     * output is text, and a PNG through it would be mangled. Protected video shows as black.
+     */
+    suspend fun screenshot(sink: Sink) {
+        val r = session.shell("screencap -p $SHOT 2>&1")
+        if (r.exitCode != 0) throw IOException(r.output.trim().ifEmpty { "the TV couldn't take a screenshot" })
+        try {
+            runTransfer { session.pull(sink, SHOT) }
+        } finally {
+            withContext(NonCancellable) { runCatching { session.shell("rm -f $SHOT") } }
+        }
+    }
+
+    companion object {
+        private const val SHOT = "/data/local/tmp/tellyscope-shot.png"
+        private val HOSTNAME = Regex("(?=.{1,253}$)([A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\.)+[A-Za-z]{2,63}")
+
+        /** A Private DNS provider must be a hostname: Android doesn't take an IP address there. */
+        fun isHostname(s: String) = HOSTNAME.matches(s)
+    }
+}
