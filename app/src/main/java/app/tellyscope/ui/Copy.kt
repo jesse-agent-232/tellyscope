@@ -65,14 +65,14 @@ object Copy {
         // A setting's label is the whole sentence: "Private DNS set to …".
         Action.Change -> app
         Action.ClearCaches -> "Cleared $app"
-        Action.Home -> "Made $app your home screen"
+        Action.Home -> "Set $app as the default launcher"
     }
 
     /** Where the lists come from, for the Debloat screen and the snackbar after a change. */
     fun listSource(custom: String?) =
         if (custom == null) "Lists from tellyscope-devices, built from cleanyourtv" else "Lists from ${sourceName(custom)}"
 
-    fun makeHome(app: String) = "Make $app your home screen"
+    const val MAKE_HOME = "Set as default launcher"
 
     /**
      * The home switch touches two apps, so it names both. The old launcher is disabled, not just

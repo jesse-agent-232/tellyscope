@@ -772,7 +772,7 @@ private fun AppRow(
                         else FilledTonalButton(onClick = { actions.propose(app.packageName, Action.Enable) }) { Text(Copy.button(Action.Enable)) }
                         if (app.removable) OutlinedButton(onClick = { actions.propose(app.packageName, Action.Uninstall) }) { Text(Copy.button(Action.Uninstall)) }
                     }
-                    if (home != null) OutlinedButton(onClick = { actions.propose(app.packageName, Action.Home) }) { Text(Copy.makeHome(app.label)) }
+                    if (home != null) OutlinedButton(onClick = { actions.propose(app.packageName, Action.Home) }) { Text(Copy.MAKE_HOME) }
                 } else if (proposed == Action.Uninstall) {
                     UninstallDialog(app, onUninstall = actions.confirm, onDismiss = actions.cancel)
                 } else {

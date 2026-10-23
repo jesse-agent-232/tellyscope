@@ -100,7 +100,7 @@ data class AppInfo(
     val icon: ByteArray? = null,
     /** Installed by the user (`pm list packages -3`), so Uninstall is offered. Never for apps that came with the TV. */
     val removable: Boolean = false,
-    /** Another launcher that can replace the current home screen, [homeInstead]: "Make it your home screen" is offered. */
+    /** Another launcher that can replace the current home screen, [homeInstead]: "Set as default launcher" is offered. */
     val homeInstead: String? = null,
 )
 
