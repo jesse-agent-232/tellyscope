@@ -127,7 +127,7 @@ data class UiState(
     val restarting: Map<String, Restart> = emptyMap(),
     /** The user's own debloat-list source; null for tellyscope-devices. */
     val listSource: String? = null,
-    /** The once-a-day look at GitHub for a newer release; null when this build has none (screenshots, tests). */
+    /** The every-30-minutes look at GitHub for a newer release; null when this build has none (screenshots, tests). */
     val checkUpdates: Boolean? = null,
     /** An alpha build, which checks every 5 minutes rather than every 30 minutes. */
     val alphaBuild: Boolean = false,
