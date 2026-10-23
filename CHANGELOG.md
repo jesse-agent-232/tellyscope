@@ -13,6 +13,7 @@ until this file has a section for its version.
 ## Unreleased
 
 - **Improved:** Picking your TV: your match on its own, or search by maker. [#49](../../pull/49)
+- **New:** Off Wi-Fi, the scan screen shows how to connect instead of an empty list. [#55](../../pull/55)
 
 ## 0.2.2 — 2026-10-23
 

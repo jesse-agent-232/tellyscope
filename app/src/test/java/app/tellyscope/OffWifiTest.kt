@@ -66,7 +66,7 @@ class OffWifiTest {
     @Test fun noLanShowsTheWifiPrompt() {
         var opened = false
         show(ScanUi(noLan = true)) { opened = true }
-        compose.onNodeWithText("Connect to Wi-Fi").assertIsDisplayed()
+        compose.onNodeWithText("This phone isn't on Wi-Fi").assertIsDisplayed()
         compose.onNodeWithText("Add by IP address").assertIsDisplayed()
         compose.onNodeWithText("Open Wi-Fi settings").performClick()
         assertTrue(opened)
@@ -75,13 +75,13 @@ class OffWifiTest {
     @Test fun aTvThatAnnouncedItselfStillShows() {
         show(ScanUi(noLan = true, hits = listOf(tv), rows = mapOf(tv.ip to RowState.Found)))
         compose.onNodeWithText("chromecast").assertIsDisplayed()
-        compose.onNodeWithText("Connect to Wi-Fi").assertDoesNotExist()
+        compose.onNodeWithText("This phone isn't on Wi-Fi").assertDoesNotExist()
     }
 
     @Test fun onWifiShowsTheScan() {
         show(ScanUi())
         compose.onNodeWithText("What's running on your TV?").assertIsDisplayed()
-        compose.onNodeWithText("Connect to Wi-Fi").assertDoesNotExist()
+        compose.onNodeWithText("This phone isn't on Wi-Fi").assertDoesNotExist()
     }
 
     @Test fun joiningWifiScansAgain() {
