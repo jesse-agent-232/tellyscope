@@ -15,8 +15,6 @@ Debloat your Android TV, install apps, and browse and transfer files on it, all 
   <a href="../../releases/latest"><img src="https://img.shields.io/github/v/release/man15h/tellyscope?color=00696B&label=release" alt="Latest release"></a>
 </p>
 
-No ads, no tracking, no accounts. Its only internet request fetches the debloat lists from this project's GitHub; everything else stays on your Wi-Fi.
-
 <a href="../../releases/latest"><img src="https://img.shields.io/badge/Download-signed%20APK-00696B?style=for-the-badge&logo=android&logoColor=white" alt="Download the signed APK" height="40"></a>
 
 Or get updates automatically with [Obtainium](#get-it).
