@@ -1137,6 +1137,9 @@ class ScreenshotTest {
     }
 
     // A keep from the TV's list only warns; a hard lock still offers nothing.
+    // Tall enough that Built-in's protected rows are on screen under the pinned buttons and search field:
+    // scrolling by text to a row not yet laid out, with the clock held, runs out of memory.
+    @Config(qualifiers = "w411dp-h1100dp-xxhdpi")
     @Test fun apps_listKeepWarnsAndHardLockHolds() {
         val proposed = mutableListOf<Pair<String, Action>>()
         val kept = deviceState { copy(apps = apps.map { if (it.packageName == "com.xgimi.assistant") it.copy(listKeep = true) else it }) }
