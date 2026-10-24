@@ -39,6 +39,7 @@ import app.tellyscope.adb.Connector
 import app.tellyscope.data.AdbDeviceSource
 import app.tellyscope.data.AndroidPhoneStorage
 import app.tellyscope.data.FakeDeviceSource
+import app.tellyscope.data.FoldBook
 import app.tellyscope.data.UpdateCheck
 import app.tellyscope.ui.AdvancedScreen
 import app.tellyscope.ui.Copy
@@ -91,6 +92,7 @@ class MainActivity : ComponentActivity() {
                                         scenario?.let(::FakeDeviceSource) ?: AdbDeviceSource(applicationContext),
                                         AndroidPhoneStorage(applicationContext),
                                         updates = if (scenario != null) null else updateCheck(),
+                                        folds = FoldBook(File(filesDir, "folds.properties")),
                                     )
                                 }
                             },
@@ -268,6 +270,7 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
                 screenshot = { saveScreenshot.launch(Copy.screenshotName(System.currentTimeMillis())) },
                 answerRequest = vm::answerRequest,
                 dismissRequest = vm::dismissRequest,
+                foldSystem = vm::foldSystem,
             ),
         )
     }

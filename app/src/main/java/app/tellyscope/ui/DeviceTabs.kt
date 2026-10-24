@@ -4,6 +4,7 @@
 
 package app.tellyscope.ui
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -44,11 +45,8 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.ShortNavigationBar
 import androidx.compose.material3.ShortNavigationBarItem
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -79,10 +77,10 @@ import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import app.tellyscope.data.Action
+import app.tellyscope.data.AppInfo
 import app.tellyscope.data.DeviceState
 import app.tellyscope.data.Snapshot
 import app.tellyscope.data.Suggestions
@@ -118,7 +116,7 @@ private fun TvTab.icon() = when (this) {
  * Every tab leads with the TV itself, big and centred, Overview with a chip per TV to switch; scrolling
  * folds it into the app bar. Search (Apps only) and the overflow sit on the right.
  */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun DeviceTabsScreen(
     state: UiState,
@@ -130,7 +128,7 @@ fun DeviceTabsScreen(
     val ui = state.device
     var tab by rememberSaveable { mutableStateOf(startTab) }
     var searching by rememberSaveable { mutableStateOf(false) }
-    var onlyLocked by rememberSaveable { mutableStateOf(false) }
+    var appsTab by rememberSaveable { mutableStateOf(AppsTab.Running) }
     val q = state.query.trim().lowercase()
     val offline = device.state != DeviceState.Online
     val list = rememberLazyListState()
@@ -265,16 +263,30 @@ fun DeviceTabsScreen(
                     item { AndroidCard(state, snap, offline, onUpdates = actions.checkUpdates) }
                 }
                 TvTab.Apps -> {
-                    val locked = ui.apps.count { it.protectedReason != null }
-                    item(key = "filter") { AppsFilter(ui.apps.size - locked, locked, onlyLocked) { onlyLocked = it } }
-                    val shown = ui.apps
-                        .filter { q.isEmpty() || it.label.lowercase().contains(q) || it.packageName.contains(q) }
-                        // A search looks through every app; the switch only narrows the plain list.
-                        .filter { q.isNotEmpty() || (it.protectedReason != null) == onlyLocked }
-                        .sortedWith(compareBy({ !it.enabled }, { it.system }, { it.label }))
-                    if (shown.isEmpty()) item { EmptyLine(q) }
-                    items(shown, key = { it.packageName }) { app ->
-                        AppRow(app, snap?.procs.orEmpty(), ui.pending, ui.busy == app.packageName, actions, homeLabel(ui.apps, app))
+                    val procs = snap?.procs.orEmpty()
+                    fun rows(apps: List<AppInfo>) = items(apps, key = { it.packageName }) { app ->
+                        AppRow(app, procs, ui.pending, ui.busy == app.packageName, actions, homeLabel(ui.apps, app))
+                    }
+                    if (q.isNotEmpty()) {
+                        // A search looks through every app, whichever tab it's on.
+                        val found = ui.apps
+                            .filter { it.label.lowercase().contains(q) || it.packageName.contains(q) }
+                            .sortedWith(compareBy({ !it.enabled }, { it.system }, { it.label }))
+                        if (found.isEmpty()) item { EmptyLine(q) }
+                        rows(found)
+                    } else {
+                        // Pinned under the bar once the hero has folded into it.
+                        stickyHeader(key = "appsTabs") {
+                            AppsTabRow(appsTab, lerp(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surfaceContainer, collapse), inset = 16.dp) { appsTab = it }
+                        }
+                        val split = splitApps(ui.apps, procs, appsTab)
+                        if (split.apps.isEmpty() && split.system.isEmpty()) item { EmptyLine(q) }
+                        rows(split.apps)
+                        if (split.system.isNotEmpty()) {
+                            val folded = appsTab in state.foldedSystem
+                            item(key = "system") { SystemHeader(split.system.size, folded) { actions.foldSystem(appsTab, it) } }
+                            if (!folded) rows(split.system)
+                        }
                     }
                 }
                 TvTab.Files -> {
@@ -297,20 +309,6 @@ fun DeviceTabsScreen(
         if (!offline) ui.request?.let { RequestDialog(it, ui.busy == ANSWERING, actions.answerRequest, actions.dismissRequest) }
         ui.sideload?.let { SideloadDialog(it, actions) }
         ui.transfer?.let { TransferDialog(it, actions.cancelTransfer) }
-    }
-}
-
-/** Apps the user can change by default; the switch's other side shows the ones Tellyscope protects. */
-@Composable
-private fun AppsFilter(changeable: Int, locked: Int, onlyLocked: Boolean, onChange: (Boolean) -> Unit) {
-    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-        listOf(false to "Changeable ($changeable)", true to "${Copy.CANT_CHANGE} ($locked)").forEachIndexed { i, (side, label) ->
-            SegmentedButton(
-                selected = onlyLocked == side,
-                onClick = { onChange(side) },
-                shape = SegmentedButtonDefaults.itemShape(i, 2),
-            ) { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) }
-        }
     }
 }
 

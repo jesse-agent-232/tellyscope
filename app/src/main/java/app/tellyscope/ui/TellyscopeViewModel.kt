@@ -36,6 +36,7 @@ import app.tellyscope.data.Suggestions
 import app.tellyscope.data.TvSettings
 import app.tellyscope.data.TvTweaks
 import app.tellyscope.data.Update
+import app.tellyscope.data.FoldBook
 import app.tellyscope.data.UpdateCheck
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -135,6 +136,8 @@ data class UiState(
     val alphaBuild: Boolean = false,
     /** A newer release to offer; cleared once the user answers. */
     val update: Update? = null,
+    /** The Apps tabs whose System section the user folded away. */
+    val foldedSystem: Set<AppsTab> = emptySet(),
 ) {
     val selected: Device? get() = devices.firstOrNull { it.id == selectedId }
 }
@@ -164,6 +167,7 @@ class TellyscopeViewModel(
     private val allowTimeoutMs: Long = 60_000,
     private val clock: () -> Long = System::currentTimeMillis,
     private val updates: UpdateCheck? = null,
+    private val folds: FoldBook? = null,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(UiState(now = clock()))
@@ -212,6 +216,12 @@ class TellyscopeViewModel(
         }
         updates?.let { u ->
             viewModelScope.launch(Dispatchers.IO) { _state.update { it.copy(checkUpdates = u.enabled, alphaBuild = u.alpha) } }
+        }
+        folds?.let { f ->
+            viewModelScope.launch(Dispatchers.IO) {
+                val folded = f.folded().mapNotNull { name -> AppsTab.entries.firstOrNull { it.name == name } }.toSet()
+                _state.update { it.copy(foldedSystem = folded) }
+            }
         }
         rescan()
         viewModelScope.launch {
@@ -816,6 +826,12 @@ class TellyscopeViewModel(
         val version = _state.value.update?.version ?: return
         _state.update { it.copy(update = null) }
         viewModelScope.launch(Dispatchers.IO) { updates?.skip(version) }
+    }
+
+    /** Folds or opens [tab]'s System section, and keeps it that way across restarts. */
+    fun foldSystem(tab: AppsTab, folded: Boolean) {
+        _state.update { it.copy(foldedSystem = if (folded) it.foldedSystem + tab else it.foldedSystem - tab) }
+        viewModelScope.launch(Dispatchers.IO) { folds?.set(tab.name, folded) }
     }
 
     fun setCheckUpdates(on: Boolean) {

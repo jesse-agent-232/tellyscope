@@ -148,7 +148,9 @@ object Copy {
 
     fun uninstallTitle(app: String) = "Uninstall $app?"
 
-    const val CANT_CHANGE = "Can't be changed"
+    /** The Apps tabs' header over the apps the TV needs, and why they're apart. */
+    const val SYSTEM = "System"
+    const val SYSTEM_WHY = "Needed by the TV · can't be changed"
 
     const val ANDROID_SYSTEM = AppNames.SYSTEM
 

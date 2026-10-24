@@ -15,7 +15,6 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onAllNodesWithText
@@ -50,8 +49,10 @@ import app.tellyscope.data.ScanKind
 import app.tellyscope.data.ScanProgress
 import app.tellyscope.data.Suggested
 import app.tellyscope.data.SuggestedGroup
+import app.tellyscope.data.Proc
 import app.tellyscope.data.Suggestions
 import app.tellyscope.ui.AdvancedScreen
+import app.tellyscope.ui.AppsTab
 import app.tellyscope.ui.ConnectScreen
 import app.tellyscope.ui.DebloatScreen
 import app.tellyscope.ui.DeviceActions
@@ -302,6 +303,34 @@ class ScreenshotTest {
     }
     @Test fun md3_apps() { shot("64_md3_apps") { DeviceTabsScreen(md3State(), DeviceActions(), startTab = TvTab.Apps) } }
     @Test fun md3_apps_dark() { shot("64_md3_apps", dark = true) { DeviceTabsScreen(md3State(), DeviceActions(), startTab = TvTab.Apps) } }
+    // The Apps tab's own tabs: what came with the TV, and only what the user installed.
+    private fun appsTab(name: String, dark: Boolean, label: String, state: () -> UiState = ::md3State) =
+        shot(name, dark, before = { compose.onNodeWithText(label).performClick(); Unit }) { DeviceTabsScreen(state(), DeviceActions(), startTab = TvTab.Apps) }
+    @Test fun md3_apps_installed() = appsTab("69_md3_apps_installed", false, "Installed")
+    @Test fun md3_apps_installed_dark() = appsTab("69_md3_apps_installed", true, "Installed")
+    @Test fun md3_apps_builtin() = appsTab("70_md3_apps_builtin", false, "Built-in")
+    @Test fun md3_apps_builtin_dark() = appsTab("70_md3_apps_builtin", true, "Built-in")
+    @Test fun md3_apps_offline() { shot("71_md3_apps_offline") { DeviceTabsScreen(offlineMd3(), DeviceActions(), startTab = TvTab.Apps) } }
+    @Test fun md3_apps_offline_dark() { shot("71_md3_apps_offline", dark = true) { DeviceTabsScreen(offlineMd3(), DeviceActions(), startTab = TvTab.Apps) } }
+    // Folded, the System header stays with its count and the protected apps go.
+    private fun foldedBuiltIn() = md3State().copy(foldedSystem = setOf(AppsTab.BuiltIn))
+    @Test fun md3_apps_builtin_folded() = appsTab("72_md3_apps_builtin_folded", false, "Built-in", ::foldedBuiltIn)
+    @Test fun md3_apps_builtin_folded_dark() {
+        appsTab("72_md3_apps_builtin_folded", true, "Built-in", ::foldedBuiltIn)
+        compose.onNodeWithText("System UI").assertDoesNotExist()
+    }
+    @Test fun systemHeaderFoldsItsTab() {
+        var folded: Pair<AppsTab, Boolean>? = null
+        compose.mainClock.autoAdvance = false
+        compose.setContent { TellyscopeTheme(dynamic = false) { DeviceTabsScreen(md3State(), DeviceActions(foldSystem = { t, f -> folded = t to f }), startTab = TvTab.Apps) } }
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.onNodeWithText("Built-in").performClick()
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText(Copy.SYSTEM_WHY))
+        compose.onNodeWithText(Copy.SYSTEM_WHY).performClick()
+        compose.mainClock.advanceTimeBy(1_000)
+        assertEquals(AppsTab.BuiltIn to true, folded)
+    }
     @Test fun md3_files() { shot("65_md3_files") { DeviceTabsScreen(md3State(), DeviceActions(), startTab = TvTab.Files) } }
     @Test fun md3_files_dark() { shot("65_md3_files", dark = true) { DeviceTabsScreen(md3State(), DeviceActions(), startTab = TvTab.Files) } }
     // Nothing came back: the TV still has off what Tellyscope turned off.
@@ -455,37 +484,47 @@ class ScreenshotTest {
             compose.onNodeWithText(label).performClick()
             compose.mainClock.advanceTimeBy(1_000)
         }
-        shot("26_apps_uninstall_offered", screen = true, before = { tap("Netflix"); tap("XGIMI Assistant"); Unit }) {
+        shot("26_apps_uninstall_offered", screen = true, before = { tap("Installed"); tap("Netflix"); Unit }) {
             DeviceTabsScreen(deviceState(), DeviceActions(propose = { pkg, a -> proposed += pkg to a }), startTab = TvTab.Apps)
         }
         // Netflix was installed by the user; XGIMI Assistant came with the TV and only gets Disable.
         compose.onAllNodesWithText("Uninstall").assertCountEquals(1)
         compose.onNodeWithText("Uninstall").performClick()
         assertEquals(listOf("com.netflix.ninja" to Action.Uninstall), proposed)
+        tap("Built-in"); tap("XGIMI Assistant")
+        compose.onNodeWithText("Disable").assertExists()
+        compose.onAllNodesWithText("Uninstall").assertCountEquals(0)
     }
 
     @Test fun apps_uninstallAsksInADialog() {
         val state = deviceState { copy(pending = "com.netflix.ninja" to Action.Uninstall) }
-        shot("27_apps_uninstall_confirm", screen = true) { DeviceTabsScreen(state, DeviceActions(), startTab = TvTab.Apps) }
+        // Netflix isn't running, so it's under Installed.
+        shot("27_apps_uninstall_confirm", screen = true, before = { compose.onNodeWithText("Installed").performClick(); Unit }) { DeviceTabsScreen(state, DeviceActions(), startTab = TvTab.Apps) }
         compose.onNodeWithText("Uninstall Netflix?").assertExists()
         compose.onNodeWithText("can't be undone", substring = true).assertExists()
         compose.onNodeWithText("Yes, uninstall it").assertExists()
     }
 
     @Config(qualifiers = "w411dp-h2600dp-xxhdpi")
-    @Test fun apps_protectedAreFoldedAway() {
-        shot("28_apps_protected_folded", screen = true) { DeviceTabsScreen(deviceState(), DeviceActions(), startTab = TvTab.Apps) }
-        compose.onNodeWithText("Changeable", substring = true).assertIsSelected()
-        compose.onNodeWithText("System UI").assertDoesNotExist()
-        compose.onNodeWithText("Can't be changed", substring = true).performClick()
-        compose.mainClock.advanceTimeBy(1_000)
+    @Test fun apps_systemFoldsAway() {
+        // Running opens with the protected apps under System, unfolded.
+        shot("28_apps_system", screen = true) { DeviceTabsScreen(deviceState(), DeviceActions(), startTab = TvTab.Apps) }
         compose.onNodeWithText("System UI").assertExists()
     }
+    // A fold the user chose hides them, header and count still there.
+    @Config(qualifiers = "w411dp-h2600dp-xxhdpi")
+    @Test fun apps_foldedSystemStaysFolded() {
+        val state = deviceState().copy(foldedSystem = setOf(AppsTab.Running))
+        shot("28_apps_system_folded", screen = true) { DeviceTabsScreen(state, DeviceActions(), startTab = TvTab.Apps) }
+        compose.onNodeWithText("${Copy.SYSTEM} (", substring = true).assertExists()
+        compose.onNodeWithText("System UI").assertDoesNotExist()
+    }
 
-    /** A real TV's app list: no per-process stats yet, so the apps sit right under the stat grid. */
+    /** A real TV's app list, every app running so all of them show under Running. */
     private fun appsState(apps: List<AppInfo>): UiState {
         val base = deviceState()
-        return base.copy(device = base.device.copy(snapshot = base.device.snapshot?.copy(procs = emptyList()), apps = apps))
+        val procs = apps.mapIndexed { i, a -> Proc(3000 + i, a.packageName, a.packageName, 1.0, 64) }
+        return base.copy(device = base.device.copy(snapshot = base.device.snapshot?.copy(procs = procs), apps = apps))
     }
 
     private val tvApps = listOf(
