@@ -22,7 +22,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -399,9 +398,6 @@ internal fun AppRow(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-            }
-            if (app.protectedReason != null) {
-                Icon(Icons.Default.Lock, contentDescription = "Protected", Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (busy) androidx.compose.material3.LoadingIndicator(Modifier.size(32.dp))
         }

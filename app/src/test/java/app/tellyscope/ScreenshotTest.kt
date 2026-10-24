@@ -25,9 +25,11 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.performScrollToKey
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onNodeWithTag
 import app.tellyscope.adb.ApkInfo
 import app.tellyscope.adb.ConnectionRequest
@@ -293,17 +295,35 @@ class ScreenshotTest {
         TvFile("holiday-2025.mp4", 812_000_000, now - 3 * 86_400_000L),
         TvFile("family-trip-2025.mp4", 486_000_000, now - 9 * 86_400_000L),
     )))) }
-    // The end space is Files' own: Apps, long after it, ends with none.
+    // The end space is Files' own: Overview, long after it on a phone-height screen, ends with none.
+    @Config(qualifiers = "w411dp-h640dp-xxhdpi")
     @Test fun longTabAfterShortOneHasNoEndSpace() {
         compose.mainClock.autoAdvance = false
         compose.setContent { TellyscopeTheme(dynamic = false) { DeviceTabsScreen(md3State(), DeviceActions(), startTab = TvTab.Files) } }
         compose.mainClock.advanceTimeBy(1_000)
         assertTrue(compose.onNodeWithTag("tail").fetchSemanticsNode().size.height > 0)
-        compose.onNodeWithText("Apps").performClick()
+        compose.onNodeWithText("Overview").performClick()
         compose.mainClock.advanceTimeBy(1_000)
-        compose.onNode(hasScrollAction()).performScrollToNode(hasTestTag("tail"))
+        // By key: a space of no height never counts as displayed, so scrolling to the node would never stop.
+        compose.onNode(hasScrollAction()).performScrollToKey("tail")
         compose.mainClock.advanceTimeBy(1_000)
         assertEquals(0, compose.onNodeWithTag("tail").fetchSemanticsNode().size.height)
+    }
+    private fun emptyFiles() = md3State().let { it.copy(device = it.device.copy(files = FilesUi(TvFolder.DOWNLOAD, emptyList()))) }
+    @Test fun md3_files_empty() {
+        shot("76_md3_files_empty") { DeviceTabsScreen(emptyFiles(), DeviceActions(), startTab = TvTab.Files) }
+        compose.onNodeWithText("Nothing in Download yet").assertIsDisplayed()
+        // The save hint is only for files there are.
+        compose.onNodeWithText("Tap a file to save a copy on your phone.").assertDoesNotExist()
+    }
+    @Test fun md3_files_empty_dark() { shot("76_md3_files_empty", dark = true) { DeviceTabsScreen(emptyFiles(), DeviceActions(), startTab = TvTab.Files) } }
+    // Part way through the fold: the cookie and name on their way to the bar, drawn once, over both.
+    @Config(qualifiers = "w411dp-h640dp-xxhdpi")
+    @Test fun md3_apps_folding() {
+        val part = { compose.onNode(hasScrollAction()).performSemanticsAction(SemanticsActions.ScrollBy) { it(0f, 150f) }; Unit }
+        shot("77_md3_apps_folding", before = part) { DeviceTabsScreen(md3State(), DeviceActions(), startTab = TvTab.Apps) }
+        // The bar's own title stays out of the tree until the hero has fully folded.
+        compose.onNodeWithText("Connected").assertDoesNotExist()
     }
     @Test fun md3_files_movies() { shot("73_md3_files_movies") { DeviceTabsScreen(moviesState(), DeviceActions(), startTab = TvTab.Files) } }
     @Test fun md3_files_movies_dark() { shot("73_md3_files_movies", dark = true) { DeviceTabsScreen(moviesState(), DeviceActions(), startTab = TvTab.Files) } }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Apps, Files and Tweaks icons are the Material Icons "apps", "folder" and "tune", and Upload is
-// "upload" (Apache-2.0), see NOTICE.
+// Apps, Files and Tweaks icons are the Material Icons "apps", "folder" and "tune", Upload is
+// "upload" and Movie is "movie" (Apache-2.0), see NOTICE.
 
 package app.tellyscope.ui
 
@@ -74,7 +74,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathParser
@@ -142,7 +141,7 @@ fun DeviceTabsScreen(
     // The hero tops every tab and collapses into the bar as the tab scrolls.
     var heroHeight by remember { mutableIntStateOf(0) }
     val collapse by remember { derivedStateOf { collapsedFraction(list.firstVisibleItemIndex, list.firstVisibleItemScrollOffset, heroHeight) } }
-    val barTitle by remember { derivedStateOf { titleAlpha(collapse) > 0f } }
+    val morph = remember { HeroMorph() }
     // A tab shorter than the screen gets blank space at its end, so its hero can still fold fully into the bar.
     // Measured only while the hero and the space are both in view, and kept while scrolled; a different list
     // (another tab, sub-tab or folder, or items coming and going) starts again from none.
@@ -170,179 +169,191 @@ fun DeviceTabsScreen(
         toChanges = false
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbar) },
-        // Each tab's main action as Material's extended FAB: install on Apps, upload on Files.
-        floatingActionButton = {
-            if (!offline) when (tab) {
-                TvTab.Apps -> ExtendedFloatingActionButton(onClick = actions.pickApp, icon = { Icon(Icons.Default.Add, null) }, text = { Text("Install app") })
-                TvTab.Files -> ExtendedFloatingActionButton(onClick = { actions.pickFile(ui.files.folder) }, icon = { Icon(TileIcons.Upload, null) }, text = { Text("Upload files") })
-                else -> {}
-            }
-        },
-        topBar = {
-            if (searching) {
-                TopAppBar(
-                    title = {
-                        TextField(
-                            value = state.query,
-                            onValueChange = actions.query,
-                            placeholder = { Text("Search apps") },
-                            singleLine = true,
-                            colors = TextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                            ),
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    },
-                    actions = {
-                        IconButton(onClick = { searching = false; actions.query("") }) {
-                            Icon(Icons.Default.Close, contentDescription = "Close search")
-                        }
-                    },
-                )
-            } else {
-                TopAppBar(
-                    // Each tab shows the TV big below, and in the bar once it has scrolled under it.
-                    title = { if (barTitle) TvBarTitle(device, Modifier.graphicsLayer { alpha = titleAlpha(collapse) }) },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = lerp(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surfaceContainer, collapse),
-                    ),
-                    actions = {
-                        if (REMOTE_ENABLED) TextButton(onClick = actions.remote, enabled = !offline) { Text("Remote") }
-                        // Search only looks through apps, so it only shows on the Apps tab.
-                        if (tab == TvTab.Apps) {
-                            IconButton(onClick = { searching = true }, enabled = !offline) {
-                                Icon(Icons.Default.Search, contentDescription = "Search apps")
-                            }
-                        }
-                        AppMenu(state, actions)
-                    },
-                )
-            }
-        },
-        bottomBar = {
-            ShortNavigationBar {
-                TvTab.entries.forEach { t ->
-                    ShortNavigationBarItem(
-                        selected = tab == t,
-                        onClick = {
-                            // Leaving Apps closes the search, so the list isn't still filtered on return.
-                            if (t != TvTab.Apps && searching) { searching = false; actions.query("") }
-                            tab = t
+    Box {
+        Scaffold(
+            snackbarHost = { SnackbarHost(snackbar) },
+            // Each tab's main action as Material's extended FAB: install on Apps, upload on Files.
+            floatingActionButton = {
+                if (!offline) when (tab) {
+                    TvTab.Apps -> ExtendedFloatingActionButton(onClick = actions.pickApp, icon = { Icon(Icons.Default.Add, null) }, text = { Text("Install app") })
+                    TvTab.Files -> ExtendedFloatingActionButton(onClick = { actions.pickFile(ui.files.folder) }, icon = { Icon(TileIcons.Upload, null) }, text = { Text("Upload files") })
+                    else -> {}
+                }
+            },
+            topBar = {
+                if (searching) {
+                    TopAppBar(
+                        title = {
+                            TextField(
+                                value = state.query,
+                                onValueChange = actions.query,
+                                placeholder = { Text("Search apps") },
+                                singleLine = true,
+                                colors = TextFieldDefaults.colors(
+                                    focusedContainerColor = Color.Transparent,
+                                    unfocusedContainerColor = Color.Transparent,
+                                ),
+                                modifier = Modifier.fillMaxWidth(),
+                            )
                         },
-                        icon = { Icon(t.icon(), contentDescription = null) },
-                        label = { Text(t.label) },
+                        actions = {
+                            IconButton(onClick = { searching = false; actions.query("") }) {
+                                Icon(Icons.Default.Close, contentDescription = "Close search")
+                            }
+                        },
+                    )
+                } else {
+                    TopAppBar(
+                        // Each tab shows the TV big below, and in the bar once it has scrolled under it.
+                        title = { TvBarTitle(device, collapse = { collapse }, morph = morph) },
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = lerp(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surfaceContainer, collapse),
+                        ),
+                        actions = {
+                            if (REMOTE_ENABLED) TextButton(onClick = actions.remote, enabled = !offline) { Text("Remote") }
+                            // Search only looks through apps, so it only shows on the Apps tab.
+                            if (tab == TvTab.Apps) {
+                                IconButton(onClick = { searching = true }, enabled = !offline) {
+                                    Icon(Icons.Default.Search, contentDescription = "Search apps")
+                                }
+                            }
+                            AppMenu(state, actions)
+                        },
                     )
                 }
-            }
-        },
-    ) { pad ->
-        LazyColumn(
-            Modifier.fillMaxSize().padding(pad),
-            state = list,
-            // No top padding: the Apps tabs pin at the list's top edge, flush under the bar; the hero carries the 4dp.
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            val snap = ui.snapshot
-            val live = snap?.takeIf { !offline }
-            item(key = "hero") { Box(Modifier.padding(top = 4.dp)) { TvHero(state, live, actions, chips = tab == TvTab.Overview, collapse = { collapse }, onHeight = { heroHeight = it }) } }
-            when (tab) {
-                TvTab.Overview -> {
-                    val restart = state.restarting[device.id]
-                    if (restart != null) {
-                        item { RestartingCard(restart, state.now) }
-                    } else if (device.state == DeviceState.NotAllowed) {
-                        item { NotAllowedCard(actions.reconnect) }
-                    } else if (offline) {
-                        item { OfflineCard(device, state.now, actions.reconnect) }
+            },
+            bottomBar = {
+                ShortNavigationBar {
+                    TvTab.entries.forEach { t ->
+                        ShortNavigationBarItem(
+                            selected = tab == t,
+                            onClick = {
+                                // Leaving Apps closes the search, so the list isn't still filtered on return.
+                                if (t != TvTab.Apps && searching) { searching = false; actions.query("") }
+                                tab = t
+                            },
+                            icon = { Icon(t.icon(), contentDescription = null) },
+                            label = { Text(t.label) },
+                        )
                     }
-                    // Away, storage is the last one seen, this session's or the saved one after a restart.
-                    val used = snap?.storageUsedGb ?: device.lastKnown?.storageUsedGb
-                    val total = snap?.storageTotalGb ?: device.lastKnown?.storageTotalGb
-                    if (live != null) {
-                        item { SystemWidget(live) }
-                    } else if (offline && used != null && total != null) {
-                        item { SystemWidget(used, total, null, asOf = device.lastSeen?.let { Copy.ago(it, state.now) } ?: "the last visit") }
-                    } else if (offline) {
-                        item { Muted(Copy.noStats(device.state)) }
+                }
+            },
+        ) { pad ->
+            LazyColumn(
+                Modifier.fillMaxSize().padding(pad),
+                state = list,
+                // No top padding: the Apps tabs pin at the list's top edge, flush under the bar; the hero carries the 4dp.
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                val snap = ui.snapshot
+                val live = snap?.takeIf { !offline }
+                item(key = "hero") { Box(Modifier.padding(top = 4.dp)) { TvHero(state, live, actions, chips = tab == TvTab.Overview, collapse = { collapse }, morph = morph, onHeight = { heroHeight = it }) } }
+                when (tab) {
+                    TvTab.Overview -> {
+                        val restart = state.restarting[device.id]
+                        if (restart != null) {
+                            item { RestartingCard(restart, state.now) }
+                        } else if (device.state == DeviceState.NotAllowed) {
+                            item { NotAllowedCard(actions.reconnect) }
+                        } else if (offline) {
+                            item { OfflineCard(device, state.now, actions.reconnect) }
+                        }
+                        // Away, storage is the last one seen, this session's or the saved one after a restart.
+                        val used = snap?.storageUsedGb ?: device.lastKnown?.storageUsedGb
+                        val total = snap?.storageTotalGb ?: device.lastKnown?.storageTotalGb
+                        if (live != null) {
+                            item { SystemWidget(live) }
+                        } else if (offline && used != null && total != null) {
+                            item { SystemWidget(used, total, null, asOf = device.lastSeen?.let { Copy.ago(it, state.now) } ?: "the last visit") }
+                        } else if (offline) {
+                            item { Muted(Copy.noStats(device.state)) }
+                        }
+                        val debloat = debloatState(ui)
+                        if (!offline) {
+                            item {
+                                ActionTiles(
+                                    actions,
+                                    count = debloat.count,
+                                    todo = debloat.todo,
+                                    disabling = ui.busy == DISABLING,
+                                    // With nothing left on the list, Debloat leads to the apps for one-off changes.
+                                    onDebloat = if (debloat.todo) actions.debloat else ({ tab = TvTab.Apps }),
+                                )
+                            }
+                        }
+                        item { SectionTitle("Suggested for this TV") }
+                        item { SuggestedCard(ui.lists, debloat, offline, onChanges = { toChanges = true; tab = TvTab.Tweaks }) }
+                        item { AndroidCard(state, snap, offline, onUpdates = actions.checkUpdates) }
                     }
-                    val debloat = debloatState(ui)
-                    if (!offline) {
+                    TvTab.Apps -> {
+                        val procs = snap?.procs.orEmpty()
+                        fun rows(apps: List<AppInfo>) = items(apps, key = { it.packageName }) { app ->
+                            AppRow(app, procs, ui.pending, ui.busy == app.packageName, actions, homeLabel(ui.apps, app))
+                        }
+                        if (q.isNotEmpty()) {
+                            // A search looks through every app, whichever tab it's on.
+                            val found = ui.apps
+                                .filter { it.label.lowercase().contains(q) || it.packageName.contains(q) }
+                                .sortedWith(compareBy({ !it.enabled }, { it.system }, { it.label }))
+                            if (found.isEmpty()) item { EmptyLine(q) }
+                            rows(found)
+                        } else {
+                            // Pinned under the bar once the hero has folded into it.
+                            stickyHeader(key = "appsTabs") {
+                                PinnedSegments(AppsTab.entries.map { it.label }, appsTab.ordinal, lerp(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surfaceContainer, collapse), inset = 16.dp) { appsTab = AppsTab.entries[it] }
+                            }
+                            val split = splitApps(ui.apps, procs, appsTab)
+                            if (split.apps.isEmpty() && split.system.isEmpty()) item {
+                                // Away, the TV can't say what's running, rather than nothing is.
+                                if (appsTab == AppsTab.Running && live == null) EmptyState(DeviceIcons.Tv, Copy.TV_OFFLINE, Copy.RUNNING_OFFLINE) else EmptyLine(q)
+                            }
+                            rows(split.apps)
+                            if (split.system.isNotEmpty()) {
+                                val folded = appsTab in state.foldedSystem
+                                item(key = "system") { SystemHeader(split.system.size, folded) { actions.foldSystem(appsTab, it) } }
+                                if (!folded) rows(split.system)
+                            }
+                        }
+                    }
+                    TvTab.Files -> {
+                        // Pinned under the bar once the hero has folded into it, like the Apps tabs.
+                        stickyHeader(key = "folders") {
+                            PinnedSegments(TvFolder.entries.map(Copy::folder), ui.files.folder.ordinal, lerp(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surfaceContainer, collapse), inset = 16.dp) {
+                                if (!offline) actions.folder(TvFolder.entries[it])
+                            }
+                        }
+                        val folder = ui.files.folder
+                        when {
+                            offline -> item { EmptyState(DeviceIcons.Tv, Copy.TV_OFFLINE, "Connect to the TV to see its files.") }
+                            ui.files.error == null && ui.files.list?.isEmpty() == true -> item {
+                                EmptyState(
+                                    if (folder == TvFolder.MOVIES) TileIcons.Movie else TabIcons.Folder,
+                                    "Nothing in ${Copy.folder(folder)} yet",
+                                    "Files you send land here.",
+                                )
+                            }
+                            else -> item { FilesBlock(ui.files, state.now, actions) }
+                        }
+                    }
+                    TvTab.Tweaks -> {
+                        if (offline) item { Muted("Connect to the TV to change its settings.") }
+                        else item { Panel(Copy.TWEAKS) { TweaksBlock(ui, actions) } }
                         item {
-                            ActionTiles(
-                                actions,
-                                count = debloat.count,
-                                todo = debloat.todo,
-                                disabling = ui.busy == DISABLING,
-                                // With nothing left on the list, Debloat leads to the apps for one-off changes.
-                                onDebloat = if (debloat.todo) actions.debloat else ({ tab = TvTab.Apps }),
-                            )
-                        }
-                    }
-                    item { SectionTitle("Suggested for this TV") }
-                    item { SuggestedCard(ui.lists, debloat, offline, onChanges = { toChanges = true; tab = TvTab.Tweaks }) }
-                    item { AndroidCard(state, snap, offline, onUpdates = actions.checkUpdates) }
-                }
-                TvTab.Apps -> {
-                    val procs = snap?.procs.orEmpty()
-                    fun rows(apps: List<AppInfo>) = items(apps, key = { it.packageName }) { app ->
-                        AppRow(app, procs, ui.pending, ui.busy == app.packageName, actions, homeLabel(ui.apps, app))
-                    }
-                    if (q.isNotEmpty()) {
-                        // A search looks through every app, whichever tab it's on.
-                        val found = ui.apps
-                            .filter { it.label.lowercase().contains(q) || it.packageName.contains(q) }
-                            .sortedWith(compareBy({ !it.enabled }, { it.system }, { it.label }))
-                        if (found.isEmpty()) item { EmptyLine(q) }
-                        rows(found)
-                    } else {
-                        // Pinned under the bar once the hero has folded into it.
-                        stickyHeader(key = "appsTabs") {
-                            PinnedTabRow(AppsTab.entries.map { it.label }, appsTab.ordinal, lerp(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surfaceContainer, collapse), inset = 16.dp) { appsTab = AppsTab.entries[it] }
-                        }
-                        val split = splitApps(ui.apps, procs, appsTab)
-                        if (split.apps.isEmpty() && split.system.isEmpty()) item {
-                            // Away, the TV can't say what's running, rather than nothing is.
-                            if (appsTab == AppsTab.Running && live == null) Muted(Copy.RUNNING_OFFLINE) else EmptyLine(q)
-                        }
-                        rows(split.apps)
-                        if (split.system.isNotEmpty()) {
-                            val folded = appsTab in state.foldedSystem
-                            item(key = "system") { SystemHeader(split.system.size, folded) { actions.foldSystem(appsTab, it) } }
-                            if (!folded) rows(split.system)
+                            Panel("Recent changes") {
+                                HistoryList(ui.history, state.now, actions.undo, restoring = ui.busy == RESTORING, onRestoreAll = actions.restoreAll)
+                            }
                         }
                     }
                 }
-                TvTab.Files -> {
-                    // Pinned under the bar once the hero has folded into it, like the Apps tabs.
-                    stickyHeader(key = "folders") {
-                        PinnedTabRow(TvFolder.entries.map(Copy::folder), ui.files.folder.ordinal, lerp(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surfaceContainer, collapse), inset = 16.dp) {
-                            if (!offline) actions.folder(TvFolder.entries[it])
-                        }
-                    }
-                    if (offline) item { Muted("Connect to the TV to see its files.") }
-                    else {
-                        item { FilesBlock(ui.files, state.now, actions) }
-                    }
-                }
-                TvTab.Tweaks -> {
-                    if (offline) item { Muted("Connect to the TV to change its settings.") }
-                    else item { Panel(Copy.TWEAKS) { TweaksBlock(ui, actions) } }
-                    item {
-                        Panel("Recent changes") {
-                            HistoryList(ui.history, state.now, actions.undo, restoring = ui.busy == RESTORING, onRestoreAll = actions.restoreAll)
-                        }
-                    }
-                }
+                item(key = "tail") { Spacer(Modifier.height(with(LocalDensity.current) { tail.toDp() }).testTag("tail")) }
             }
-            item(key = "tail") { Spacer(Modifier.height(with(LocalDensity.current) { tail.toDp() }).testTag("tail")) }
+            if (!offline) ui.request?.let { RequestDialog(it, ui.busy == ANSWERING, actions.answerRequest, actions.dismissRequest) }
+            ui.sideload?.let { SideloadDialog(it, actions) }
+            ui.transfer?.let { TransferDialog(it, actions.cancelTransfer) }
         }
-        if (!offline) ui.request?.let { RequestDialog(it, ui.busy == ANSWERING, actions.answerRequest, actions.dismissRequest) }
-        ui.sideload?.let { SideloadDialog(it, actions) }
-        ui.transfer?.let { TransferDialog(it, actions.cancelTransfer) }
+        // Over everything, so the cookie and name can pass from the list into the bar.
+        if (!searching) HeroMorphOverlay(device, morph) { collapse }
     }
 }
 
@@ -507,7 +518,9 @@ private fun StatusRow(icon: ImageVector, title: String, sub: String?, button: St
 
 
 private object TileIcons {
-    val Upload = icon("Upload", "M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z")
+    // Absolute commands only: Compose's path parser misplaces a relative move after a close.
+    val Upload = icon("Upload", "M9 16H15V10H19L12 3L5 10H9ZM5 18H19V20H5Z")
+    val Movie = icon("Movie", "M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z")
 
     private fun icon(name: String, path: String) = ImageVector.Builder(name, 24.dp, 24.dp, 24f, 24f)
         .addPath(PathParser().parsePathString(path).toNodes(), pathFillType = PathFillType.NonZero, fill = SolidColor(Color.Black))

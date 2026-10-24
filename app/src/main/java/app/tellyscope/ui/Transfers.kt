@@ -150,10 +150,12 @@ fun FilesBlock(files: FilesUi, now: Long, actions: DeviceActions) {
             LoadingIndicator(Modifier.size(32.dp))
         }
         files.error != null -> Muted(files.error)
-        list.isEmpty() -> Muted("Nothing in ${Copy.folder(files.folder)} yet. Files you send land here.")
-        else -> list.forEach { f -> FileRow(f, now) { actions.saveFile(f) } }
+        else -> {
+            list.forEach { f -> FileRow(f, now) { actions.saveFile(f) } }
+            // Only with files to tap; an empty folder shows its own page instead.
+            if (list.isNotEmpty()) Muted("Tap a file to save a copy on your phone.")
+        }
     }
-    Muted("Tap a file to save a copy on your phone.")
 }
 
 @Composable

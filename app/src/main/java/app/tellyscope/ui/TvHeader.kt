@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -26,24 +28,44 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.toSize
+import androidx.compose.ui.util.lerp
 import app.tellyscope.data.Device
 import app.tellyscope.data.DeviceState
 import app.tellyscope.data.Snapshot
@@ -51,7 +73,8 @@ import app.tellyscope.data.deviceKind
 
 /*
  * The TV's header, shared by the tabs that lead with the TV: the big hero, which collapses as the
- * page scrolls, and the bar title it collapses into. The TV chips, on Overview, scroll away with the page.
+ * page scrolls, and the bar title it collapses into. The TV's cookie and name travel from one to the
+ * other as one piece ([HeroMorph]). The TV chips, on Overview, scroll away with the page.
  */
 
 /**
@@ -79,6 +102,21 @@ internal fun titleAlpha(f: Float) = ((f - 0.67f) / 0.33f).coerceIn(0f, 1f)
 internal fun tailSpace(heroSize: Int, spacing: Int, contentEnd: Int, afterPadding: Int, viewport: Int): Int =
     (heroSize + spacing - (contentEnd + afterPadding - viewport)).coerceAtLeast(0)
 
+/**
+ * Where the TV's cookie and name sit in the hero and in the bar, in root coordinates, so that
+ * [HeroMorphOverlay] can carry them from one to the other. Positions are read while drawing only.
+ */
+@Stable
+class HeroMorph {
+    var heroCookie by mutableStateOf<Rect?>(null)
+    var heroName by mutableStateOf<Rect?>(null)
+    var barCookie by mutableStateOf<Rect?>(null)
+    var barName by mutableStateOf<Rect?>(null)
+}
+
+/** The node's whole bounds in the root, unlike boundsInRoot, which a scrolling list clips. */
+private fun LayoutCoordinates.rectInRoot() = Rect(positionInRoot(), size.toSize())
+
 /** The TV's cookie tile: primary while it's connected, grey when it isn't. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -102,26 +140,26 @@ private fun Cookie(device: Device, size: Dp) {
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun TvHero(state: UiState, live: Snapshot?, actions: DeviceActions, chips: Boolean = true, collapse: () -> Float = { 0f }, onHeight: (Int) -> Unit = {}) {
+fun TvHero(state: UiState, live: Snapshot?, actions: DeviceActions, chips: Boolean = true, collapse: () -> Float = { 0f }, morph: HeroMorph = remember { HeroMorph() }, onHeight: (Int) -> Unit = {}) {
     val device = state.selected ?: return
     val c = MaterialTheme.colorScheme
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // No gap between the two parts: the maker line sits right under the name, as before the collapse.
         Column(Modifier.fillMaxWidth().onSizeChanged { onHeight(it.height) }, horizontalAlignment = Alignment.CenterHorizontally) {
-            // Toward the top left, where the bar's small cookie and name take over.
+            // Once the page scrolls, the overlay carries the cookie and name to the bar; with no bar to go to, they stay.
             Column(
-                Modifier.graphicsLayer {
-                    val f = collapse()
-                    scaleX = 1f - 0.4f * f
-                    scaleY = scaleX
-                    alpha = 1f - f
-                    transformOrigin = TransformOrigin(0.5f, 0f)
-                },
+                Modifier.graphicsLayer { alpha = if (collapse() == 0f || morph.barCookie == null) 1f else 0f },
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Cookie(device, 80.dp)
-                Text(name(device), style = MaterialTheme.typography.headlineMediumEmphasized, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 16.dp))
+                Box(Modifier.onGloballyPositioned { morph.heroCookie = it.rectInRoot() }) { Cookie(device, 80.dp) }
+                Text(
+                    name(device),
+                    style = MaterialTheme.typography.headlineMediumEmphasized,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(horizontal = 16.dp).onGloballyPositioned { morph.heroName = it.rectInRoot() },
+                )
             }
             Column(Modifier.graphicsLayer { alpha = detailAlpha(collapse()) }, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 // Under a model-name title, the model would only say it twice.
@@ -144,23 +182,74 @@ fun TvHero(state: UiState, live: Snapshot?, actions: DeviceActions, chips: Boole
     }
 }
 
-/** The collapsed hero, in the bar: small cookie, the TV's name, and whether it's connected. */
+/**
+ * The collapsed hero, in the bar: small cookie, the TV's name, and whether it's connected. It's
+ * laid out from the start, so the cookie and name have somewhere to travel to, and shows them
+ * itself only once the hero has fully folded; the pill comes in over the last third.
+ */
 @Composable
-fun TvBarTitle(device: Device, modifier: Modifier = Modifier) {
+fun TvBarTitle(device: Device, collapse: () -> Float, morph: HeroMorph, modifier: Modifier = Modifier) {
     val c = MaterialTheme.colorScheme
     val on = device.state == DeviceState.Online
-    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
-        Cookie(device, 32.dp)
+    val folded by remember { derivedStateOf { collapse() >= 1f } }
+    DisposableEffect(morph) { onDispose { morph.barCookie = null; morph.barName = null } }
+    val landed = Modifier.graphicsLayer { alpha = if (collapse() >= 1f) 1f else 0f }
+    Row(if (folded) modifier else modifier.clearAndSetSemantics {}, verticalAlignment = Alignment.CenterVertically) {
+        Box(landed.onGloballyPositioned { morph.barCookie = it.rectInRoot() }) { Cookie(device, 32.dp) }
         Spacer(Modifier.width(12.dp))
-        Text(name(device), style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+        Text(
+            name(device),
+            style = MaterialTheme.typography.titleLarge,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false).then(landed).onGloballyPositioned { morph.barName = it.rectInRoot() },
+        )
         Spacer(Modifier.width(12.dp))
-        Surface(shape = CircleShape, color = if (on) c.primaryContainer else c.surfaceContainerHighest, contentColor = if (on) c.onPrimaryContainer else c.onSurfaceVariant) {
+        Surface(modifier = Modifier.graphicsLayer { alpha = titleAlpha(collapse()) }, shape = CircleShape, color = if (on) c.primaryContainer else c.surfaceContainerHighest, contentColor = if (on) c.onPrimaryContainer else c.onSurfaceVariant) {
             Row(Modifier.padding(horizontal = 8.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                 StateDot(device.state)
                 Spacer(Modifier.width(6.dp))
                 Text(Copy.state(device.state), style = MaterialTheme.typography.labelMedium)
             }
         }
+    }
+}
+
+/**
+ * The TV's cookie and name on their way from the hero to the bar, drawn over the whole screen
+ * while the hero is part folded. Each moves and shrinks from where it sits in the hero to where
+ * it sits in the bar; at either end the hero or the bar draws its own.
+ */
+@Composable
+internal fun HeroMorphOverlay(device: Device, morph: HeroMorph, collapse: () -> Float) {
+    var origin by remember { mutableStateOf(Offset.Zero) }
+    fun GraphicsLayerScope.travel(from: Rect?, to: Rect?) {
+        val f = collapse()
+        if (from == null || to == null || f <= 0f || f >= 1f) { alpha = 0f; return }
+        alpha = 1f
+        transformOrigin = TransformOrigin(0f, 0f)
+        scaleX = lerp(1f, to.height / from.height, f)
+        scaleY = scaleX
+        translationX = lerp(from.left, to.left, f) - origin.x
+        translationY = lerp(from.top, to.top, f) - origin.y
+    }
+    Box(Modifier.fillMaxSize().onGloballyPositioned { origin = it.positionInRoot() }.clearAndSetSemantics {}) {
+        Box(Modifier.graphicsLayer { travel(morph.heroCookie, morph.barCookie) }) { Cookie(device, 80.dp) }
+        Text(
+            name(device),
+            style = MaterialTheme.typography.headlineMediumEmphasized,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            // As wide as the hero's name, so it cuts off where that one does.
+            modifier = Modifier
+                .layout { m, c ->
+                    val w = morph.heroName?.width?.toInt() ?: 0
+                    val p = m.measure(if (w > 0) Constraints.fixedWidth(w) else c)
+                    layout(p.width, p.height) { p.place(0, 0) }
+                }
+                .graphicsLayer { travel(morph.heroName, morph.barName) },
+        )
     }
 }
 
@@ -191,20 +280,48 @@ private fun TvChips(state: UiState, actions: DeviceActions) {
     }
 }
 
-/** A tab's own tabs, edge to edge across the list's side [inset], pinned under the bar once the hero has folded. */
+/**
+ * A tab's own tabs, as connected buttons with a check on the chosen one. The strip runs edge to
+ * edge across the list's side [inset], in [color], so it pins cleanly under the bar once the hero has folded.
+ */
 @Composable
-internal fun PinnedTabRow(labels: List<String>, selected: Int, color: Color, inset: Dp, onSelect: (Int) -> Unit) {
-    PrimaryTabRow(
-        selectedTabIndex = selected,
-        containerColor = color,
-        modifier = Modifier.layout { m, c ->
-            val side = inset.roundToPx()
-            val p = m.measure(c.copy(minWidth = c.maxWidth + 2 * side, maxWidth = c.maxWidth + 2 * side))
-            layout(c.maxWidth, p.height) { p.place(-side, 0) }
-        },
+internal fun PinnedSegments(labels: List<String>, selected: Int, color: Color, inset: Dp, onSelect: (Int) -> Unit) {
+    Box(
+        Modifier
+            .layout { m, c ->
+                val side = inset.roundToPx()
+                val p = m.measure(c.copy(minWidth = c.maxWidth + 2 * side, maxWidth = c.maxWidth + 2 * side))
+                layout(c.maxWidth, p.height) { p.place(-side, 0) }
+            }
+            .background(color)
+            .padding(horizontal = inset, vertical = 8.dp),
     ) {
-        labels.forEachIndexed { i, label ->
-            Tab(selected = selected == i, onClick = { onSelect(i) }, text = { Text(label) })
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            labels.forEachIndexed { i, label ->
+                SegmentedButton(
+                    selected = selected == i,
+                    onClick = { onSelect(i) },
+                    shape = SegmentedButtonDefaults.itemShape(i, labels.size),
+                ) { Text(label) }
+            }
         }
+    }
+}
+
+/**
+ * What a list shows when it has nothing to show: a soft circle with an [icon], a [title], and
+ * one [line] under it, in the middle of the page.
+ */
+@Composable
+internal fun EmptyState(icon: ImageVector, title: String, line: String) {
+    val c = MaterialTheme.colorScheme
+    Column(Modifier.fillMaxWidth().padding(top = 96.dp, bottom = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.size(56.dp).clip(CircleShape).background(c.surfaceContainerHighest), contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = null, Modifier.size(28.dp), tint = c.onSurfaceVariant)
+        }
+        Spacer(Modifier.height(16.dp))
+        Text(title, style = MaterialTheme.typography.titleSmall, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(4.dp))
+        Text(line, style = MaterialTheme.typography.bodyMedium, color = c.onSurfaceVariant, textAlign = TextAlign.Center)
     }
 }

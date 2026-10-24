@@ -153,6 +153,7 @@ object Copy {
     const val SYSTEM_WHY = "Needed by the TV · can't be changed"
 
     /** Running, with no word from the TV. */
+    const val TV_OFFLINE = "TV offline"
     const val RUNNING_OFFLINE = "Running apps show here once the TV is connected."
 
     const val ANDROID_SYSTEM = AppNames.SYSTEM
