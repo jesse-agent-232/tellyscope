@@ -15,10 +15,10 @@ until this file has a section for its version.
 - **Improved:** Debloat finds your TV's list itself, or its maker's, or lets you pick. [#70](../../pull/70)
 - **Improved:** The TV tops every tab and folds into the bar as you scroll. [#71](../../pull/71)
 - **Improved:** Apps splits into Running, Installed and Built-in tabs, with the apps the TV needs folded under System. [#72](../../pull/72)
+- **Fixed:** Welcome and pairing buttons no longer hide under the phone's navigation buttons. [#69](../../pull/69)
 
 ## 0.5.0 — 2026-10-24
 
-- **Fixed:** Welcome and pairing buttons no longer hide under the phone's navigation buttons. [#69](../../pull/69)
 - **Improved:** Add your TV step by step, with a screen per TV showing this phone's key. [#66](../../pull/66)
 - **New:** The app opens on its logo, then a one-time welcome for first-time users. [#65](../../pull/65)
 - **Improved:** Overview puts the TV first, with chips to switch and debloat counts. [#64](../../pull/64)
