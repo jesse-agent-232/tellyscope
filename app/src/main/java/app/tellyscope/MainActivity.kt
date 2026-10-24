@@ -295,7 +295,7 @@ internal fun Snackbars(
             val result = host.showSnackbar(
                 message = Copy.done(d.entry.action, d.entry.label),
                 actionLabel = d.entry.undo?.let(Copy::undo),
-                duration = SnackbarDuration.Long,
+                duration = SnackbarDuration.Short,
             )
             if (result == SnackbarResult.ActionPerformed) undo(d)
         }
@@ -303,7 +303,7 @@ internal fun Snackbars(
     LaunchedEffect(host, notice) {
         notice.filterNotNull().collect { message ->
             noticeShown()
-            host.showSnackbar(message, duration = SnackbarDuration.Long)
+            host.showSnackbar(message, duration = SnackbarDuration.Short)
         }
     }
 }

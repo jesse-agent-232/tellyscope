@@ -19,6 +19,7 @@ until this file has a section for its version.
 - **Improved:** Protected apps drop the lock icon; the line saying why stays. [#74](../../pull/74)
 - **Fixed:** The upload icon draws properly again. [#74](../../pull/74)
 - **Fixed:** Welcome and pairing buttons no longer hide under the phone's navigation buttons. [#69](../../pull/69)
+- **Improved:** Messages at the bottom of the screen clear after 4 seconds, not 10. [#77](../../pull/77)
 
 ## 0.5.0 — 2026-10-24
 
