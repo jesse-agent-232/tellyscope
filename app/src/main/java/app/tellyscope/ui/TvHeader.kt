@@ -26,7 +26,9 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
@@ -34,8 +36,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -65,6 +69,15 @@ internal fun detailAlpha(f: Float) = (1f - 2f * f).coerceIn(0f, 1f)
 
 /** The bar title comes in over the last third, as the hero's name passes under the bar. */
 internal fun titleAlpha(f: Float) = ((f - 0.67f) / 0.33f).coerceIn(0f, 1f)
+
+/**
+ * The blank space a tab needs after its last item so the hero can scroll fully under the bar,
+ * 0 when the tab is long enough already. From the list laid out with the hero and the space both
+ * in view: [heroSize] and [spacing] are the hero item and the gap after it, [contentEnd] where the
+ * space starts measured from the hero's top, [afterPadding] the list's end padding.
+ */
+internal fun tailSpace(heroSize: Int, spacing: Int, contentEnd: Int, afterPadding: Int, viewport: Int): Int =
+    (heroSize + spacing - (contentEnd + afterPadding - viewport)).coerceAtLeast(0)
 
 /** The TV's cookie tile: primary while it's connected, grey when it isn't. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -175,5 +188,23 @@ private fun TvChips(state: UiState, actions: DeviceActions) {
         }
         // Adding a TV sits with the TVs, as the last chip.
         AssistChip(onClick = actions.addDevice, label = { Text("Device") }, leadingIcon = { Icon(Icons.Default.Add, contentDescription = "Add a", Modifier.size(18.dp)) })
+    }
+}
+
+/** A tab's own tabs, edge to edge across the list's side [inset], pinned under the bar once the hero has folded. */
+@Composable
+internal fun PinnedTabRow(labels: List<String>, selected: Int, color: Color, inset: Dp, onSelect: (Int) -> Unit) {
+    PrimaryTabRow(
+        selectedTabIndex = selected,
+        containerColor = color,
+        modifier = Modifier.layout { m, c ->
+            val side = inset.roundToPx()
+            val p = m.measure(c.copy(minWidth = c.maxWidth + 2 * side, maxWidth = c.maxWidth + 2 * side))
+            layout(c.maxWidth, p.height) { p.place(-side, 0) }
+        },
+    ) {
+        labels.forEachIndexed { i, label ->
+            Tab(selected = selected == i, onClick = { onSelect(i) }, text = { Text(label) })
+        }
     }
 }

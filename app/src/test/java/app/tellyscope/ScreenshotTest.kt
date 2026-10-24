@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -279,7 +280,50 @@ class ScreenshotTest {
     @Test fun md3_apps_collapsed_dark() = collapsed("64_md3_apps_collapsed", true, "Connected", TvTab.Apps)
     @Config(qualifiers = "w411dp-h640dp-xxhdpi")
     @Test fun md3_files_collapsed() = collapsed("65_md3_files_collapsed", false, "Connected", TvTab.Files)
+    @Config(qualifiers = "w411dp-h640dp-xxhdpi")
+    @Test fun md3_files_collapsed_dark() = collapsed("65_md3_files_collapsed", true, "Connected", TvTab.Files)
+    // On a tall screen the short tabs still fold the hero fully into the bar: the end space makes the room.
+    @Test fun md3_files_foldsOnTallScreen() = collapsed("65_md3_files_collapsed_tall", false, "Connected", TvTab.Files)
+    @Test fun md3_tweaks_foldsOnTallScreen() = collapsed("66_md3_tweaks_collapsed_tall", false, "Connected", TvTab.Tweaks)
+    // Download and Movies are tabs under the hero now, like Apps.
+    private fun moviesState() = md3State().let { it.copy(device = it.device.copy(files = FilesUi(TvFolder.MOVIES, listOf(
+        TvFile("holiday-2025.mp4", 812_000_000, now - 3 * 86_400_000L),
+        TvFile("family-trip-2025.mp4", 486_000_000, now - 9 * 86_400_000L),
+    )))) }
+    @Test fun md3_files_movies() { shot("73_md3_files_movies") { DeviceTabsScreen(moviesState(), DeviceActions(), startTab = TvTab.Files) } }
+    @Test fun md3_files_movies_dark() { shot("73_md3_files_movies", dark = true) { DeviceTabsScreen(moviesState(), DeviceActions(), startTab = TvTab.Files) } }
+    @Test fun md3_files_offline() {
+        shot("74_md3_files_offline") { DeviceTabsScreen(offlineMd3(), DeviceActions(), startTab = TvTab.Files) }
+        compose.onNodeWithText("Movies").assertExists()
+        compose.onNodeWithText("Connect to the TV to see its files.").assertExists()
+    }
+    @Test fun md3_files_offline_dark() { shot("74_md3_files_offline", dark = true) { DeviceTabsScreen(offlineMd3(), DeviceActions(), startTab = TvTab.Files) } }
+    @Test fun filesTabsPickTheFolder() {
+        val picked = mutableListOf<TvFolder>()
+        compose.mainClock.autoAdvance = false
+        compose.setContent { TellyscopeTheme(dynamic = false) { DeviceTabsScreen(md3State(), DeviceActions(folder = { picked += it }), startTab = TvTab.Files) } }
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.onNodeWithText("Movies").performClick()
+        compose.mainClock.advanceTimeBy(1_000)
+        assertEquals(listOf(TvFolder.MOVIES), picked)
+    }
     @Test fun md3_tweaks() { shot("66_md3_tweaks") { DeviceTabsScreen(md3State(), DeviceActions(), startTab = TvTab.Tweaks) } }
+    @Test fun md3_tweaks_dark() { shot("66_md3_tweaks", dark = true) { DeviceTabsScreen(md3State(), DeviceActions(), startTab = TvTab.Tweaks) } }
+    @Test fun md3_tweaks_offline() { shot("75_md3_tweaks_offline") { DeviceTabsScreen(offlineMd3(), DeviceActions(), startTab = TvTab.Tweaks) } }
+    @Test fun md3_tweaks_offline_dark() { shot("75_md3_tweaks_offline", dark = true) { DeviceTabsScreen(offlineMd3(), DeviceActions(), startTab = TvTab.Tweaks) } }
+    @Config(qualifiers = "w411dp-h640dp-xxhdpi")
+    @Test fun md3_tweaks_collapsed_dark() = collapsed("66_md3_tweaks_collapsed", true, "Connected", TvTab.Tweaks)
+    // "See changes" on Overview still lands on Tweaks at Recent changes, the end space notwithstanding.
+    @Test fun seeChangesLandsOnRecentChanges() {
+        compose.mainClock.autoAdvance = false
+        compose.setContent { TellyscopeTheme(dynamic = false) { DeviceTabsScreen(md3State(), DeviceActions()) } }
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("See changes"))
+        compose.onNodeWithText("See changes").performClick()
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.onNodeWithText("Recent changes").assertIsDisplayed()
+        compose.onAllNodesWithText("Connected").onFirst().assertExists() // folded into the bar
+    }
     @Config(qualifiers = "w411dp-h640dp-xxhdpi")
     @Test fun md3_tweaks_collapsed() = collapsed("66_md3_tweaks_collapsed", false, "Connected", TvTab.Tweaks)
 

@@ -10,8 +10,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -65,6 +67,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -74,11 +77,13 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathParser
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import app.tellyscope.adb.TvFolder
 import app.tellyscope.data.Action
 import app.tellyscope.data.AppInfo
 import app.tellyscope.data.DeviceState
@@ -136,6 +141,17 @@ fun DeviceTabsScreen(
     var heroHeight by remember { mutableIntStateOf(0) }
     val collapse by remember { derivedStateOf { collapsedFraction(list.firstVisibleItemIndex, list.firstVisibleItemScrollOffset, heroHeight) } }
     val barTitle by remember { derivedStateOf { titleAlpha(collapse) > 0f } }
+    // A tab shorter than the screen gets blank space at its end, so its hero can still fold fully into the bar.
+    // Measured only while the hero and the space are both in view; kept as it was while scrolled.
+    var tail by remember { mutableIntStateOf(0) }
+    LaunchedEffect(list) {
+        snapshotFlow { list.layoutInfo }.collect { info ->
+            val items = info.visibleItemsInfo
+            val hero = items.firstOrNull { it.key == "hero" } ?: return@collect
+            val end = items.firstOrNull { it.key == "tail" } ?: return@collect
+            tail = tailSpace(hero.size, info.mainAxisItemSpacing, end.offset - hero.offset, info.afterContentPadding, info.viewportSize.height)
+        }
+    }
     // The tabs share one list, so each opens at the top with its hero, not where the last one was left.
     // "See changes" lands on Tweaks scrolled to Recent changes, the list's third item, after the hero.
     var toChanges by remember { mutableStateOf(false) }
@@ -278,7 +294,7 @@ fun DeviceTabsScreen(
                     } else {
                         // Pinned under the bar once the hero has folded into it.
                         stickyHeader(key = "appsTabs") {
-                            AppsTabRow(appsTab, lerp(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surfaceContainer, collapse), inset = 16.dp) { appsTab = it }
+                            PinnedTabRow(AppsTab.entries.map { it.label }, appsTab.ordinal, lerp(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surfaceContainer, collapse), inset = 16.dp) { appsTab = AppsTab.entries[it] }
                         }
                         val split = splitApps(ui.apps, procs, appsTab)
                         if (split.apps.isEmpty() && split.system.isEmpty()) item {
@@ -294,6 +310,12 @@ fun DeviceTabsScreen(
                     }
                 }
                 TvTab.Files -> {
+                    // Pinned under the bar once the hero has folded into it, like the Apps tabs.
+                    stickyHeader(key = "folders") {
+                        PinnedTabRow(TvFolder.entries.map(Copy::folder), ui.files.folder.ordinal, lerp(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surfaceContainer, collapse), inset = 16.dp) {
+                            if (!offline) actions.folder(TvFolder.entries[it])
+                        }
+                    }
                     if (offline) item { Muted("Connect to the TV to see its files.") }
                     else {
                         item { FilesBlock(ui.files, state.now, actions) }
@@ -309,6 +331,7 @@ fun DeviceTabsScreen(
                     }
                 }
             }
+            item(key = "tail") { Spacer(Modifier.height(with(LocalDensity.current) { tail.toDp() })) }
         }
         if (!offline) ui.request?.let { RequestDialog(it, ui.busy == ANSWERING, actions.answerRequest, actions.dismissRequest) }
         ui.sideload?.let { SideloadDialog(it, actions) }

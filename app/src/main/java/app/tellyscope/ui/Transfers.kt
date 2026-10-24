@@ -29,9 +29,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -143,19 +140,9 @@ internal val Broom = ImageVector.Builder("Broom", 24.dp, 24.dp, 24f, 24f)
     )
     .build()
 
-/** Body of the Files section: the folder switch, then the folder's files, each one tap from the phone. */
+/** Body of the Files tab, under its folder tabs: the folder's files, each one tap from the phone. */
 @Composable
 fun FilesBlock(files: FilesUi, now: Long, actions: DeviceActions) {
-    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-        TvFolder.entries.forEachIndexed { i, f ->
-            SegmentedButton(
-                selected = files.folder == f,
-                onClick = { actions.folder(f) },
-                shape = SegmentedButtonDefaults.itemShape(i, TvFolder.entries.size),
-            ) { Text(Copy.folder(f)) }
-        }
-    }
-    Spacer(Modifier.size(4.dp))
     val list = files.list
     when {
         list == null -> Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.Center) {

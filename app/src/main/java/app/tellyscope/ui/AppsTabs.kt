@@ -12,16 +12,11 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.PrimaryTabRow
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.layout
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.tellyscope.data.AppInfo
 import app.tellyscope.data.Proc
@@ -51,24 +46,6 @@ internal fun splitApps(apps: List<AppInfo>, procs: List<Proc>, tab: AppsTab): Ap
     if (tab == AppsTab.Installed) return AppsSplit(shown, emptyList())
     val (system, rest) = shown.partition { locked(it, apps) }
     return AppsSplit(rest, system)
-}
-
-/** The three tabs, edge to edge across the list's side padding, pinned under the bar once the hero has folded. */
-@Composable
-internal fun AppsTabRow(tab: AppsTab, color: Color, inset: Dp, onTab: (AppsTab) -> Unit) {
-    PrimaryTabRow(
-        selectedTabIndex = tab.ordinal,
-        containerColor = color,
-        modifier = Modifier.layout { m, c ->
-            val side = inset.roundToPx()
-            val p = m.measure(c.copy(minWidth = c.maxWidth + 2 * side, maxWidth = c.maxWidth + 2 * side))
-            layout(c.maxWidth, p.height) { p.place(-side, 0) }
-        },
-    ) {
-        AppsTab.entries.forEach { t ->
-            Tab(selected = tab == t, onClick = { onTab(t) }, text = { Text(t.label) })
-        }
-    }
 }
 
 /** "System (N)" over the apps the TV needs; tapping it folds the list away or opens it again. */
