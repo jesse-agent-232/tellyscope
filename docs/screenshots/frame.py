@@ -24,7 +24,6 @@ SHOTS = {
     "connect": "03_connect_allow",
     "tv-page": "04_device",
     "debloat": "20_readme_debloat",
-    "debloat-confirm": "21_readme_confirm",
     "install": "23_readme_install",
     "send": "25_readme_send",
     "files": "24_readme_files",
@@ -32,7 +31,6 @@ SHOTS = {
     "tweaks": "29_readme_tweaks",
     "request": "17_device_request",
     "home": "30_readme_home",
-    "uninstall": "27_apps_uninstall_confirm",
 }
 
 DP = 3  # the tests render at xxhdpi

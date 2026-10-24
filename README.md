@@ -20,48 +20,40 @@ Or get updates automatically with [Obtainium](#get-it).
 
 <table>
   <tr>
+    <td width="25%"><img src="docs/screenshots/welcome.png" alt="Welcome to Tellyscope: the three setup steps, with Skip and Continue"></td>
+    <td width="25%"><img src="docs/screenshots/add-tv.png" alt="Add your TV: brand chips, the setup steps ticked off, and two TVs found with Connect"></td>
+    <td width="25%"><img src="docs/screenshots/connect.png" alt="Allow on your TV: this phone's key, and a drawing of the TV's Allow box with the same key"></td>
     <td width="25%"><img src="docs/screenshots/tv-page.png" alt="A TV's page: the TV at a glance, its vitals, and the Install, Debloat and Send buttons"></td>
-    <td width="25%"><img src="docs/screenshots/debloat.png" alt="Debloat: reviewing the apps it will turn off, each with its package name"></td>
-    <td width="25%"><img src="docs/screenshots/debloat-confirm.png" alt="The confirm before disabling, naming every app"></td>
-    <td width="25%"><img src="docs/screenshots/history.png" alt="History: every change with an Undo, and Restore everything"></td>
   </tr>
   <tr>
+    <td align="center"><sub>A short welcome on first launch</sub></td>
+    <td align="center"><sub>Add your TV step by step</sub></td>
+    <td align="center"><sub>Check the key, then Allow</sub></td>
     <td align="center"><sub>Your TV at a glance</sub></td>
-    <td align="center"><sub>Review every app Debloat turns off</sub></td>
-    <td align="center"><sub>It names each app before it acts</sub></td>
-    <td align="center"><sub>Undo anything from History</sub></td>
   </tr>
   <tr>
+    <td><img src="docs/screenshots/debloat.png" alt="Debloat: reviewing the apps it will turn off, each with its package name"></td>
+    <td><img src="docs/screenshots/history.png" alt="History: every change with an Undo, and Restore everything"></td>
     <td><img src="docs/screenshots/install.png" alt="Updating Netflix on the TV from an APK on the phone"></td>
     <td><img src="docs/screenshots/send.png" alt="Sending a video from the phone to the TV's Movies folder"></td>
-    <td><img src="docs/screenshots/files.png" alt="Files on the TV: the Download folder, each file one tap from the phone"></td>
-    <td><img src="docs/screenshots/welcome.png" alt="Welcome to Tellyscope: the three setup steps, with Skip and Continue"></td>
   </tr>
   <tr>
+    <td align="center"><sub>Review every app Debloat turns off</sub></td>
+    <td align="center"><sub>Undo anything from History</sub></td>
     <td align="center"><sub>Install or update apps</sub></td>
     <td align="center"><sub>Send files to the TV</sub></td>
-    <td align="center"><sub>Browse and save the TV's files</sub></td>
-    <td align="center"><sub>A short welcome on first launch</sub></td>
   </tr>
   <tr>
+    <td><img src="docs/screenshots/files.png" alt="Files on the TV: the Download folder, each file one tap from the phone"></td>
     <td><img src="docs/screenshots/tweaks.png" alt="TV tweaks: ad-blocking Private DNS on, faster animations, clear caches and screenshot"></td>
     <td><img src="docs/screenshots/request.png" alt="Another device wants to control this TV: the key fingerprint, with Deny and Allow"></td>
     <td><img src="docs/screenshots/home.png" alt="Making Projectivy Launcher the home screen: the confirm names both launchers"></td>
-    <td><img src="docs/screenshots/uninstall.png" alt="Uninstall Netflix? The dialog says it can't be undone"></td>
   </tr>
   <tr>
+    <td align="center"><sub>Browse and save the TV's files</sub></td>
     <td align="center"><sub>Block ads and tweak the TV</sub></td>
     <td align="center"><sub>Answer connection requests</sub></td>
     <td align="center"><sub>Switch the home screen</sub></td>
-    <td align="center"><sub>Uninstall apps you added</sub></td>
-  </tr>
-  <tr>
-    <td><img src="docs/screenshots/add-tv.png" alt="Add your TV: brand chips, the setup steps ticked off, and two TVs found with Connect"></td>
-    <td><img src="docs/screenshots/connect.png" alt="Allow on your TV: this phone's key, and a drawing of the TV's Allow box with the same key"></td>
-  </tr>
-  <tr>
-    <td align="center"><sub>Add your TV step by step</sub></td>
-    <td align="center"><sub>Check the key, then Allow</sub></td>
   </tr>
 </table>
 
