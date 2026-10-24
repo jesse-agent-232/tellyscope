@@ -4,7 +4,9 @@
 
 package app.tellyscope.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,10 +18,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -51,6 +57,7 @@ import androidx.compose.material3.ShortNavigationBar
 import androidx.compose.material3.ShortNavigationBarItem
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -71,6 +78,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.SolidColor
@@ -120,7 +129,8 @@ private fun TvTab.icon() = when (this) {
 /**
  * The TV page as four tabs under a bottom bar, in place of one long scroll of folded sections.
  * Every tab leads with the TV itself, big and centred, Overview with a chip per TV to switch; scrolling
- * folds it into the app bar. Search (Apps only) and the overflow sit on the right.
+ * folds it into the app bar, with the overflow on the right. On Apps, "Search apps" pins under the
+ * three buttons; opening it takes the top of the screen and hides the TV until it closes.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class, ExperimentalFoundationApi::class)
 @Composable
@@ -138,6 +148,8 @@ fun DeviceTabsScreen(
     val q = state.query.trim().lowercase()
     val offline = device.state != DeviceState.Online
     val list = rememberLazyListState()
+    val closeSearch = { searching = false; actions.query("") }
+    BackHandler(enabled = searching, onBack = closeSearch)
     // The hero tops every tab and collapses into the bar as the tab scrolls.
     var heroHeight by remember { mutableIntStateOf(0) }
     val collapse by remember { derivedStateOf { collapsedFraction(list.firstVisibleItemIndex, list.firstVisibleItemScrollOffset, heroHeight) } }
@@ -150,7 +162,7 @@ fun DeviceTabsScreen(
     val folder by rememberUpdatedState(ui.files.folder)
     LaunchedEffect(list) {
         snapshotFlow { list.layoutInfo }.collect { info ->
-            val content = listOf(tab, appsTab, folder, info.totalItemsCount)
+            val content = listOf(tab, appsTab, folder, searching, info.totalItemsCount)
             if (content != measuredFor) { measuredFor = content; tail = 0 }
             val items = info.visibleItemsInfo
             val hero = items.firstOrNull { it.key == "hero" } ?: return@collect
@@ -168,6 +180,13 @@ fun DeviceTabsScreen(
         list.scrollToItem(if (tab == TvTab.Tweaks && toChanges) 2 else 0)
         toChanges = false
     }
+    // Opening search starts the results from the top; closing it brings the TV back into view.
+    var wasSearching by rememberSaveable { mutableStateOf(searching) }
+    LaunchedEffect(searching) {
+        if (searching == wasSearching) return@LaunchedEffect
+        wasSearching = searching
+        list.scrollToItem(0)
+    }
 
     Box {
         Scaffold(
@@ -182,26 +201,7 @@ fun DeviceTabsScreen(
             },
             topBar = {
                 if (searching) {
-                    TopAppBar(
-                        title = {
-                            TextField(
-                                value = state.query,
-                                onValueChange = actions.query,
-                                placeholder = { Text("Search apps") },
-                                singleLine = true,
-                                colors = TextFieldDefaults.colors(
-                                    focusedContainerColor = Color.Transparent,
-                                    unfocusedContainerColor = Color.Transparent,
-                                ),
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        },
-                        actions = {
-                            IconButton(onClick = { searching = false; actions.query("") }) {
-                                Icon(Icons.Default.Close, contentDescription = "Close search")
-                            }
-                        },
-                    )
+                    SearchHeader(state.query, actions.query, onClose = closeSearch)
                 } else {
                     TopAppBar(
                         // Each tab shows the TV big below, and in the bar once it has scrolled under it.
@@ -211,12 +211,6 @@ fun DeviceTabsScreen(
                         ),
                         actions = {
                             if (REMOTE_ENABLED) TextButton(onClick = actions.remote, enabled = !offline) { Text("Remote") }
-                            // Search only looks through apps, so it only shows on the Apps tab.
-                            if (tab == TvTab.Apps) {
-                                IconButton(onClick = { searching = true }, enabled = !offline) {
-                                    Icon(Icons.Default.Search, contentDescription = "Search apps")
-                                }
-                            }
                             AppMenu(state, actions)
                         },
                     )
@@ -229,7 +223,7 @@ fun DeviceTabsScreen(
                             selected = tab == t,
                             onClick = {
                                 // Leaving Apps closes the search, so the list isn't still filtered on return.
-                                if (t != TvTab.Apps && searching) { searching = false; actions.query("") }
+                                if (t != TvTab.Apps && searching) closeSearch()
                                 tab = t
                             },
                             icon = { Icon(t.icon(), contentDescription = null) },
@@ -248,7 +242,7 @@ fun DeviceTabsScreen(
             ) {
                 val snap = ui.snapshot
                 val live = snap?.takeIf { !offline }
-                item(key = "hero") { Box(Modifier.padding(top = 4.dp)) { TvHero(state, live, actions, chips = tab == TvTab.Overview, collapse = { collapse }, morph = morph, onHeight = { heroHeight = it }) } }
+                if (!searching) item(key = "hero") { Box(Modifier.padding(top = 4.dp)) { TvHero(state, live, actions, chips = tab == TvTab.Overview, collapse = { collapse }, morph = morph, onHeight = { heroHeight = it }) } }
                 when (tab) {
                     TvTab.Overview -> {
                         val restart = state.restarting[device.id]
@@ -291,17 +285,21 @@ fun DeviceTabsScreen(
                         fun rows(apps: List<AppInfo>) = items(apps, key = { it.packageName }) { app ->
                             AppRow(app, procs, ui.pending, ui.busy == app.packageName, actions, homeLabel(ui.apps, app))
                         }
-                        if (q.isNotEmpty()) {
-                            // A search looks through every app, whichever tab it's on.
+                        if (searching) {
+                            // One flat list of every matching app, whichever button it sits under; each row says
+                            // whether it's running, off or protected.
                             val found = ui.apps
-                                .filter { it.label.lowercase().contains(q) || it.packageName.contains(q) }
+                                .filter { q.isEmpty() || it.label.lowercase().contains(q) || it.packageName.contains(q) }
                                 .sortedWith(compareBy({ !it.enabled }, { it.system }, { it.label }))
                             if (found.isEmpty()) item { EmptyLine(q) }
                             rows(found)
                         } else {
-                            // Pinned under the bar once the hero has folded into it.
                             stickyHeader(key = "appsTabs") {
-                                PinnedSegments(AppsTab.entries.map { it.label }, appsTab.ordinal, lerp(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surfaceContainer, collapse), inset = 16.dp) { appsTab = AppsTab.entries[it] }
+                                PinnedSegments(
+                                    AppsTab.entries.map { it.label }, appsTab.ordinal,
+                                    lerp(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surfaceContainer, collapse), inset = 16.dp,
+                                    below = { SearchPill(enabled = !offline) { searching = true } },
+                                ) { appsTab = AppsTab.entries[it] }
                             }
                             val split = splitApps(ui.apps, procs, appsTab)
                             if (split.apps.isEmpty() && split.system.isEmpty()) item {
@@ -404,6 +402,49 @@ private fun AppMenu(state: UiState, actions: DeviceActions) {
             DropdownMenuItem(text = { Text("Advanced") }, leadingIcon = { Icon(Icons.Default.List, null) }, onClick = { open = false; actions.advanced() })
             DropdownMenuItem(text = { Text("Settings") }, leadingIcon = { Icon(Icons.Default.Settings, null) }, onClick = { open = false; actions.settings() })
             DropdownMenuItem(text = { Text("About & licences") }, leadingIcon = { Icon(Icons.Default.Info, null) }, onClick = { open = false; about = true })
+        }
+    }
+}
+
+/** "Search apps" under the Apps buttons, pinned with them; a tap opens the search at the top. */
+@Composable
+private fun SearchPill(enabled: Boolean, onClick: () -> Unit) {
+    Surface(onClick = onClick, enabled = enabled, shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.width(16.dp))
+            Text("Search apps", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+/**
+ * Search, open: the field on top with ← to close and ✕ to clear, and the results get the rest of
+ * the screen. The keyboard comes up with it.
+ */
+@Composable
+private fun SearchHeader(query: String, onQuery: (String) -> Unit, onClose: () -> Unit) {
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(focus) { focus.requestFocus() }
+    Column(Modifier.background(MaterialTheme.colorScheme.surface).statusBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onClose) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Close search") }
+                TextField(
+                    value = query,
+                    onValueChange = onQuery,
+                    placeholder = { Text("Search apps") },
+                    singleLine = true,
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                    ),
+                    modifier = Modifier.weight(1f).focusRequester(focus),
+                )
+                if (query.isNotEmpty()) IconButton(onClick = { onQuery("") }) { Icon(Icons.Default.Close, contentDescription = "Clear search") }
+            }
         }
     }
 }

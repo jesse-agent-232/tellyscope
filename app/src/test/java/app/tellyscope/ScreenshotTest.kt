@@ -19,6 +19,8 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.activity.OnBackPressedDispatcher
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.onRoot
@@ -84,6 +86,7 @@ import app.tellyscope.ui.ScanUi
 import app.tellyscope.ui.SideloadUi
 import app.tellyscope.ui.TransferUi
 import app.tellyscope.ui.brands
+import app.tellyscope.ui.name
 import app.tellyscope.ui.UiState
 import app.tellyscope.ui.theme.TellyscopeTheme
 import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
@@ -467,17 +470,68 @@ class ScreenshotTest {
                 DeviceTabsScreen(tabsState(), DeviceActions(query = { queries += it }), startTab = TvTab.Apps)
             }
         }
-        compose.onNodeWithContentDescription("Search apps").performClick()
+        compose.onNodeWithText("Search apps").performClick()
         compose.mainClock.advanceTimeBy(1_000)
         compose.onNodeWithText("Overview").performClick()
         compose.mainClock.advanceTimeBy(1_000)
-        // Leaving Apps closed the search and cleared its query; the icon is gone with it.
+        // Leaving Apps closed the search and cleared its query; the field is gone with it.
         assertEquals(listOf(""), queries)
-        compose.onNodeWithContentDescription("Search apps").assertDoesNotExist()
+        compose.onNodeWithText("Search apps").assertDoesNotExist()
         compose.onNodeWithContentDescription("Close search").assertDoesNotExist()
         compose.onNodeWithText("Apps").performClick()
         compose.mainClock.advanceTimeBy(1_000)
-        compose.onNodeWithContentDescription("Search apps").assertExists()
+        compose.onNodeWithText("Search apps").assertExists()
+    }
+
+    @Test fun tabs_searchHidesTheTvAndBackBringsItBack() {
+        val state = tabsState()
+        val tv = name(state.selected!!)
+        lateinit var back: OnBackPressedDispatcher
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            back = LocalOnBackPressedDispatcherOwner.current!!.onBackPressedDispatcher
+            TellyscopeTheme(dark = false, dynamic = false) { DeviceTabsScreen(state, DeviceActions(), startTab = TvTab.Apps) }
+        }
+        compose.mainClock.advanceTimeBy(1_000)
+        val shown = { compose.onAllNodesWithText(tv).fetchSemanticsNodes().size }
+        val atRest = shown()
+        assertTrue(atRest > 0)
+        for (close in listOf({ compose.runOnUiThread { back.onBackPressed() } }, { compose.onNodeWithContentDescription("Close search").performClick() })) {
+            compose.onNodeWithText("Search apps").performClick()
+            compose.mainClock.advanceTimeBy(1_000)
+            // The field has the top, and the TV and the buttons are gone.
+            compose.onNodeWithContentDescription("Close search").assertExists()
+            compose.onNodeWithText("Installed").assertDoesNotExist()
+            assertEquals(0, shown())
+            close()
+            compose.mainClock.advanceTimeBy(1_000)
+            compose.onNodeWithContentDescription("Close search").assertDoesNotExist()
+            assertEquals(atRest, shown())
+        }
+    }
+
+    @Test fun tabs_searchOpen() = searchOpen(dark = false)
+    @Test fun tabs_searchOpen_dark() = searchOpen(dark = true)
+
+    private fun searchOpen(dark: Boolean) {
+        val open = { compose.onNodeWithText("Search apps").performClick(); Unit }
+        shot("80_apps_search", dark, before = open) { DeviceTabsScreen(tabsState().copy(query = "xgimi"), DeviceActions(), startTab = TvTab.Apps) }
+    }
+
+    @Test fun tabs_searchFindsAppsUnderEveryButton() {
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            TellyscopeTheme(dark = false, dynamic = false) {
+                DeviceTabsScreen(tabsState().copy(query = "google"), DeviceActions(), startTab = TvTab.Apps)
+            }
+        }
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.onNodeWithText("Search apps").performClick()
+        compose.mainClock.advanceTimeBy(1_000)
+        // YouTube is only under Installed and Google Play services only under Built-in; one list has both.
+        compose.onNodeWithText("YouTube").assertExists()
+        compose.onNodeWithText("Google Play services").assertExists()
+        compose.onNodeWithText("System", substring = true).assertDoesNotExist()
     }
 
     private fun appMenu(dark: Boolean) {

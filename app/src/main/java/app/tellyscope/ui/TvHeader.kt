@@ -283,9 +283,10 @@ private fun TvChips(state: UiState, actions: DeviceActions) {
 /**
  * A tab's own tabs, as connected buttons with a check on the chosen one. The strip runs edge to
  * edge across the list's side [inset], in [color], so it pins cleanly under the bar once the hero has folded.
+ * Whatever is [below] the buttons, such as a search field, pins with them.
  */
 @Composable
-internal fun PinnedSegments(labels: List<String>, selected: Int, color: Color, inset: Dp, onSelect: (Int) -> Unit) {
+internal fun PinnedSegments(labels: List<String>, selected: Int, color: Color, inset: Dp, below: @Composable () -> Unit = {}, onSelect: (Int) -> Unit) {
     Box(
         Modifier
             .layout { m, c ->
@@ -296,14 +297,17 @@ internal fun PinnedSegments(labels: List<String>, selected: Int, color: Color, i
             .background(color)
             .padding(horizontal = inset, vertical = 8.dp),
     ) {
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-            labels.forEachIndexed { i, label ->
-                SegmentedButton(
-                    selected = selected == i,
-                    onClick = { onSelect(i) },
-                    shape = SegmentedButtonDefaults.itemShape(i, labels.size),
-                ) { Text(label) }
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                labels.forEachIndexed { i, label ->
+                    SegmentedButton(
+                        selected = selected == i,
+                        onClick = { onSelect(i) },
+                        shape = SegmentedButtonDefaults.itemShape(i, labels.size),
+                    ) { Text(label) }
+                }
             }
+            below()
         }
     }
 }
