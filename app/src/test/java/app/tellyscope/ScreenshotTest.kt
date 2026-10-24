@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -256,7 +257,9 @@ class ScreenshotTest {
         shot(name, dark, before = scroll) { DeviceTabsScreen(state(), DeviceActions(), startTab = tab) }
         compose.onAllNodesWithText(badge).onFirst().assertExists()
         compose.onNodeWithContentDescription("More options").assertExists()
-        compose.onNodeWithText("Device").assertDoesNotExist() // the chips scrolled away, or were never there
+        // The chips scrolled away, or were never there. The list keeps items just off screen composed, so not shown is the check.
+        val chips = compose.onAllNodesWithText("Device")
+        repeat(chips.fetchSemanticsNodes().size) { chips[it].assertIsNotDisplayed() }
     }
 
     private fun offlineMd3() = md3State().let { it.copy(selectedId = it.devices[2].id, device = DeviceUi(history = it.device.history)) }
