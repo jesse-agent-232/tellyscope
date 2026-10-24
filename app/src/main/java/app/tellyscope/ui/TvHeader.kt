@@ -120,7 +120,7 @@ private fun LayoutCoordinates.rectInRoot() = Rect(positionInRoot(), size.toSize(
 /** The TV's cookie tile: primary while it's connected, grey when it isn't. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun Cookie(device: Device, size: Dp) {
+internal fun Cookie(device: Device, size: Dp) {
     val kind = deviceKind(device)
     val c = MaterialTheme.colorScheme
     val on = device.state == DeviceState.Online
@@ -162,9 +162,7 @@ fun TvHero(state: UiState, live: Snapshot?, actions: DeviceActions, chips: Boole
                 )
             }
             Column(Modifier.graphicsLayer { alpha = detailAlpha(collapse()) }, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                // Under a model-name title, the model would only say it twice.
-                val maker = device.manufacturer ?: device.hit.maker
-                val made = if (name(device) == device.model) maker.orEmpty() else made(maker, device.model)
+                val made = makerLine(device)
                 if (made.isNotEmpty()) Text(made, style = MaterialTheme.typography.bodyMedium, color = c.onSurfaceVariant)
                 val health = live?.let { Copy.health(it, heaviest(it, state.device.apps)) }
                 Surface(shape = CircleShape, color = if (health?.ok == false) c.errorContainer else c.secondaryContainer) {
@@ -180,6 +178,12 @@ fun TvHero(state: UiState, live: Snapshot?, actions: DeviceActions, chips: Boole
         }
         if (chips) TvChips(state, actions)
     }
+}
+
+/** "XGIMI · Horizon Pro" under the TV's name; under a model-name title, the model would only say it twice. */
+internal fun makerLine(device: Device): String {
+    val maker = device.manufacturer ?: device.hit.maker
+    return if (name(device) == device.model) maker.orEmpty() else made(maker, device.model)
 }
 
 /**

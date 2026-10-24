@@ -25,8 +25,8 @@ The TV and HDMI (streaming stick) device icons use the path data of the
 "tv" and "settings_input_hdmi" icons, the Debloat button that of
 "cleaning_services", the off-Wi-Fi screen that of "wifi_off", and the
 Apps, Files and Tweaks tabs those of "apps", "folder" and "tune", the
-Upload files button that of "upload", and the empty Movies folder that of
-"movie".
+Upload files button that of "upload", the empty Movies folder that of
+"movie", and the links in Settings that of "open_in_new".
 
 --------------------------------------------------------------------------------
 cleanyourtv — https://github.com/Gathin23/cleanyourtv

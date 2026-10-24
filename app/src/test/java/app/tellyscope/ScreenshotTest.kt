@@ -87,6 +87,11 @@ import app.tellyscope.ui.SideloadUi
 import app.tellyscope.ui.TransferUi
 import app.tellyscope.ui.brands
 import app.tellyscope.ui.name
+import app.tellyscope.ui.SettingsScreen
+import app.tellyscope.data.RELEASES
+import androidx.compose.ui.platform.UriHandler
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.runtime.CompositionLocalProvider
 import app.tellyscope.ui.UiState
 import app.tellyscope.ui.theme.TellyscopeTheme
 import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
@@ -533,6 +538,68 @@ class ScreenshotTest {
         compose.onNodeWithText("Google Play services").assertExists()
         compose.onNodeWithText("System", substring = true).assertDoesNotExist()
     }
+
+    @Test fun tabs_menuItemsWork() {
+        val state = tabsState()
+        val calls = mutableListOf<String>()
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            TellyscopeTheme(dark = false, dynamic = false) {
+                DeviceTabsScreen(state, DeviceActions(advanced = { calls += "advanced" }, settings = { calls += "settings" }))
+            }
+        }
+        fun pick(item: String) {
+            compose.mainClock.advanceTimeBy(1_000)
+            compose.onNodeWithContentDescription("More options").performClick()
+            compose.mainClock.advanceTimeBy(1_000)
+            // Both blocks are there: this TV's items, then the app's.
+            for (i in listOf("Rename this TV", "Forget this TV", "Advanced", "Settings", "About & licences")) compose.onNodeWithText(i).assertExists()
+            compose.onNodeWithText(item).performClick()
+            compose.mainClock.advanceTimeBy(1_000)
+            compose.onNodeWithText("About & licences").assertDoesNotExist()
+        }
+        pick("Advanced")
+        pick("Settings")
+        assertEquals(listOf("advanced", "settings"), calls)
+        pick("Rename this TV")
+        compose.onNodeWithText("Only this phone sees the name. Nothing on the TV changes.").assertExists()
+        compose.onNodeWithText("Cancel").performClick()
+        pick("Forget this TV")
+        compose.onNodeWithText("Forget ${name(state.selected!!)}?").assertExists()
+        compose.onNodeWithText("Cancel").performClick()
+        pick("About & licences")
+        compose.onNodeWithText("About Tellyscope").assertExists()
+    }
+
+    private fun settings(opened: MutableList<String> = mutableListOf()) = @Composable {
+        val links = object : UriHandler { override fun openUri(uri: String) { opened += uri } }
+        CompositionLocalProvider(LocalUriHandler provides links) {
+            SettingsScreen(null, onListSource = {}, checkUpdates = true, alphaBuild = false, onCheckUpdates = {}, back = {})
+        }
+    }
+
+    @Test fun settings_advancedFoldedAndLinks() {
+        val opened = mutableListOf<String>()
+        shot("81_settings") { settings(opened)() }
+        // Check for updates leads; Advanced starts folded.
+        compose.onNodeWithText("Check for updates").assertExists()
+        compose.onNodeWithText("Use your own debloat lists").assertDoesNotExist()
+        compose.onNodeWithText("Advanced").performClick()
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.onNodeWithText("cleanyourtv").assertExists()
+        compose.onNodeWithText(" 30k+").assertExists()
+        compose.onNodeWithText("cleanyourtv").performClick()
+        compose.onNodeWithText("How to use your own lists").performClick()
+        assertEquals(listOf("https://github.com/Gathin23/cleanyourtv", RELEASES.removeSuffix("/releases") + "/blob/main/CONTRIBUTING.md#using-your-own-lists"), opened)
+        assertTrue(opened[1].startsWith("https://github.com/") && opened[1].contains("/tellyscope/blob/main/CONTRIBUTING.md"))
+        compose.onNodeWithText("Use your own debloat lists").performClick()
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.onNodeWithText("Where the lists come from").assertExists()
+    }
+
+    @Test fun settings_dark() = shot("81_settings", dark = true) { settings()() }
+    @Test fun settings_advanced() = shot("82_settings_advanced", before = { compose.onNodeWithText("Advanced").performClick(); Unit }) { settings()() }
+    @Test fun settings_advanced_dark() = shot("82_settings_advanced", dark = true, before = { compose.onNodeWithText("Advanced").performClick(); Unit }) { settings()() }
 
     private fun appMenu(dark: Boolean) {
         val open = {

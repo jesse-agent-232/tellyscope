@@ -45,7 +45,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -374,7 +373,10 @@ private fun Muted(text: String) {
     Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
-/** The overflow: this TV's own items first, named so it's clear which TV they touch, then the app-wide ones. */
+/**
+ * The overflow: the TV on top, so it's clear which TV its items touch, then two blocks, this TV's
+ * items and then the app-wide ones.
+ */
 @Composable
 private fun AppMenu(state: UiState, actions: DeviceActions) {
     var open by remember { mutableStateOf(false) }
@@ -394,16 +396,38 @@ private fun AppMenu(state: UiState, actions: DeviceActions) {
     if (renaming) RenameDialog(device.nickname.orEmpty(), device.model ?: networkName(device), onSave = { renaming = false; actions.rename(device.id, it) }, onDismiss = { renaming = false })
     Box {
         IconButton(onClick = { open = true }) { Icon(Icons.Default.MoreVert, contentDescription = "More options") }
-        DropdownMenu(open, onDismissRequest = { open = false }) {
-            Text(name(device), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
-            DropdownMenuItem(text = { Text("Rename this TV") }, leadingIcon = { Icon(Icons.Default.Edit, null) }, onClick = { open = false; renaming = true })
-            DropdownMenuItem(text = { Text("Forget this TV") }, leadingIcon = { Icon(Icons.Default.Delete, null) }, onClick = { open = false; forgetting = true })
-            HorizontalDivider()
-            DropdownMenuItem(text = { Text("Advanced") }, leadingIcon = { Icon(Icons.Default.List, null) }, onClick = { open = false; actions.advanced() })
-            DropdownMenuItem(text = { Text("Settings") }, leadingIcon = { Icon(Icons.Default.Settings, null) }, onClick = { open = false; actions.settings() })
-            DropdownMenuItem(text = { Text("About & licences") }, leadingIcon = { Icon(Icons.Default.Info, null) }, onClick = { open = false; about = true })
+        DropdownMenu(open, onDismissRequest = { open = false }, shape = MaterialTheme.shapes.large) {
+            Row(Modifier.padding(start = 12.dp, end = 16.dp, top = 4.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Cookie(device, 40.dp)
+                Spacer(Modifier.width(12.dp))
+                Column {
+                    Text(name(device), style = MaterialTheme.typography.titleSmall)
+                    val made = makerLine(device)
+                    if (made.isNotEmpty()) Text(made, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            MenuBlock {
+                DropdownMenuItem(text = { Text("Rename this TV") }, leadingIcon = { Icon(Icons.Default.Edit, null) }, onClick = { open = false; renaming = true })
+                DropdownMenuItem(text = { Text("Forget this TV") }, leadingIcon = { Icon(Icons.Default.Delete, null) }, onClick = { open = false; forgetting = true })
+                DropdownMenuItem(text = { Text("Advanced") }, leadingIcon = { Icon(Icons.Default.List, null) }, onClick = { open = false; actions.advanced() })
+            }
+            Spacer(Modifier.height(4.dp))
+            MenuBlock {
+                DropdownMenuItem(text = { Text("Settings") }, leadingIcon = { Icon(Icons.Default.Settings, null) }, onClick = { open = false; actions.settings() })
+                DropdownMenuItem(text = { Text("About & licences") }, leadingIcon = { Icon(Icons.Default.Info, null) }, onClick = { open = false; about = true })
+            }
         }
     }
+}
+
+/** One group of the menu, as a slightly darker rounded block inside it. */
+@Composable
+private fun MenuBlock(items: @Composable () -> Unit) {
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+        modifier = Modifier.padding(horizontal = 8.dp),
+    ) { Column { items() } }
 }
 
 /** "Search apps" under the Apps buttons, pinned with them; a tap opens the search at the top. */
