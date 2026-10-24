@@ -152,6 +152,9 @@ object Copy {
     const val SYSTEM = "System"
     const val SYSTEM_WHY = "Needed by the TV · can't be changed"
 
+    /** Running, with no word from the TV. */
+    const val RUNNING_OFFLINE = "Running apps show here once the TV is connected."
+
     const val ANDROID_SYSTEM = AppNames.SYSTEM
 
     /** The word next to the status dot, so the state never rests on colour alone. */

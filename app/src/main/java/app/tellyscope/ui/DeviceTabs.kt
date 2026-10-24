@@ -219,12 +219,13 @@ fun DeviceTabsScreen(
         LazyColumn(
             Modifier.fillMaxSize().padding(pad),
             state = list,
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 96.dp),
+            // No top padding: the Apps tabs pin at the list's top edge, flush under the bar; the hero carries the 4dp.
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             val snap = ui.snapshot
             val live = snap?.takeIf { !offline }
-            item(key = "hero") { TvHero(state, live, actions, chips = tab == TvTab.Overview, collapse = { collapse }, onHeight = { heroHeight = it }) }
+            item(key = "hero") { Box(Modifier.padding(top = 4.dp)) { TvHero(state, live, actions, chips = tab == TvTab.Overview, collapse = { collapse }, onHeight = { heroHeight = it }) } }
             when (tab) {
                 TvTab.Overview -> {
                     val restart = state.restarting[device.id]
@@ -280,7 +281,10 @@ fun DeviceTabsScreen(
                             AppsTabRow(appsTab, lerp(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surfaceContainer, collapse), inset = 16.dp) { appsTab = it }
                         }
                         val split = splitApps(ui.apps, procs, appsTab)
-                        if (split.apps.isEmpty() && split.system.isEmpty()) item { EmptyLine(q) }
+                        if (split.apps.isEmpty() && split.system.isEmpty()) item {
+                            // Away, the TV can't say what's running, rather than nothing is.
+                            if (appsTab == AppsTab.Running && live == null) Muted(Copy.RUNNING_OFFLINE) else EmptyLine(q)
+                        }
                         rows(split.apps)
                         if (split.system.isNotEmpty()) {
                             val folded = appsTab in state.foldedSystem

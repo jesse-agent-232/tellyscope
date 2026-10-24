@@ -310,7 +310,10 @@ class ScreenshotTest {
     @Test fun md3_apps_installed_dark() = appsTab("69_md3_apps_installed", true, "Installed")
     @Test fun md3_apps_builtin() = appsTab("70_md3_apps_builtin", false, "Built-in")
     @Test fun md3_apps_builtin_dark() = appsTab("70_md3_apps_builtin", true, "Built-in")
-    @Test fun md3_apps_offline() { shot("71_md3_apps_offline") { DeviceTabsScreen(offlineMd3(), DeviceActions(), startTab = TvTab.Apps) } }
+    @Test fun md3_apps_offline() {
+        shot("71_md3_apps_offline") { DeviceTabsScreen(offlineMd3(), DeviceActions(), startTab = TvTab.Apps) }
+        compose.onNodeWithText(Copy.RUNNING_OFFLINE).assertExists()
+    }
     @Test fun md3_apps_offline_dark() { shot("71_md3_apps_offline", dark = true) { DeviceTabsScreen(offlineMd3(), DeviceActions(), startTab = TvTab.Apps) } }
     // Folded, the System header stays with its count and the protected apps go.
     private fun foldedBuiltIn() = md3State().copy(foldedSystem = setOf(AppsTab.BuiltIn))
