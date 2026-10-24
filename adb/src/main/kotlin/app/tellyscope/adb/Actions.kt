@@ -87,7 +87,7 @@ class Actions(private val shell: AdbShell) {
         Protected.reason(old)?.takeIf { it != ProtectedReason.HOME_SCREEN }?.let { return HomeResult.Refused(it) }
         val checked = setHome(to)
         val priority = prioritiesIn(homes)
-        if (!checked && (priority[from] ?: 0) <= (priority[to] ?: 0)) {
+        if (!checked && (priority[old] ?: 0) <= (priority[pkg] ?: 0)) {
             setHome(from)
             return HomeResult.Failed("the TV kept its own home screen, so nothing was turned off")
         }
@@ -147,14 +147,14 @@ class Actions(private val shell: AdbShell) {
             .associateBy { it.substringBefore('/') }
             .filterKeys { Protected.reason(it).let { r -> r == null || r == ProtectedReason.HOME_SCREEN } }
 
-    /** Each activity's Home priority, from the `priority=` line `--brief` prints above it. */
+    /** Each package's Home priority, from the `priority=` line `--brief` prints above its activity. */
     private fun prioritiesIn(brief: String): Map<String, Int> {
         val priorities = mutableMapOf<String, Int>()
         var last: Int? = null
         for (line in brief.lineSequence().map(String::trim)) {
             if (line.startsWith("priority=")) last = line.removePrefix("priority=").substringBefore(' ').toIntOrNull()
             else if ('/' in line && ' ' !in line) {
-                last?.let { priorities[line] = it }
+                last?.let { priorities[line.substringBefore('/')] = it }
                 last = null
             }
         }
