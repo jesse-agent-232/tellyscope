@@ -19,6 +19,12 @@ import java.io.InterruptedIOException
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.nio.channels.InterruptedByTimeoutException
+import java.math.BigInteger
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import java.security.MessageDigest
+import java.security.cert.CertificateFactory
+import java.security.interfaces.RSAPublicKey
 
 sealed interface ConnectResult {
     class Online(val session: AdbSession) : ConnectResult
@@ -66,6 +72,35 @@ object Connector {
             additionalPrivateKeysPem = emptyList(),
         )
         KadbCert.ensureReady()
+    }
+
+    /**
+     * This phone's key as the TV's "Allow USB debugging?" box prints it: the MD5 of the ADB public key,
+     * as colon-separated hex pairs, the way Android's AdbDebuggingManager formats it. Null before [init].
+     */
+    fun fingerprint(): String? = runCatching {
+        val cert = CertificateFactory.getInstance("X.509").generateCertificate(KadbCert.ensureReady().certificatePem.inputStream())
+        MessageDigest.getInstance("MD5").digest(adbPublicKey(cert.publicKey as RSAPublicKey))
+            .joinToString(":") { "%02X".format(it) }
+    }.getOrNull()
+
+    /**
+     * The public key in adb's own layout, the bytes the TV hashes: word count, -1/n mod 2^32,
+     * the modulus, R^2 mod n, then the exponent. All little-endian, least significant word first.
+     */
+    internal fun adbPublicKey(key: RSAPublicKey): ByteArray {
+        val n = key.modulus
+        val words = n.bitLength() / 32
+        val r32 = BigInteger.ONE.shiftLeft(32)
+        val rr = BigInteger.ONE.shiftLeft(words * 32).pow(2).mod(n)
+        val buf = ByteBuffer.allocate(4 * (3 + 2 * words)).order(ByteOrder.LITTLE_ENDIAN)
+        buf.putInt(words)
+        buf.putInt(r32.subtract(n.mod(r32).modInverse(r32)).toInt())
+        fun putWords(v: BigInteger) = repeat(words) { i -> buf.putInt(v.shiftRight(32 * i).toInt()) }
+        putWords(n)
+        putWords(rr)
+        buf.putInt(key.publicExponent.toInt())
+        return buf.array()
     }
 
     /**

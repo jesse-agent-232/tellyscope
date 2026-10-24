@@ -12,6 +12,7 @@ until this file has a section for its version.
 
 ## Unreleased
 
+- **Improved:** Adding a TV walks through it a step at a time, with the steps for your brand, and each TV gets its own screen for the pairing code or the Allow box. That screen shows this phone's key, so you can check it against the one on the TV.
 - **New:** The app opens on its logo, then a one-time welcome for first-time users. [#65](../../pull/65)
 - **Improved:** Overview puts the TV first, with chips to switch and debloat counts. [#64](../../pull/64)
 - **Improved:** An offline TV keeps its maker and Android version after the app restarts. [#63](../../pull/63)

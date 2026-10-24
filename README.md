@@ -55,6 +55,14 @@ Or get updates automatically with [Obtainium](#get-it).
     <td align="center"><sub>Switch the home screen</sub></td>
     <td align="center"><sub>Uninstall apps you added</sub></td>
   </tr>
+  <tr>
+    <td><img src="docs/screenshots/add-tv.png" alt="Add your TV: brand chips, the setup steps ticked off, and two TVs found with Connect"></td>
+    <td><img src="docs/screenshots/connect.png" alt="Allow on your TV: this phone's key, and a drawing of the TV's Allow box with the same key"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Add your TV step by step</sub></td>
+    <td align="center"><sub>Check the key, then Allow</sub></td>
+  </tr>
 </table>
 
 <sub>Rendered from the app's screenshot tests with sample data.</sub>
@@ -79,7 +87,7 @@ The full rules are under [Safety rules](#safety-rules).
 
 Tellyscope is a phone app that talks to your Android TV, Google TV or Fire TV over the network using ADB, the same debugging protocol developers use.
 
-- **Find and connect.** It looks for TVs on your Wi-Fi, or you add one by IP address. Classic network debugging (port 5555) and Android 11+ wireless debugging with a 6-digit pairing code both work. A step-by-step card shows how to turn debugging on for Google TV, Android TV, Fire TV, Xiaomi and XGIMI. The first launch opens a short welcome with the three setup steps, and on Android 17 or newer asks for the local-network permission it needs to reach the TV.
+- **Find and connect.** It looks for TVs on your Wi-Fi, or you add one by IP address. Classic network debugging (port 5555) and Android 11+ wireless debugging with a 6-digit pairing code both work. **Add your TV** walks through turning debugging on one step at a time, with the menu names for Google TV, Android TV, Fire TV, Xiaomi or XGIMI, then lists the TVs it found. Each TV opens its own screen: the pairing code, or the Allow box with this phone's key to check against the one the TV shows. The first launch opens a short welcome with the three setup steps, and on Android 17 or newer asks for the local-network permission it needs to reach the TV.
 - **Remembers your TVs.** They reconnect on their own after a restart of the app or the TV. You can rename a TV (the name stays on your phone) or forget it.
 - **How it's doing.** Each TV's Overview opens with the TV itself: its name, maker and model, and a one-line summary such as "Running fine" or "Storage almost full". Below that is a chip per TV to switch between them, then a **+ Device** chip. Then comes free space as a bar, with CPU, RAM, temperature and network speed. When a TV is offline, it shows the storage from the last time Tellyscope saw it. Its address and how long it's been on are under Advanced.
 - **The main jobs up front.** Big **Install app**, **Debloat** and **Send file** tiles sit right under the vitals. Debloat shows a count while the TV's list still has apps on, or while apps Tellyscope turned off are back on, often after a TV update. When there's nothing left, it opens Apps instead. Under **Suggested for this TV**, one line says how many of the list's apps are off. If any came back on, a red line says so. Below that are the TV's Android version, when it last updated, and **Check for updates**, which opens the TV's own update screen. The Apps tab has an **Install app** button, and Files has **Upload files**.
@@ -97,8 +105,8 @@ Tellyscope is a phone app that talks to your Android TV, Google TV or Fire TV ov
 
 1. On the TV, open **About** in Settings and press OK on **Build** (Fire TV: your device's name) 7 times, until it says you're a developer.
 2. In **Developer options**, turn on **USB debugging** (Fire TV: **ADB debugging**), and **Network debugging** if your TV lists it. Newer TVs may show **Wireless debugging** instead; turn that on too.
-3. Put your phone on the same Wi-Fi as the TV and open Tellyscope. Tap **Connect** next to your TV.
-4. The TV asks "Allow USB debugging?". Tick **Always allow from this computer**, then press **Allow**. With wireless debugging, Tellyscope asks for the 6-digit pairing code the TV shows instead.
+3. Put your phone on the same Wi-Fi as the TV and open Tellyscope. Pick your TV's brand under **Add your TV**, and tap **Connect** when your TV shows up under **Find your TV**.
+4. The TV asks "Allow USB debugging?". Check its key matches the one Tellyscope shows, tick **Always allow from this computer**, then press **Allow**. With wireless debugging, Tellyscope asks for the 6-digit pairing code the TV shows instead.
 
 The menu paths differ by brand; the app shows the exact steps for yours.
 

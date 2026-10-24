@@ -50,6 +50,7 @@ import app.tellyscope.data.Suggested
 import app.tellyscope.data.SuggestedGroup
 import app.tellyscope.data.Suggestions
 import app.tellyscope.ui.AdvancedScreen
+import app.tellyscope.ui.ConnectScreen
 import app.tellyscope.ui.DebloatScreen
 import app.tellyscope.ui.DeviceActions
 import app.tellyscope.ui.DeviceTabsScreen
@@ -74,6 +75,7 @@ import app.tellyscope.ui.ScanScreen
 import app.tellyscope.ui.ScanUi
 import app.tellyscope.ui.SideloadUi
 import app.tellyscope.ui.TransferUi
+import app.tellyscope.ui.brands
 import app.tellyscope.ui.UiState
 import app.tellyscope.ui.theme.TellyscopeTheme
 import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
@@ -135,15 +137,7 @@ class ScreenshotTest {
         ScanScreen(ui, now, {}, {}, { _, _ -> }, {}, { null })
     }
 
-    @Test fun scan_inProgress() = scan(
-        ScanUi(
-            scanning = true,
-            progress = ScanProgress(115, 254, "192.168.1.0/24"),
-            hits = listOf(xgimi, box),
-            rows = mapOf(xgimi.ip to RowState.Found, box.ip to RowState.Found),
-        ),
-        name = "01_scan_in_progress",
-    )
+    @Test fun scan_inProgress() = scan(inProgress, name = "01_scan_in_progress")
 
     private val connectStates get() = ScanUi(
         scanning = false,
@@ -160,10 +154,38 @@ class ScreenshotTest {
 
     @Test fun scan_connectStates_dark() = scan(connectStates, dark = true, name = "02_scan_connect_states")
 
-    @Test fun scan_empty() = scan(
-        ScanUi(scanning = false, progress = ScanProgress(254, 254, "192.168.1.0/24")),
-        name = "03_scan_empty_guide",
+    private val inProgress get() = ScanUi(
+        scanning = true,
+        progress = ScanProgress(115, 254, "192.168.1.0/24"),
+        hits = listOf(xgimi, box),
+        rows = mapOf(xgimi.ip to RowState.Found, box.ip to RowState.Found),
     )
+
+    @Test fun scan_inProgress_dark() = scan(inProgress, dark = true, name = "01_scan_in_progress")
+
+    private val empty = ScanUi(scanning = true, progress = ScanProgress(40, 254, "192.168.1.0/24"))
+
+    @Test fun scan_empty() = scan(empty, name = "03_scan_empty_guide")
+
+    @Test fun scan_empty_dark() = scan(empty, dark = true, name = "03_scan_empty_guide")
+
+    private val key = "3F:A2:91:0C:7B:E4:58:D6:21:9A:C3:4F:80:1E:B7:65"
+
+    private fun connect(hit: ScanHit, row: RowState, dark: Boolean, name: String) = shot(name, dark) {
+        ConnectScreen(hit, row, now, brands.first(), key, {}, {}, {}, {})
+    }
+
+    @Test fun connect_code() = connect(chromecast, RowState.Code("4821"), false, "03_connect_code")
+
+    @Test fun connect_code_dark() = connect(chromecast, RowState.Code("4821"), true, "03_connect_code")
+
+    @Test fun connect_allow() = connect(xgimi, RowState.Waiting(now - 12_000), false, "03_connect_allow")
+
+    @Test fun connect_allow_dark() = connect(xgimi, RowState.Waiting(now - 12_000), true, "03_connect_allow")
+
+    @Test fun connect_notAllowed() = connect(unknown, RowState.NotAllowed, false, "03_connect_no_answer")
+
+    @Test fun connect_notAllowed_dark() = connect(unknown, RowState.NotAllowed, true, "03_connect_no_answer")
 
     private fun deviceState(device: DeviceUi.() -> DeviceUi = { this }): UiState = runBlocking {
         val d = Device(xgimi.ip, xgimi, DeviceState.Online, "XGIMI Horizon Pro", "XGIMI", "11", now)

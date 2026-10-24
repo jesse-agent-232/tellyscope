@@ -20,6 +20,8 @@ OUT = Path(__file__).parent
 # so the top bar and the tabs along the bottom stay in shot.
 SHOTS = {
     "welcome": "00_welcome",
+    "add-tv": "01_scan_in_progress",
+    "connect": "03_connect_allow",
     "tv-page": "04_device",
     "debloat": "20_readme_debloat",
     "debloat-confirm": "21_readme_confirm",

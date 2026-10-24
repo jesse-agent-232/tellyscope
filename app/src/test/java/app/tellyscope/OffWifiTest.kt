@@ -6,6 +6,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.lifecycle.viewModelScope
 import app.tellyscope.data.Device
 import app.tellyscope.data.DeviceSource
@@ -74,13 +75,13 @@ class OffWifiTest {
 
     @Test fun aTvThatAnnouncedItselfStillShows() {
         show(ScanUi(noLan = true, hits = listOf(tv), rows = mapOf(tv.ip to RowState.Found)))
-        compose.onNodeWithText("chromecast").assertIsDisplayed()
+        compose.onNodeWithText("chromecast").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("This phone isn't on Wi-Fi").assertDoesNotExist()
     }
 
     @Test fun onWifiShowsTheScan() {
         show(ScanUi())
-        compose.onNodeWithText("What's running on your TV?").assertIsDisplayed()
+        compose.onNodeWithText("Add your TV").assertIsDisplayed()
         compose.onNodeWithText("This phone isn't on Wi-Fi").assertDoesNotExist()
     }
 

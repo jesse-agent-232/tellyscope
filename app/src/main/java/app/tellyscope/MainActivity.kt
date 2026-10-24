@@ -35,6 +35,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import app.tellyscope.adb.Connector
 import app.tellyscope.data.AdbDeviceSource
 import app.tellyscope.data.AndroidPhoneStorage
 import app.tellyscope.data.FakeDeviceSource
@@ -190,6 +191,7 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
             onAddByIp = vm::addByIp,
             onBack = if (adding) ({ adding = false }) else null,
             onOpenWifi = { context.openWifiSettings() },
+            phoneKey = remember { Connector.fingerprint() },
         )
     } else if (remote) {
         BackHandler { remote = false }

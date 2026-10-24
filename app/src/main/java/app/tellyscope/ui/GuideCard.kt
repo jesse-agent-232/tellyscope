@@ -2,108 +2,194 @@
 
 package app.tellyscope.ui
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import app.tellyscope.ui.theme.SmallNumber
 
 /**
- * Shown when a scan finds nothing. Steps differ per brand because the menu
- * names do. The scan keeps re-running behind this card, so the user never has
- * to come back and press anything.
+ * How to switch on debugging, per brand, because the menu names differ. [pair] is where the
+ * pairing code lives on TVs with Wireless debugging; null where the brand only has the older switch.
+ * `**…**` marks the words to find on the TV.
  */
-private val guides = linkedMapOf(
-    "Google TV" to listOf(
-        "Settings → System → About",
-        "Highlight \"Android TV OS build\" and press OK 7 times, until it says you're a developer",
-        "Back to System → Developer options",
-        "Turn on \"USB debugging\"",
+class TvBrand(val name: String, val unlock: String, val debugTitle: String, val debug: String, val pair: String?)
+
+private const val ANDROID_TV_PAIR = "**Device Preferences → Developer options → Wireless debugging → Pair device with pairing code**"
+
+val brands = listOf(
+    TvBrand(
+        "Google TV",
+        unlock = "On the TV: **Settings → System → About**. Press OK on **Android TV OS build** 7 times, until it says you're a developer.",
+        debugTitle = "Turn on Wireless debugging",
+        debug = "Back to **System → Developer options**. Turn on **Wireless debugging**. Older TVs call it **USB debugging**.",
+        pair = "**System → Developer options → Wireless debugging → Pair device with pairing code**",
     ),
-    "Android TV" to listOf(
-        "Settings → Device Preferences → About",
-        "Press OK on \"Build\" 7 times",
-        "Back to Device Preferences → Developer options",
-        "Turn on \"USB debugging\", and \"Network debugging\" if you see it",
+    TvBrand(
+        "Android TV",
+        unlock = "On the TV: **Settings → Device Preferences → About**. Press OK on **Build** 7 times.",
+        debugTitle = "Turn on Wireless debugging",
+        debug = "Back to **Device Preferences → Developer options**. Turn on **Wireless debugging**. Older TVs have **USB debugging** and **Network debugging** instead: turn on both.",
+        pair = ANDROID_TV_PAIR,
     ),
-    "Fire TV" to listOf(
-        "Settings → My Fire TV → About",
-        "Press OK on the first row (your Fire TV's name) 7 times",
-        "Back to My Fire TV → Developer options",
-        "Turn on \"ADB debugging\"",
+    TvBrand(
+        "Fire TV",
+        unlock = "On the TV: **Settings → My Fire TV → About**. Press OK on the first row, your Fire TV's name, 7 times.",
+        debugTitle = "Turn on ADB debugging",
+        debug = "Back to **My Fire TV → Developer options**. Turn on **ADB debugging**.",
+        pair = null,
     ),
-    "Xiaomi" to listOf(
-        "Settings → Device Preferences → About",
-        "Press OK on \"Build\" 7 times",
-        "Back to Device Preferences → Developer options",
-        "Turn on \"USB debugging\"",
+    TvBrand(
+        "Xiaomi",
+        unlock = "On the TV: **Settings → Device Preferences → About**. Press OK on **Build** 7 times.",
+        debugTitle = "Turn on Wireless debugging",
+        debug = "Back to **Device Preferences → Developer options**. Turn on **Wireless debugging**. Older TVs call it **USB debugging**.",
+        pair = ANDROID_TV_PAIR,
     ),
-    "XGIMI" to listOf(
-        "Settings → Device Preferences → About",
-        "Press OK on \"Build\" 7 times",
-        "Back to Device Preferences → Developer options",
-        "Turn on \"USB debugging\", then \"Network debugging\" if it's listed",
+    TvBrand(
+        "XGIMI",
+        unlock = "On the TV: **Settings → Device Preferences → About**. Press OK on **Build** 7 times.",
+        debugTitle = "Turn on Wireless debugging",
+        debug = "Back to **Device Preferences → Developer options**. Turn on **Wireless debugging**. Older projectors have **USB debugging**, then **Network debugging** if it's listed: turn on both.",
+        pair = ANDROID_TV_PAIR,
     ),
 )
 
+/** The brand chips: every brand stays visible, so nobody has to guess what a menu hides. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun GuideCard(modifier: Modifier = Modifier) {
-    var brand by rememberSaveable { mutableStateOf(guides.keys.first()) }
-    Card(
-        modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-    ) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Turn on debugging on your TV", style = MaterialTheme.typography.titleLarge)
-            Text(
-                "Pick your TV and follow the steps on it. This screen finds it on its own when you're done.",
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                guides.keys.forEach { b ->
-                    FilterChip(selected = b == brand, onClick = { brand = b }, label = { Text(b) })
-                }
-            }
-            guides.getValue(brand).forEachIndexed { i, step ->
-                Row {
-                    Text("${i + 1}", style = SmallNumber, color = MaterialTheme.colorScheme.primary)
-                    androidx.compose.foundation.layout.Spacer(Modifier.width(12.dp))
-                    Text(step, style = MaterialTheme.typography.bodyLarge)
-                }
-            }
-            HorizontalDivider()
-            Text(
-                "Newer TVs (Android 11+) may show \"Wireless debugging\" instead. Turn that on too; you'll type a 6-digit code when you connect.",
-                style = MaterialTheme.typography.bodySmall,
-            )
-            if (brand == "Fire TV") {
-                Text(
-                    "No Developer options after 7 presses? Newer Fire TVs run Vega OS, which isn't Android, and Tellyscope can't reach them.",
-                    style = MaterialTheme.typography.bodySmall,
+fun BrandChips(brand: TvBrand, onPick: (TvBrand) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Pick your TV", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            brands.forEach { b ->
+                FilterChip(
+                    selected = b == brand,
+                    onClick = { onPick(b) },
+                    label = { Text(b.name) },
+                    leadingIcon = if (b == brand) ({ Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }) else null,
                 )
             }
-            Text(
-                "Debugging switched itself off? Some TVs reset it after a restart. Turn it back on and this screen reconnects.",
-                style = MaterialTheme.typography.bodySmall,
-            )
         }
+    }
+}
+
+/**
+ * One step open at a time: "Done, next" ticks it off and opens the next, "Back" reopens the one
+ * before. The last step holds [findTvs], which is the live scan and whatever it found.
+ */
+@Composable
+fun GuideSteps(brand: TvBrand, step: Int, onStep: (Int) -> Unit, findTvs: @Composable () -> Unit) {
+    val steps = listOf(
+        Triple("Unlock developer options", brand.unlock, "Developer options unlocked"),
+        Triple(brand.debugTitle, brand.debug, brand.debugTitle.removePrefix("Turn on ") + " on"),
+        Triple("Find your TV", "", ""),
+    )
+    Column(Modifier.animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec())) {
+        steps.forEachIndexed { i, (title, body, done) ->
+            val last = i == steps.lastIndex
+            Row(Modifier.height(IntrinsicSize.Min)) {
+                Column(Modifier.width(32.dp).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
+                    StepDot(i + 1, done = i < step, current = i == step)
+                    if (!last) Box(Modifier.padding(vertical = 4.dp).width(2.dp).weight(1f).background(MaterialTheme.colorScheme.outlineVariant))
+                }
+                Column(
+                    Modifier.padding(start = 16.dp, top = 4.dp, bottom = if (last) 8.dp else 24.dp).weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        title,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = if (i > step) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.onSurface,
+                    )
+                    when {
+                        i < step -> Text(done, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        i == step && last -> findTvs()
+                        i == step -> {
+                            Text(marked(body), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(onClick = { onStep(i + 1) }) { Text("Done, next") }
+                                if (i > 0) TextButton(onClick = { onStep(i - 1) }) { Text("Back") }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StepDot(n: Int, done: Boolean, current: Boolean) {
+    val c = MaterialTheme.colorScheme
+    val filled = done || current
+    Box(
+        Modifier.size(32.dp)
+            .background(if (filled) c.primary else c.surface, CircleShape)
+            .border(2.dp, if (filled) c.primary else c.outlineVariant, CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (done) Icon(Icons.Default.Check, contentDescription = "Done", Modifier.size(18.dp), tint = c.onPrimary)
+        else Text("$n", style = MaterialTheme.typography.labelLarge, color = if (current) c.onPrimary else c.outline)
+    }
+}
+
+/** "Can't find your TV?": the fixes that used to sit under the guide as small print. */
+@Composable
+fun HelpDialog(brand: TvBrand, onAddByIp: () -> Unit, onDismiss: () -> Unit) {
+    val tips = buildList {
+        add("Keep the phone and the TV on the same Wi-Fi. Guest networks often keep devices apart.")
+        add("Debugging switched itself off? Some TVs reset it after a restart. Turn it back on and this screen finds the TV again.")
+        if (brand.name == "Fire TV") add("No Developer options after 7 presses? Newer Fire TVs run Vega OS, which isn't Android, and Tellyscope can't reach them.")
+        add("Still nothing? Add the TV by its IP address, from the TV's network settings.")
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Can't find your TV?") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                tips.forEach { Text(it, style = MaterialTheme.typography.bodyMedium) }
+            }
+        },
+        confirmButton = { TextButton(onClick = { onDismiss(); onAddByIp() }) { Text("Add by IP address") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+    )
+}
+
+/** Turns `**words**` into medium-weight spans: the menu names to look for on the TV. */
+@Composable
+fun marked(text: String): AnnotatedString {
+    val strong = SpanStyle(fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+    return buildAnnotatedString {
+        text.split("**").forEachIndexed { i, part -> if (i % 2 == 1) withStyle(strong) { append(part) } else append(part) }
     }
 }
