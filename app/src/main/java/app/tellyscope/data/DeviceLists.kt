@@ -53,22 +53,30 @@ sealed interface ListMatch {
     data object None : ListMatch
 }
 
+/** True when [model], squashed, is a run of whole consecutive [words]: "MoGo 2" fits "XGIMI MoGo 2", "X10" doesn't fit "TCL X100". */
+private fun wordsFit(model: String, words: List<String>): Boolean = words.indices.any { i ->
+    var run = ""
+    words.drop(i).any { w -> run += squash(w); run == model }
+}
+
+/** The TV's maker names: `ro.product.manufacturer`, then `ro.product.brand`, which can differ. */
+private fun tvMakers(props: Map<String, String?>) = listOf("manufacturer", "brand").mapNotNull { squash(props[it].orEmpty()).ifEmpty { null } }.distinct()
+
 /**
- * The one list whose name or id contains the TV's model, letters and digits only. Null when none
- * or several do, or when that list's maker isn't the TV's manufacturer: a wrong list is worse
+ * The one list whose name (by words) or id (by `-` parts) holds the TV's model as whole words.
+ * Null when none or several do, or when that list's maker isn't the TV's: a wrong list is worse
  * than the maker's lists, which start unticked.
  */
 fun byModel(devices: List<ListEntry>, props: Map<String, String?>): ListEntry? {
     val model = squash(props["model"].orEmpty()).takeIf { it.length >= 3 } ?: return null
-    val fit = devices.filter { model in squash(it.name) || model in squash(it.id) }.singleOrNull() ?: return null
-    return fit.takeIf { squash(listMakers(devices).getValue(it.id)) == squash(props["manufacturer"].orEmpty()) }
+    val fit = devices.filter { wordsFit(model, it.name.split(' ')) || wordsFit(model, it.id.split('-')) }.singleOrNull() ?: return null
+    return fit.takeIf { squash(listMakers(devices).getValue(it.id)) in tvMakers(props) }
 }
 
-/** Every list from the TV's manufacturer, by [listMakers]. */
+/** Every list from the TV's maker, by [listMakers]: its manufacturer's, else its brand's. */
 fun byMaker(devices: List<ListEntry>, props: Map<String, String?>): List<ListEntry> {
-    val maker = squash(props["manufacturer"].orEmpty()).ifEmpty { return emptyList() }
     val makers = listMakers(devices)
-    return devices.filter { squash(makers.getValue(it.id)) == maker }
+    return tvMakers(props).firstNotNullOfOrNull { m -> devices.filter { squash(makers.getValue(it.id)) == m }.ifEmpty { null } }.orEmpty()
 }
 
 /**
@@ -136,8 +144,8 @@ private val FILE = Regex("devices/[A-Za-z0-9][A-Za-z0-9._-]*\\.json")
 private val SHA256 = Regex("[0-9a-f]{64}")
 private const val SCHEMA = 1
 
-/** The props a match rule may name, read from `ro.product.*`. */
-val MATCH_KEYS = listOf("manufacturer", "model", "device")
+/** The props a match rule may name, read from `ro.product.*`; brand also finds the maker's lists. */
+val MATCH_KEYS = listOf("manufacturer", "model", "device", "brand")
 
 /** A rule matches when every key in it equals one of its values, ignoring case. An empty rule never does. */
 fun matches(rule: Map<String, List<String>>?, props: Map<String, String?>): Boolean =

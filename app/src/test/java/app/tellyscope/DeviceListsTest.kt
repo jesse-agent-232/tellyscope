@@ -128,11 +128,12 @@ class DeviceListsTest {
             entry("xgimi-horizon", "XGIMI Horizon"),
             entry("tcl-p7-2021", "TCL P7 2021"),
             entry("tcl-p7-2023", "TCL P7 2023"),
+            entry("tcl-x100", "TCL X100"),
         ),
     )
 
-    private fun find(manufacturer: String, model: String) =
-        DeviceLists(tmp.root).find(fakes, "sn:x", mapOf("manufacturer" to manufacturer, "model" to model))
+    private fun find(manufacturer: String, model: String, brand: String? = null) =
+        DeviceLists(tmp.root).find(fakes, "sn:x", mapOf("manufacturer" to manufacturer, "model" to model, "brand" to brand))
 
     @Test fun oneListNamedAfterTheModelIsTheTvsList() {
         // Case, spaces and dashes don't count.
@@ -142,7 +143,19 @@ class DeviceListsTest {
     @Test fun twoListsForTheModelFallBackToTheMaker() {
         val m = find("TCL", "P7") as ListMatch.Maker
         assertEquals("TCL", m.maker)
-        assertEquals(listOf("tcl-p7-2021", "tcl-p7-2023"), m.entries.map { it.id })
+        assertEquals(listOf("tcl-p7-2021", "tcl-p7-2023", "tcl-x100"), m.entries.map { it.id })
+    }
+
+    @Test fun theModelMustBeWholeWordsNotPartOfOne() {
+        // "X10" is not "X100": the maker's lists, unticked, instead of the wrong model's.
+        assertTrue(find("TCL", "X10") is ListMatch.Maker)
+        assertEquals(ListMatch.Model(fakes.devices[4]), find("TCL", "X100"))
+    }
+
+    @Test fun theBrandFindsTheMakerWhenTheManufacturerDoesnt() {
+        // Like a Philips TV, which reports its factory, TPV, as manufacturer.
+        assertEquals(ListMatch.Model(fakes.devices[0]), find("Zeta", "MoGo 2", brand = "XGIMI"))
+        assertEquals(2, (find("Zeta", "Halo+", brand = "XGIMI") as ListMatch.Maker).entries.size)
     }
 
     @Test fun aModelWithNoListGetsEveryListFromItsMaker() {

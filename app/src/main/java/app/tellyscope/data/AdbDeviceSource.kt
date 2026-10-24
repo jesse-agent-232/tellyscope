@@ -41,7 +41,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.combine
@@ -489,8 +491,9 @@ class AdbDeviceSource(context: Context) : DeviceSource {
         val match = lists.find(index, key, props)
         val list = when (match) {
             is ListMatch.Model -> lists.list(match.entry)
-            // A list that fails its checksum is left out; the rest still count.
-            is ListMatch.Maker -> match.entries.mapNotNull { lists.list(it) }.ifEmpty { null }?.let { merge(match.maker, it) }
+            // Fetched together, as a maker can have dozens. A list that fails its checksum is left out; the rest still count.
+            is ListMatch.Maker -> coroutineScope { match.entries.map { async { lists.list(it) } }.awaitAll() }
+                .filterNotNull().ifEmpty { null }?.let { merge(match.maker, it) }
             ListMatch.None -> null
         }
         keep[key] = list?.keep.orEmpty()
