@@ -35,11 +35,13 @@ Or get updates automatically with [Obtainium](#get-it).
     <td><img src="docs/screenshots/install.png" alt="Updating Netflix on the TV from an APK on the phone"></td>
     <td><img src="docs/screenshots/send.png" alt="Sending a video from the phone to the TV's Movies folder"></td>
     <td><img src="docs/screenshots/files.png" alt="Files on the TV: the Download folder, each file one tap from the phone"></td>
+    <td><img src="docs/screenshots/welcome.png" alt="Welcome to Tellyscope: the three setup steps, with Skip and Continue"></td>
   </tr>
   <tr>
     <td align="center"><sub>Install or update apps</sub></td>
     <td align="center"><sub>Send files to the TV</sub></td>
     <td align="center"><sub>Browse and save the TV's files</sub></td>
+    <td align="center"><sub>A short welcome on first launch</sub></td>
   </tr>
   <tr>
     <td><img src="docs/screenshots/tweaks.png" alt="TV tweaks: ad-blocking Private DNS on, faster animations, clear caches and screenshot"></td>
@@ -77,7 +79,7 @@ The full rules are under [Safety rules](#safety-rules).
 
 Tellyscope is a phone app that talks to your Android TV, Google TV or Fire TV over the network using ADB, the same debugging protocol developers use.
 
-- **Find and connect.** It looks for TVs on your Wi-Fi, or you add one by IP address. Classic network debugging (port 5555) and Android 11+ wireless debugging with a 6-digit pairing code both work. A step-by-step card shows how to turn debugging on for Google TV, Android TV, Fire TV, Xiaomi and XGIMI.
+- **Find and connect.** It looks for TVs on your Wi-Fi, or you add one by IP address. Classic network debugging (port 5555) and Android 11+ wireless debugging with a 6-digit pairing code both work. A step-by-step card shows how to turn debugging on for Google TV, Android TV, Fire TV, Xiaomi and XGIMI. The first launch opens a short welcome with the three setup steps, and on Android 17 or newer asks for the local-network permission it needs to reach the TV.
 - **Remembers your TVs.** They reconnect on their own after a restart of the app or the TV. You can rename a TV (the name stays on your phone) or forget it.
 - **How it's doing.** Each TV's Overview opens with the TV itself: its name, maker and model, and a one-line summary such as "Running fine" or "Storage almost full". Below that is a chip per TV to switch between them, then a **+ Device** chip. Then comes free space as a bar, with CPU, RAM, temperature and network speed. When a TV is offline, it shows the storage from the last time Tellyscope saw it. Its address and how long it's been on are under Advanced.
 - **The main jobs up front.** Big **Install app**, **Debloat** and **Send file** tiles sit right under the vitals. Debloat shows a count while the TV's list still has apps on, or while apps Tellyscope turned off are back on, often after a TV update. When there's nothing left, it opens Apps instead. Under **Suggested for this TV**, one line says how many of the list's apps are off. If any came back on, a red line says so. Below that are the TV's Android version, when it last updated, and **Check for updates**, which opens the TV's own update screen. The Apps tab has an **Install app** button, and Files has **Upload files**.

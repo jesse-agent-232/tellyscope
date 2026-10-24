@@ -19,6 +19,7 @@ OUT = Path(__file__).parent
 # Output name and the phone-sized screenshot it comes from. The tests scroll the page themselves,
 # so the top bar and the tabs along the bottom stay in shot.
 SHOTS = {
+    "welcome": "00_welcome",
     "tv-page": "04_device",
     "debloat": "20_readme_debloat",
     "debloat-confirm": "21_readme_confirm",
