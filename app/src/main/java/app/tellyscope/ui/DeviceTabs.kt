@@ -138,10 +138,15 @@ fun DeviceTabsScreen(
     var heroHeight by remember { mutableIntStateOf(0) }
     val collapse by remember { derivedStateOf { collapsedFraction(list.firstVisibleItemIndex, list.firstVisibleItemScrollOffset, heroHeight) } }
     val barTitle by remember { derivedStateOf { titleAlpha(collapse) > 0f } }
+    // The tabs share one list, so each opens at the top with its hero, not where the last one was left.
     // "See changes" lands on Tweaks scrolled to Recent changes, the list's third item, after the hero.
     var toChanges by remember { mutableStateOf(false) }
-    LaunchedEffect(tab, toChanges) {
-        if (tab == TvTab.Tweaks && toChanges) { list.scrollToItem(2); toChanges = false }
+    var shown by rememberSaveable { mutableStateOf(tab) }
+    LaunchedEffect(tab) {
+        if (tab == shown) return@LaunchedEffect
+        shown = tab
+        list.scrollToItem(if (tab == TvTab.Tweaks && toChanges) 2 else 0)
+        toChanges = false
     }
 
     Scaffold(

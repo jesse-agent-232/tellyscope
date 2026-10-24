@@ -284,6 +284,19 @@ class ScreenshotTest {
         // At rest the bar holds only ⋮; the hero's pill says how the TV is doing instead.
         compose.onNodeWithText("Connected").assertDoesNotExist()
     }
+    // The tabs share one list: a tab opened after another was scrolled starts at the top, hero unfolded.
+    @Config(qualifiers = "w411dp-h640dp-xxhdpi")
+    @Test fun tabSwitchOpensAtTop() {
+        compose.mainClock.autoAdvance = false
+        compose.setContent { TellyscopeTheme(dynamic = false) { DeviceTabsScreen(md3State(), DeviceActions(), startTab = TvTab.Apps) } }
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.onNode(hasScrollAction()).performScrollToIndex(1)
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.onAllNodesWithText("Connected").onFirst().assertExists()
+        compose.onNodeWithText("Files").performClick()
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.onNodeWithText("Connected").assertDoesNotExist()
+    }
     @Test fun md3_apps() { shot("64_md3_apps") { DeviceTabsScreen(md3State(), DeviceActions(), startTab = TvTab.Apps) } }
     @Test fun md3_apps_dark() { shot("64_md3_apps", dark = true) { DeviceTabsScreen(md3State(), DeviceActions(), startTab = TvTab.Apps) } }
     @Test fun md3_files() { shot("65_md3_files") { DeviceTabsScreen(md3State(), DeviceActions(), startTab = TvTab.Files) } }

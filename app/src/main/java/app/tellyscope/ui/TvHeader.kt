@@ -93,11 +93,8 @@ fun TvHero(state: UiState, live: Snapshot?, actions: DeviceActions, chips: Boole
     val device = state.selected ?: return
     val c = MaterialTheme.colorScheme
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Column(
-            Modifier.fillMaxWidth().onSizeChanged { onHeight(it.height) },
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
+        // No gap between the two parts: the maker line sits right under the name, as before the collapse.
+        Column(Modifier.fillMaxWidth().onSizeChanged { onHeight(it.height) }, horizontalAlignment = Alignment.CenterHorizontally) {
             // Toward the top left, where the bar's small cookie and name take over.
             Column(
                 Modifier.graphicsLayer {
