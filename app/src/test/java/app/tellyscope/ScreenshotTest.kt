@@ -64,6 +64,7 @@ import app.tellyscope.ui.FilesBlock
 import app.tellyscope.ui.FilesUi
 import app.tellyscope.ui.RestoreDialog
 import app.tellyscope.ui.PermissionScreen
+import app.tellyscope.ui.WelcomeScreen
 import app.tellyscope.ui.RebootDialog
 import app.tellyscope.ui.RemoteActions
 import app.tellyscope.ui.RemoteScreen
@@ -573,6 +574,10 @@ class ScreenshotTest {
         val t = TransferUi("holiday-2025.mp4", toTv = false, folder = TvFolder.DOWNLOAD, progress = Progress(301_000_000, 812_000_000))
         DeviceTabsScreen(deviceState { copy(transfer = t) }, DeviceActions())
     }
+
+    @Test fun welcome() = shot("00_welcome") { WelcomeScreen(askLocalNetwork = true, {}, {}) }
+
+    @Test fun welcome_dark() = shot("00_welcome", dark = true) { WelcomeScreen(askLocalNetwork = true, {}, {}) }
 
     @Test fun permission() = shot("08_permission") { PermissionScreen(denied = false, canAsk = true, {}, {}) }
 
