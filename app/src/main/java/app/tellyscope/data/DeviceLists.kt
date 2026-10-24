@@ -213,19 +213,6 @@ fun suggest(list: DeviceList, apps: List<AppInfo>, sdk: Int?): List<SuggestedGro
     }.filter { it.packages.isNotEmpty() }
 }
 
-const val KEEP_REASON = "this TV's list says it must stay on"
-
-/**
- * The list's keep entries add a reason; they never clear a built-in one. A keep entry that is
- * already off stays unprotected, so Enable still shows.
- */
-fun withKeep(builtIn: String?, pkg: String, enabled: Boolean, keep: Set<String>): String? =
-    builtIn ?: KEEP_REASON.takeIf { enabled && pkg in keep }
-
-/** Stop, Disable and Uninstall are refused for keep entries; Enable and Open always run. */
-fun keepRefuses(action: Action, pkg: String, keep: Set<String>) =
-    (action == Action.Stop || action == Action.Disable || action == Action.Uninstall) && pkg in keep
-
 /**
  * Fetches and caches the index and device files under [dir]. A failed fetch falls back to the
  * cache; a device file is only used (and cached) when its sha256 matches the index. Hand picks

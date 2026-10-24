@@ -28,7 +28,7 @@ object Copy {
         Action.Enable -> "Turn on"
         Action.Open -> "Open"
         Action.Uninstall -> "Uninstall"
-        Action.Change, Action.ClearCaches, Action.Home -> error("$action has its own button")
+        Action.Change, Action.ClearCaches, Action.Home, Action.HomeBack -> error("$action has its own button")
     }
 
     fun confirm(action: Action) = when (action) {
@@ -38,6 +38,7 @@ object Copy {
         Action.Open -> "Yes, open it"
         Action.Uninstall -> "Yes, uninstall it"
         Action.Home -> "Yes, switch home screen"
+        Action.HomeBack -> "Yes, switch back"
         Action.Change, Action.ClearCaches -> error("$action isn't an app action")
     }
 
@@ -52,7 +53,7 @@ object Copy {
             Action.Enable -> "Turns $who back on."
             Action.Open -> "Opens $who on the TV."
             Action.Uninstall -> "Removes $who and everything saved in it. This can't be undone; to get it back, install it again."
-            Action.Change, Action.ClearCaches, Action.Home -> error("$action isn't a one-app action")
+            Action.Change, Action.ClearCaches, Action.Home, Action.HomeBack -> error("$action isn't a one-app action")
         }
     }
 
@@ -66,7 +67,17 @@ object Copy {
         Action.Change -> app
         Action.ClearCaches -> "Cleared $app"
         Action.Home -> "Set $app as the default launcher"
+        Action.HomeBack -> "Switched home back to $app"
     }
+
+    /** Said in the confirm before Stop, Disable or Uninstall of an app the TV's list keeps. */
+    const val KEEP_WARNING = "This TV's list says to keep this."
+
+    fun homeBack(launcher: String) = "Switch home back to $launcher"
+
+    /** The way back keeps the added launcher, so it can be made Home again or uninstalled. */
+    fun explainHomeBack(added: String, back: String) =
+        "Makes $back open when you press Home again, turning it back on if it's off. $added stays on. Undo in History makes $added Home again."
 
     /** Where the lists come from, for the Debloat screen and the snackbar after a change. */
     fun listSource(custom: String?) =

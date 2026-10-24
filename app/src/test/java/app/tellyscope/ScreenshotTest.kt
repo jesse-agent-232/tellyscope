@@ -1049,6 +1049,68 @@ class ScreenshotTest {
         compose.onNodeWithText("Yes, switch home screen").assertExists()
     }
 
+    // Projectivy is Home now, made so on the TV itself; its row offers the way back to Google TV Home, which is off.
+    private fun homeBackState(confirming: Boolean = false) = deviceState {
+        val stock = AppInfo("com.google.android.tvlauncher", "Google TV Home", 0xFF1A73E8, true, false, null, "1.0.4")
+        val projectivy = { a: AppInfo -> a.copy(protectedReason = "this is your home screen", system = false, removable = true, homeBack = stock.label) }
+        copy(
+            apps = listOf(stock) + apps.map { if (it.packageName == "com.spocky.projengmenu") projectivy(it) else it },
+            pending = ("com.spocky.projengmenu" to Action.HomeBack).takeIf { confirming },
+        )
+    }
+    private fun homeBack(dark: Boolean) {
+        val back = { compose.onNode(hasScrollAction()).performScrollToNode(hasText(Copy.confirm(Action.HomeBack))); Unit }
+        shot("78_apps_home_back", dark, before = back) { DeviceTabsScreen(homeBackState(confirming = true), DeviceActions(), startTab = TvTab.Apps) }
+        compose.onNodeWithText(Copy.explainHomeBack("Projectivy Launcher", "Google TV Home")).assertExists()
+    }
+    @Test fun apps_homeBack() = homeBack(false)
+    @Test fun apps_homeBack_dark() = homeBack(true)
+
+    @Test fun apps_homeBackIsOfferedOnTheAddedLauncher() {
+        val proposed = mutableListOf<Pair<String, Action>>()
+        compose.mainClock.autoAdvance = false
+        compose.setContent { TellyscopeTheme(dynamic = false) { DeviceTabsScreen(homeBackState(), DeviceActions(propose = { pkg, a -> proposed += pkg to a }), startTab = TvTab.Apps) } }
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Projectivy Launcher"))
+        compose.onNodeWithText("Projectivy Launcher").performClick()
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText(Copy.homeBack("Google TV Home")))
+        compose.onNodeWithText(Copy.homeBack("Google TV Home")).performClick()
+        compose.mainClock.advanceTimeBy(1_000)
+        assertEquals(listOf("com.spocky.projengmenu" to Action.HomeBack), proposed)
+        // Still the home screen, so nothing that would turn it off.
+        compose.onAllNodesWithText("Disable").assertCountEquals(0)
+    }
+
+    // A keep from the TV's list only warns; a hard lock still offers nothing.
+    @Test fun apps_listKeepWarnsAndHardLockHolds() {
+        val proposed = mutableListOf<Pair<String, Action>>()
+        val kept = deviceState { copy(apps = apps.map { if (it.packageName == "com.xgimi.assistant") it.copy(listKeep = true) else it }) }
+        compose.mainClock.autoAdvance = false
+        compose.setContent { TellyscopeTheme(dynamic = false) { DeviceTabsScreen(kept, DeviceActions(propose = { pkg, a -> proposed += pkg to a }), startTab = TvTab.Apps) } }
+        compose.mainClock.advanceTimeBy(1_000)
+        val tap = { label: String ->
+            compose.onNode(hasScrollAction()).performScrollToNode(hasText(label))
+            compose.onNodeWithText(label).performClick()
+            compose.mainClock.advanceTimeBy(1_000)
+        }
+        tap("Built-in"); tap("XGIMI Assistant"); tap("Disable")
+        assertEquals(listOf("com.xgimi.assistant" to Action.Disable), proposed)
+        tap("Google Play services")
+        compose.onAllNodesWithText("Disable").assertCountEquals(1) // XGIMI Assistant's, still open
+        assertEquals(1, proposed.size)
+    }
+
+    @Test fun apps_listKeepConfirmSaysSo() {
+        val state = deviceState {
+            copy(apps = apps.map { if (it.packageName == "com.xgimi.assistant") it.copy(listKeep = true) else it }, pending = "com.xgimi.assistant" to Action.Disable)
+        }
+        shot("79_apps_keep_warning", before = { compose.onNode(hasScrollAction()).performScrollToNode(hasText(Copy.confirm(Action.Disable))); Unit }) {
+            DeviceTabsScreen(state, DeviceActions(), startTab = TvTab.Apps)
+        }
+        compose.onNodeWithText(Copy.KEEP_WARNING, substring = true).assertExists()
+    }
+
     @Test fun readme_send() = shot("25_readme_send", screen = true) {
         val t = TransferUi("family-trip-2025.mp4", toTv = true, folder = TvFolder.MOVIES, progress = Progress(486_000_000, 812_000_000))
         DeviceTabsScreen(deviceState { copy(transfer = t) }, DeviceActions())

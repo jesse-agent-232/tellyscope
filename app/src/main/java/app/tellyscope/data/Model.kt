@@ -119,6 +119,10 @@ data class AppInfo(
     val removable: Boolean = false,
     /** Another launcher that can replace the current home screen, [homeInstead]: "Set as default launcher" is offered. */
     val homeInstead: String? = null,
+    /** On the home screen the user added: the name of the launcher "Switch home back" returns to. */
+    val homeBack: String? = null,
+    /** This TV's list says to keep it: Stop, Disable and Uninstall still run, after a warning. */
+    val listKeep: Boolean = false,
 )
 
 data class Socket(val app: String, val remote: String, val state: String)
@@ -140,9 +144,12 @@ data class NetworkInfo(
  * [HistoryEntry.previous] holds what Undo writes back. [ClearCaches] has no undo. [Home] makes a
  * launcher the home screen and disables the old one: its entry's packageName is the old launcher,
  * the label the new one's, and [HistoryEntry.previous] holds both home activities ("from", "to").
- * Its undo is [Enable], which also makes the old launcher Home again.
+ * Its undo is [Enable], which also makes the old launcher Home again. [HomeBack] makes the
+ * launcher a switch replaced (or the TV's own) Home again, turning it on if it's off, and leaves
+ * the added one on: its entry's packageName is the added launcher, the label the one now Home.
+ * Its undo is [Home], which switches to the added launcher again.
  */
-enum class Action { Stop, Disable, Enable, Open, Uninstall, Change, ClearCaches, Home }
+enum class Action { Stop, Disable, Enable, Open, Uninstall, Change, ClearCaches, Home, HomeBack }
 
 data class HistoryEntry(
     val id: Long,

@@ -123,6 +123,7 @@ class ActionsTest {
         return FakeShell(mapOf(
             "cmd package query-activities" to ok("com.google.android.tvlauncher/.MainActivity\ncom.spocky.projengmenu/.ui.home.MainActivity\n"),
             "pm disable-user" to ok("Package com.google.android.tvlauncher new state: disabled-user\n"),
+            "pm enable" to ok("Package com.google.android.tvlauncher new state: enabled\n"),
         )).apply {
             answer = { cmd ->
                 when {
@@ -193,5 +194,38 @@ class ActionsTest {
         assertTrue(Actions(sh).makeHome("com.netflix.ninja") is HomeResult.Failed)
         assertTrue(Actions(sh).makeHome("com.google.android.tvlauncher") is HomeResult.Failed)
         assertTrue(sh.ran.none { it.startsWith("pm ") || "set-home" in it })
+    }
+
+    @Test fun settingsIsNotALauncher() = runTest {
+        // TV Settings answers Home with its fallback screen; it's no launcher to offer.
+        val sh = FakeShell(mapOf(
+            home,
+            "cmd package query-activities" to ok("com.google.android.tvlauncher/.MainActivity\ncom.android.tv.settings/.FallbackHome\n"),
+        ))
+        assertEquals(emptySet(), Actions(sh).homeOptions()?.others)
+        assertTrue(Actions(sh).makeHome("com.android.tv.settings") is HomeResult.Failed)
+        assertTrue(sh.ran.none { it.startsWith("pm ") || "set-home" in it })
+    }
+
+    @Test fun homeBackTurnsTheOldLauncherOnAndLeavesTheNewOneOn() = runTest {
+        val sh = twoLaunchers()
+        Actions(sh).makeHome("com.spocky.projengmenu")
+        assertEquals(
+            HomeResult.Switched("com.spocky.projengmenu/.ui.home.MainActivity", "com.google.android.tvlauncher/.MainActivity"),
+            Actions(sh).homeBack("com.google.android.tvlauncher", "com.google.android.tvlauncher/.MainActivity"),
+        )
+        val on = sh.ran.indexOf("pm enable --user 0 com.google.android.tvlauncher 2>&1")
+        val set = sh.ran.indexOfLast { it == "cmd package set-home-activity --user 0 'com.google.android.tvlauncher/.MainActivity' 2>&1" }
+        assertTrue(on >= 0 && set > on)
+        assertTrue(sh.ran.none { it == "pm disable-user --user 0 com.spocky.projengmenu 2>&1" })
+        assertEquals("com.google.android.tvlauncher", Actions(sh).homeOptions()?.current)
+    }
+
+    @Test fun homeBackThatDoesNotTakePutsHomeBack() = runTest {
+        val sh = twoLaunchers()
+        Actions(sh).makeHome("com.spocky.projengmenu")
+        sh.answer.let { prev -> sh.answer = { if (it.startsWith("cmd package set-home-activity")) ok("Success\n") else prev(it) } }
+        assertTrue(Actions(sh).homeBack("com.google.android.tvlauncher", "com.google.android.tvlauncher/.MainActivity") is HomeResult.Failed)
+        assertTrue(Actions(sh).homeBack("com.spocky.projengmenu") is HomeResult.Failed) // already Home
     }
 }

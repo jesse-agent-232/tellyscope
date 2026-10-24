@@ -2,18 +2,15 @@
 
 package app.tellyscope
 
-import app.tellyscope.data.Action
 import app.tellyscope.data.AppInfo
 import app.tellyscope.data.DeviceList
 import app.tellyscope.data.DeviceLists
-import app.tellyscope.data.KEEP_REASON
 import app.tellyscope.data.LISTS_BASE
 import app.tellyscope.data.ListEntry
 import app.tellyscope.data.ListGroup
 import app.tellyscope.data.ListIndex
 import app.tellyscope.data.ListMatch
 import app.tellyscope.data.ListPackage
-import app.tellyscope.data.keepRefuses
 import app.tellyscope.data.matches
 import app.tellyscope.data.merge
 import app.tellyscope.data.SourceResult
@@ -23,7 +20,6 @@ import app.tellyscope.data.depth
 import app.tellyscope.data.parseIndex
 import app.tellyscope.data.parseList
 import app.tellyscope.data.suggest
-import app.tellyscope.data.withKeep
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -182,7 +178,6 @@ class DeviceListsTest {
         assertEquals(listOf("com.tcl.ads"), shown.map { it.pkg })
         // No tested Android, so nothing starts ticked.
         assertFalse(shown.single().ticked)
-        assertEquals(KEEP_REASON, withKeep(null, "com.tcl.hdmi", enabled = true, merged.keep))
     }
 
     @Test fun onlyPackagesTheTvHasAndStillHasOnAreSuggested() = runTest {
@@ -209,21 +204,8 @@ class DeviceListsTest {
         assertEquals(mapOf("com.a.one" to false, "com.a.two" to false), suggest(list.copy(sdk = null), apps, null).flatMap { it.packages }.associate { it.pkg to it.ticked })
     }
 
-    @Test fun keepOnlyAddsProtection() {
+    @Test fun keepIsNeverSuggested() {
         val keep = setOf("com.acme.hdmi")
-        assertEquals(KEEP_REASON, withKeep(null, "com.acme.hdmi", enabled = true, keep))
-        // A built-in reason always survives, list or no list.
-        assertEquals("this is your home screen", withKeep("this is your home screen", "com.acme.launcher", enabled = true, keep))
-        assertEquals("this is your home screen", withKeep("this is your home screen", "com.acme.launcher", enabled = true, emptySet()))
-        // Already off: Enable must still be offered.
-        assertNull(withKeep(null, "com.acme.hdmi", enabled = false, keep))
-
-        assertTrue(keepRefuses(Action.Disable, "com.acme.hdmi", keep))
-        assertTrue(keepRefuses(Action.Stop, "com.acme.hdmi", keep))
-        assertTrue(keepRefuses(Action.Uninstall, "com.acme.hdmi", keep))
-        assertFalse(keepRefuses(Action.Enable, "com.acme.hdmi", keep))
-        assertFalse(keepRefuses(Action.Disable, "com.acme.reporter", keep))
-
         // A list that names a package in both keep and a group never suggests it.
         val list = DeviceList("x", "X", null, 30, keep, listOf(ListGroup("Junk", listOf(ListPackage("com.acme.hdmi", null, false)))))
         assertTrue(suggest(list, listOf(app("com.acme.hdmi")), 30).isEmpty())

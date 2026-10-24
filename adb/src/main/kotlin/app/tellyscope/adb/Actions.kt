@@ -93,6 +93,26 @@ class Actions(private val shell: AdbShell) {
         return HomeResult.Switched(from, to)
     }
 
+    /**
+     * Makes [pkg] Home again after another launcher took over: turns it on if it's off, then sets
+     * [activity], the one the switch away from it saved, or else its own home activity. The
+     * launcher that was Home stays on, so it can be made Home again or uninstalled.
+     */
+    suspend fun homeBack(pkg: String, activity: String? = null): HomeResult {
+        require(PACKAGE.matches(pkg)) { "not a package name: $pkg" }
+        require(activity == null || (ACTIVITY.matches(activity) && activity.substringBefore('/') == pkg)) { "not $pkg's activity: $activity" }
+        val from = currentHome() ?: return HomeResult.Refused(ProtectedReason.UNKNOWN_HOME)
+        if (from.substringBefore('/') == pkg) return HomeResult.Failed("it's already the home screen")
+        val on = exec("pm enable --user 0 $pkg", undo = null) { "enabled" in it }
+        if (on is ActionResult.Failed) return HomeResult.Failed(on.output)
+        val to = activity ?: launchers()[pkg] ?: return HomeResult.Failed("it has no home screen")
+        if (!setHome(to)) {
+            setHome(from)
+            return HomeResult.Failed("the TV kept the home screen it has")
+        }
+        return HomeResult.Switched(from, to)
+    }
+
     /** Makes [activity] (`package/class`) the default home, then checks that Home opens it. */
     suspend fun setHome(activity: String): Boolean {
         require(ACTIVITY.matches(activity)) { "not an activity: $activity" }
@@ -104,10 +124,14 @@ class Actions(private val shell: AdbShell) {
     private suspend fun currentHome(): String? =
         activitiesIn(shell.shell(Commands.HOME_ACTIVITY).output).singleOrNull()?.takeUnless { it.startsWith("android/") }
 
-    /** Every enabled launcher, package to its home activity. */
+    /**
+     * Every enabled launcher, package to its home activity. Apps protected for another reason
+     * aren't launchers, though they may answer Home: TV Settings has a fallback home screen.
+     */
     private suspend fun launchers(): Map<String, String> =
         activitiesIn(shell.shell(Commands.HOME_ACTIVITIES).output).filterNot { it.startsWith("android/") }
             .associateBy { it.substringBefore('/') }
+            .filterKeys { Protected.reason(it).let { r -> r == null || r == ProtectedReason.HOME_SCREEN } }
 
     private fun packagesIn(brief: String): Set<String> = activitiesIn(brief).map { it.substringBefore('/') }.toSet()
 

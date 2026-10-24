@@ -18,6 +18,7 @@ until this file has a section for its version.
 - **Improved:** The TV's icon and name glide into the bar, Apps and Files pin their buttons, and empty pages say so. [#74](../../pull/74)
 - **Improved:** Protected apps drop the lock icon; the line saying why stays. [#74](../../pull/74)
 - **Fixed:** The upload icon draws properly again. [#74](../../pull/74)
+- **New:** Switch home back to the TV's own launcher in one tap; list keeps only warn. [#76](../../pull/76)
 - **Fixed:** Welcome and pairing buttons no longer hide under the phone's navigation buttons. [#69](../../pull/69)
 
 ## 0.5.0 — 2026-10-24

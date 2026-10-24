@@ -203,13 +203,14 @@ class FakeDeviceSource(
             Action.Disable -> list[i] = app.copy(enabled = false)
             Action.Enable -> list[i] = app.copy(enabled = true)
             Action.Uninstall -> list.removeAt(i)
-            Action.Stop, Action.Open, Action.Change, Action.ClearCaches, Action.Home -> Unit
+            Action.Stop, Action.Open, Action.Change, Action.ClearCaches, Action.Home, Action.HomeBack -> Unit
         }
         val undo = when (action) {
             Action.Stop -> Action.Open
             Action.Disable -> Action.Enable
             Action.Enable -> Action.Disable
             Action.Home -> Action.Enable
+            Action.HomeBack -> Action.Home
             Action.Open, Action.Uninstall, Action.Change, Action.ClearCaches -> null
         }
         return book.record(deviceId, clock(), action, packageName, app.label, undo, undoing)

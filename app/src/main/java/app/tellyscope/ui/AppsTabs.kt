@@ -27,9 +27,10 @@ enum class AppsTab(val label: String) { Running("Running"), Installed("Installed
 /** One Apps tab's list: the apps the user can change, then the [system] ones they can't, under their own header. */
 data class AppsSplit(val apps: List<AppInfo>, val system: List<AppInfo>)
 
-/** Locked, as [AppRow] shows it: protected, and not offered as the new home screen. */
+/** Locked, as [AppRow] shows it: protected, and not offered as the new home screen or the way back. */
 private fun locked(app: AppInfo, all: List<AppInfo>) =
-    app.protectedReason != null && (app.homeInstead == null || !app.enabled || homeLabel(all, app) == null)
+    app.protectedReason != null && (app.homeInstead == null || !app.enabled || homeLabel(all, app) == null) &&
+        (app.homeBack == null || !app.enabled)
 
 /**
  * Splits the TV's apps for [tab]. Running: apps using RAM now. Installed: the user's own apps,

@@ -154,6 +154,21 @@ class HistoryBook(private val file: File? = null) {
 
 private const val VERSION = "v1"
 
+/** Where "Switch home back" goes: a launcher, its home activity if known, and the switch it reverses. */
+data class HomeBackTarget(val pkg: String, val activity: String?, val reverses: Long?)
+
+/**
+ * The launcher to make Home again while [current], a launcher the user added, is Home: the one
+ * the newest switch to [current] replaced, else the first of the TV's own [builtIns], on or off.
+ */
+fun homeBackTarget(current: String, history: List<HistoryEntry>, builtIns: List<String>): HomeBackTarget? {
+    val switch = history
+        .filter { it.action == Action.Home && it.undoneAt == null && it.previous?.get("to")?.substringBefore('/') == current }
+        .maxByOrNull { it.id }
+    switch?.previous?.get("from")?.let { return HomeBackTarget(it.substringBefore('/'), it, switch.id) }
+    return builtIns.firstOrNull { it != current }?.let { HomeBackTarget(it, null, null) }
+}
+
 private val Action.disables get() = this == Action.Disable || this == Action.Home
 
 /**
