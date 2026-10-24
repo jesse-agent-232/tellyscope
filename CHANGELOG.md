@@ -12,7 +12,7 @@ until this file has a section for its version.
 
 ## Unreleased
 
-- **New:** The app opens on its logo, then a one-time welcome for first-time users. [#PR](../../pull/PR)
+- **New:** The app opens on its logo, then a one-time welcome for first-time users. [#65](../../pull/65)
 - **Improved:** Overview puts the TV first, with chips to switch and debloat counts. [#64](../../pull/64)
 - **Improved:** An offline TV keeps its maker and Android version after the app restarts. [#63](../../pull/63)
 
