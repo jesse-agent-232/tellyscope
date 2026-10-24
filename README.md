@@ -139,6 +139,10 @@ The app supports phones on Android 8.0 (API 26) and newer.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). If you have an Android TV, a [device report](../../issues/new?template=device_report.yml) helps even if nothing worked.
 
+## How it's built
+
+There is no AI in the app. Tellyscope never gives an AI agent access to your TV or your network: it runs a fixed set of ADB commands, only for the actions you tap, and its only internet requests are the two listed under [Is it safe?](#is-it-safe). The code is written with AI coding agents. The maintainer reviews every pull request and tests each build on real TVs, and the [safety rules](#safety-rules) are enforced in the code.
+
 ## Why the name?
 
 Tellyscope is named after Wallace's [Tellyscope](https://wallaceandgromit.fandom.com/wiki/The_Tellyscope), a contraption for changing the channel without getting up. This one is a bit safer.
