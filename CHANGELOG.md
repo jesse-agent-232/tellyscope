@@ -12,6 +12,8 @@ until this file has a section for its version.
 
 ## Unreleased
 
+- **Fixed:** App buttons and Undo wait while another change is running. [#92](../../pull/92)
+- **Fixed:** Turning off a launcher mid-switch no longer crashes the Apps tab. [#92](../../pull/92)
 - **Fixed:** A TV connecting mid-copy no longer hides the copy's dialog. [#93](../../pull/93)
 - **Fixed:** Undo can't run twice on the same change. [#93](../../pull/93)
 - **Fixed:** Fire TV and Philips Settings and the media storage service are protected. [#93](../../pull/93)
