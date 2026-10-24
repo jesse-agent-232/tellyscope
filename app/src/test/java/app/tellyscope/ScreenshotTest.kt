@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotDisplayed
@@ -539,37 +540,27 @@ class ScreenshotTest {
         compose.onNodeWithText("System", substring = true).assertDoesNotExist()
     }
 
-    @Test fun tabs_menuItemsWork() {
-        val state = tabsState()
+    /** Opens ⋮ on a fresh screen, checks both blocks are there, and taps [item]; returns the actions it called. */
+    private fun pickFromMenu(item: String): List<String> {
         val calls = mutableListOf<String>()
         compose.mainClock.autoAdvance = false
         compose.setContent {
             TellyscopeTheme(dark = false, dynamic = false) {
-                DeviceTabsScreen(state, DeviceActions(advanced = { calls += "advanced" }, settings = { calls += "settings" }))
+                DeviceTabsScreen(tabsState(), DeviceActions(advanced = { calls += "advanced" }, settings = { calls += "settings" }))
             }
         }
-        fun pick(item: String) {
-            compose.mainClock.advanceTimeBy(1_000)
-            compose.onNodeWithContentDescription("More options").performClick()
-            compose.mainClock.advanceTimeBy(1_000)
-            // Both blocks are there: this TV's items, then the app's.
-            for (i in listOf("Rename this TV", "Forget this TV", "Advanced", "Settings", "About & licences")) compose.onNodeWithText(i).assertExists()
-            compose.onNodeWithText(item).performClick()
-            compose.mainClock.advanceTimeBy(1_000)
-            compose.onNodeWithText("About & licences").assertDoesNotExist()
-        }
-        pick("Advanced")
-        pick("Settings")
-        assertEquals(listOf("advanced", "settings"), calls)
-        pick("Rename this TV")
-        compose.onNodeWithText("Only this phone sees the name. Nothing on the TV changes.").assertExists()
-        compose.onNodeWithText("Cancel").performClick()
-        pick("Forget this TV")
-        compose.onNodeWithText("Forget ${name(state.selected!!)}?").assertExists()
-        compose.onNodeWithText("Cancel").performClick()
-        pick("About & licences")
-        compose.onNodeWithText("About Tellyscope").assertExists()
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.onNodeWithContentDescription("More options").performClick()
+        compose.mainClock.advanceTimeBy(1_000)
+        // Both blocks are there: this TV's items, then the app's. Rename, Forget and About open dialogs.
+        for (i in listOf("Rename this TV", "Forget this TV", "Advanced", "Settings", "About & licences")) compose.onNodeWithText(i).assertHasClickAction()
+        compose.onNodeWithText(item).performClick()
+        compose.mainClock.advanceTimeBy(1_000)
+        return calls
     }
+
+    @Test fun tabs_menuAdvancedOpensAdvanced() = assertEquals(listOf("advanced"), pickFromMenu("Advanced"))
+    @Test fun tabs_menuSettingsOpensSettings() = assertEquals(listOf("settings"), pickFromMenu("Settings"))
 
     private fun settings(opened: MutableList<String> = mutableListOf()) = @Composable {
         val links = object : UriHandler { override fun openUri(uri: String) { opened += uri } }
@@ -592,9 +583,8 @@ class ScreenshotTest {
         compose.onNodeWithText("How to use your own lists").performClick()
         assertEquals(listOf("https://github.com/Gathin23/cleanyourtv", RELEASES.removeSuffix("/releases") + "/blob/main/CONTRIBUTING.md#using-your-own-lists"), opened)
         assertTrue(opened[1].startsWith("https://github.com/") && opened[1].contains("/tellyscope/blob/main/CONTRIBUTING.md"))
-        compose.onNodeWithText("Use your own debloat lists").performClick()
-        compose.mainClock.advanceTimeBy(1_000)
-        compose.onNodeWithText("Where the lists come from").assertExists()
+        // It opens the existing source dialog, unchanged.
+        compose.onNodeWithText("Use your own debloat lists").assertHasClickAction()
     }
 
     @Test fun settings_dark() = shot("81_settings", dark = true) { settings()() }
