@@ -27,6 +27,8 @@ import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.onNodeWithTag
 import app.tellyscope.adb.ApkInfo
 import app.tellyscope.adb.ConnectionRequest
 import app.tellyscope.adb.InstallRefusal
@@ -92,6 +94,7 @@ import java.nio.file.Files
 import kotlin.random.Random
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -290,6 +293,18 @@ class ScreenshotTest {
         TvFile("holiday-2025.mp4", 812_000_000, now - 3 * 86_400_000L),
         TvFile("family-trip-2025.mp4", 486_000_000, now - 9 * 86_400_000L),
     )))) }
+    // The end space is Files' own: Apps, long after it, ends with none.
+    @Test fun longTabAfterShortOneHasNoEndSpace() {
+        compose.mainClock.autoAdvance = false
+        compose.setContent { TellyscopeTheme(dynamic = false) { DeviceTabsScreen(md3State(), DeviceActions(), startTab = TvTab.Files) } }
+        compose.mainClock.advanceTimeBy(1_000)
+        assertTrue(compose.onNodeWithTag("tail").fetchSemanticsNode().size.height > 0)
+        compose.onNodeWithText("Apps").performClick()
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.onNode(hasScrollAction()).performScrollToNode(hasTestTag("tail"))
+        compose.mainClock.advanceTimeBy(1_000)
+        assertEquals(0, compose.onNodeWithTag("tail").fetchSemanticsNode().size.height)
+    }
     @Test fun md3_files_movies() { shot("73_md3_files_movies") { DeviceTabsScreen(moviesState(), DeviceActions(), startTab = TvTab.Files) } }
     @Test fun md3_files_movies_dark() { shot("73_md3_files_movies", dark = true) { DeviceTabsScreen(moviesState(), DeviceActions(), startTab = TvTab.Files) } }
     @Test fun md3_files_offline() {

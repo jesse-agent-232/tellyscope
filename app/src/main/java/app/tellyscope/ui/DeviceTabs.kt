@@ -65,6 +65,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -78,6 +79,7 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -142,10 +144,15 @@ fun DeviceTabsScreen(
     val collapse by remember { derivedStateOf { collapsedFraction(list.firstVisibleItemIndex, list.firstVisibleItemScrollOffset, heroHeight) } }
     val barTitle by remember { derivedStateOf { titleAlpha(collapse) > 0f } }
     // A tab shorter than the screen gets blank space at its end, so its hero can still fold fully into the bar.
-    // Measured only while the hero and the space are both in view; kept as it was while scrolled.
+    // Measured only while the hero and the space are both in view, and kept while scrolled; a different list
+    // (another tab, sub-tab or folder, or items coming and going) starts again from none.
     var tail by remember { mutableIntStateOf(0) }
+    var measuredFor by remember { mutableStateOf<List<Any>>(emptyList()) }
+    val folder by rememberUpdatedState(ui.files.folder)
     LaunchedEffect(list) {
         snapshotFlow { list.layoutInfo }.collect { info ->
+            val content = listOf(tab, appsTab, folder, info.totalItemsCount)
+            if (content != measuredFor) { measuredFor = content; tail = 0 }
             val items = info.visibleItemsInfo
             val hero = items.firstOrNull { it.key == "hero" } ?: return@collect
             val end = items.firstOrNull { it.key == "tail" } ?: return@collect
@@ -331,7 +338,7 @@ fun DeviceTabsScreen(
                     }
                 }
             }
-            item(key = "tail") { Spacer(Modifier.height(with(LocalDensity.current) { tail.toDp() })) }
+            item(key = "tail") { Spacer(Modifier.height(with(LocalDensity.current) { tail.toDp() }).testTag("tail")) }
         }
         if (!offline) ui.request?.let { RequestDialog(it, ui.busy == ANSWERING, actions.answerRequest, actions.dismissRequest) }
         ui.sideload?.let { SideloadDialog(it, actions) }
