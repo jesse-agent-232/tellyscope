@@ -12,6 +12,8 @@ until this file has a section for its version.
 
 ## Unreleased
 
+- **Fixed:** Set as default launcher now works when Android TV Home is Home. [#84](../../pull/84)
+
 ## 0.6.0 — 2026-10-24
 
 - **Improved:** The README now shows a real TV home screen after Tellyscope. [#79](../../pull/79)

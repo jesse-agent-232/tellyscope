@@ -70,7 +70,9 @@ class Actions(private val shell: AdbShell) {
     /**
      * Makes [pkg] the home screen in place of the current one, then disables the old launcher so
      * the TV can't switch back by itself. Home is checked to open [pkg] before anything is
-     * disabled; if it doesn't, the old home is set back and nothing is turned off.
+     * disabled. Android skips the default when one launcher has a higher Home priority than the
+     * rest, and Android TV Home has one, so if that check fails the old launcher is turned off
+     * and Home checked again. If Home still doesn't open [pkg], the old one goes back on and Home.
      */
     suspend fun makeHome(pkg: String): HomeResult {
         require(PACKAGE.matches(pkg)) { "not a package name: $pkg" }
@@ -81,16 +83,19 @@ class Actions(private val shell: AdbShell) {
         // The old launcher is protected as the home screen and by name; once it isn't Home, that
         // guard has done its job. Any other reason still stands.
         Protected.reason(old)?.takeIf { it != ProtectedReason.HOME_SCREEN }?.let { return HomeResult.Refused(it) }
-        if (!setHome(to)) {
-            setHome(from)
-            return HomeResult.Failed("the TV kept its own home screen, so nothing was turned off")
-        }
+        val checked = setHome(to)
         val off = exec("pm disable-user --user 0 $old", undo = null) { "disabled-user" in it }
         if (off is ActionResult.Failed) {
             setHome(from)
             return HomeResult.Failed(off.output)
         }
-        return HomeResult.Switched(from, to)
+        if (checked || setHome(to)) return HomeResult.Switched(from, to)
+        val on = exec("pm enable --user 0 $old", undo = null) { "enabled" in it }
+        setHome(from)
+        return HomeResult.Failed(
+            if (on is ActionResult.Failed) "Home didn't open it, and the old home screen didn't turn back on: ${on.output}"
+            else "the TV kept its own home screen, so nothing was changed",
+        )
     }
 
     /**
