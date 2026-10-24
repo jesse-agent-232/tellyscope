@@ -126,7 +126,11 @@ class ActionsTest {
         var home = "com.google.android.tvlauncher/.MainActivity"
         var oldOn = true
         return FakeShell(mapOf(
-            "cmd package query-activities" to ok("com.google.android.tvlauncher/.MainActivity\ncom.spocky.projengmenu/.ui.home.MainActivity\n"),
+            "cmd package query-activities" to ok(
+                if (outranks) "2 activities found:\n  Activity #0:\n    priority=2 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=true\n    com.google.android.tvlauncher/.MainActivity\n" +
+                    "  Activity #1:\n    priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=true\n    com.spocky.projengmenu/.ui.home.MainActivity\n"
+                else "com.google.android.tvlauncher/.MainActivity\ncom.spocky.projengmenu/.ui.home.MainActivity\n",
+            ),
             "pm disable-user" to ok("Package com.google.android.tvlauncher new state: disabled-user\n"),
             "pm enable" to ok("Package com.google.android.tvlauncher new state: enabled\n"),
         )).apply {
@@ -194,16 +198,31 @@ class ActionsTest {
         assertTrue(sh.ran.none { it.startsWith("pm enable") })
     }
 
-    @Test fun homeCheckFailsOldLauncherBackOnAndHome() = runTest {
+    @Test fun homeCheckFailsNothingDisabled() = runTest {
         val sh = twoLaunchers(accepts = false)
+        assertEquals(HomeResult.Failed("the TV kept its own home screen, so nothing was turned off"), Actions(sh).makeHome("com.spocky.projengmenu"))
+        assertTrue(sh.ran.none { it.startsWith("pm ") })
+        // The old home is set back, in case the TV took the new one half-way.
+        assertEquals("cmd package set-home-activity --user 0 'com.google.android.tvlauncher/.MainActivity' 2>&1", sh.ran.last { "set-home" in it })
+    }
+
+    @Test fun outrankingHomeCheckFailsOldLauncherBackOnAndHome() = runTest {
+        val sh = twoLaunchers(accepts = false, outranks = true)
         val r = Actions(sh).makeHome("com.spocky.projengmenu")
-        assertEquals(HomeResult.Failed("the TV kept its own home screen, so nothing was changed"), r)
+        assertEquals(HomeResult.Failed("Home still didn't open it, so the old home screen was turned back on"), r)
         val off = sh.ran.indexOf("pm disable-user --user 0 com.google.android.tvlauncher 2>&1")
         val on = sh.ran.indexOf("pm enable --user 0 com.google.android.tvlauncher 2>&1")
         assertTrue(off >= 0 && on > off)
         // The old home is set back, in case the TV took the new one half-way.
         assertEquals("cmd package set-home-activity --user 0 'com.google.android.tvlauncher/.MainActivity' 2>&1", sh.ran.last { "set-home" in it })
         assertEquals("com.google.android.tvlauncher", Actions(sh).homeOptions()?.current)
+    }
+
+    @Test fun failedTurnBackOnSaysWhereToDoIt() = runTest {
+        val sh = twoLaunchers(accepts = false, outranks = true)
+        sh.answer.let { prev -> sh.answer = { if (it.startsWith("pm enable")) ok("Error: refused\n") else prev(it) } }
+        val r = Actions(sh).makeHome("com.spocky.projengmenu") as HomeResult.Failed
+        assertTrue(r.output.endsWith("Turn it back on from Apps → Built-in"), r.output)
     }
 
     @Test fun failedDisablePutsHomeBack() = runTest {
