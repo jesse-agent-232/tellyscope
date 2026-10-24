@@ -13,6 +13,7 @@ until this file has a section for its version.
 ## Unreleased
 
 - **Improved:** Debloat finds your TV's list itself, or its maker's, or lets you pick. [#70](../../pull/70)
+- **Improved:** The TV tops every tab and folds into the bar as you scroll. [#71](../../pull/71)
 
 ## 0.5.0 — 2026-10-24
 

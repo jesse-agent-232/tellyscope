@@ -4,28 +4,20 @@
 
 package app.tellyscope.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -35,7 +27,6 @@ import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -60,27 +51,29 @@ import androidx.compose.material3.ShortNavigationBarItem
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.text.SpanStyle
@@ -90,11 +83,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import app.tellyscope.data.Action
-import app.tellyscope.data.Device
 import app.tellyscope.data.DeviceState
 import app.tellyscope.data.Snapshot
 import app.tellyscope.data.Suggestions
-import app.tellyscope.data.deviceKind
 
 /** The TV page's destinations, one job each, in the bottom bar. */
 enum class TvTab(val label: String) { Overview("Overview"), Apps("Apps"), Files("Files"), Tweaks("Tweaks") }
@@ -124,8 +115,8 @@ private fun TvTab.icon() = when (this) {
 
 /**
  * The TV page as four tabs under a bottom bar, in place of one long scroll of folded sections.
- * Overview leads with the TV itself, big and centred, and a chip per TV to switch; the other tabs
- * name the TV in the app bar. Search (Apps only) and the overflow sit on the right.
+ * Every tab leads with the TV itself, big and centred, Overview with a chip per TV to switch; scrolling
+ * folds it into the app bar. Search (Apps only) and the overflow sit on the right.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -143,10 +134,14 @@ fun DeviceTabsScreen(
     val q = state.query.trim().lowercase()
     val offline = device.state != DeviceState.Online
     val list = rememberLazyListState()
-    // "See changes" lands on Tweaks scrolled to Recent changes, the list's second item.
+    // The hero tops every tab and collapses into the bar as the tab scrolls.
+    var heroHeight by remember { mutableIntStateOf(0) }
+    val collapse by remember { derivedStateOf { collapsedFraction(list.firstVisibleItemIndex, list.firstVisibleItemScrollOffset, heroHeight) } }
+    val barTitle by remember { derivedStateOf { titleAlpha(collapse) > 0f } }
+    // "See changes" lands on Tweaks scrolled to Recent changes, the list's third item, after the hero.
     var toChanges by remember { mutableStateOf(false) }
     LaunchedEffect(tab, toChanges) {
-        if (tab == TvTab.Tweaks && toChanges) { list.scrollToItem(1); toChanges = false }
+        if (tab == TvTab.Tweaks && toChanges) { list.scrollToItem(2); toChanges = false }
     }
 
     Scaffold(
@@ -183,8 +178,11 @@ fun DeviceTabsScreen(
                 )
             } else {
                 TopAppBar(
-                    // Overview shows the TV big below; the bar says which TV only on the other tabs.
-                    title = { if (tab != TvTab.Overview) BarName(state) },
+                    // Each tab shows the TV big below, and in the bar once it has scrolled under it.
+                    title = { if (barTitle) TvBarTitle(device, Modifier.graphicsLayer { alpha = titleAlpha(collapse) }) },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = lerp(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surfaceContainer, collapse),
+                    ),
                     actions = {
                         if (REMOTE_ENABLED) TextButton(onClick = actions.remote, enabled = !offline) { Text("Remote") }
                         // Search only looks through apps, so it only shows on the Apps tab.
@@ -223,9 +221,9 @@ fun DeviceTabsScreen(
         ) {
             val snap = ui.snapshot
             val live = snap?.takeIf { !offline }
+            item(key = "hero") { TvHero(state, live, actions, chips = tab == TvTab.Overview, collapse = { collapse }, onHeight = { heroHeight = it }) }
             when (tab) {
                 TvTab.Overview -> {
-                    item { Hero(state, live, actions) }
                     val restart = state.restarting[device.id]
                     if (restart != null) {
                         item { RestartingCard(restart, state.now) }
@@ -359,81 +357,6 @@ private fun AppMenu(state: UiState, actions: DeviceActions) {
             DropdownMenuItem(text = { Text("Settings") }, leadingIcon = { Icon(Icons.Default.Settings, null) }, onClick = { open = false; actions.settings() })
             DropdownMenuItem(text = { Text("About & licences") }, leadingIcon = { Icon(Icons.Default.Info, null) }, onClick = { open = false; about = true })
         }
-    }
-}
-
-/** The bar on every tab but Overview: which TV, nothing to open. Switching happens on Overview. */
-@Composable
-private fun BarName(state: UiState) {
-    val device = state.selected ?: return
-    val kind = deviceKind(device)
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(DeviceIcons.of(kind), contentDescription = kind.word(), Modifier.padding(end = 12.dp))
-        Text(name(device), style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-    }
-}
-/** The TV as Overview's hero: an Expressive cookie-shaped tile, its name, how it's doing, and the switcher. */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun Hero(state: UiState, live: Snapshot?, actions: DeviceActions) {
-    val device = state.selected ?: return
-    val kind = deviceKind(device)
-    val c = MaterialTheme.colorScheme
-    // Offline: the tile greys out, so it agrees with the Offline pill.
-    val on = device.state == DeviceState.Online
-    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Box(
-            Modifier.size(80.dp).clip(MaterialShapes.Cookie9Sided.toShape()).background(if (on) c.primaryContainer else c.surfaceContainerHighest),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(DeviceIcons.of(kind), contentDescription = kind.word(), Modifier.size(40.dp), tint = if (on) c.onPrimaryContainer else c.outline)
-        }
-        val title = name(device)
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(title, style = MaterialTheme.typography.headlineMediumEmphasized, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 16.dp))
-            // Under a model-name title, the model would only say it twice.
-            val maker = device.manufacturer ?: device.hit.maker
-            val made = if (title == device.model) maker.orEmpty() else made(maker, device.model)
-            if (made.isNotEmpty()) Text(made, style = MaterialTheme.typography.bodyMedium, color = c.onSurfaceVariant)
-        }
-        val health = live?.let { Copy.health(it, heaviest(it, state.device.apps)) }
-        Surface(shape = CircleShape, color = if (health?.ok == false) c.errorContainer else c.secondaryContainer) {
-            Row(Modifier.padding(horizontal = 12.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (health != null) {
-                    Icon(if (health.ok) Icons.Default.CheckCircle else Icons.Default.Warning, null, Modifier.size(16.dp), tint = if (health.ok) c.primary else c.error)
-                } else StateDot(device.state)
-                Spacer(Modifier.width(8.dp))
-                Text(health?.text ?: Copy.state(device.state), style = MaterialTheme.typography.labelLarge)
-            }
-        }
-        TvChips(state, actions)
-    }
-}
-
-/** One chip per TV to switch, offline ones dimmed, then "+ Device" as the last chip. */
-@Composable
-private fun TvChips(state: UiState, actions: DeviceActions) {
-    FlowRow(
-        Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-        itemVerticalAlignment = Alignment.CenterVertically,
-    ) {
-        if (state.devices.size > 1) state.devices.forEach { d ->
-            FilterChip(
-                selected = d.id == state.selectedId,
-                onClick = { actions.select(d.id) },
-                label = { Text(name(d), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 104.dp)) },
-                leadingIcon = {
-                    Box {
-                        Icon(DeviceIcons.of(deviceKind(d)), contentDescription = deviceKind(d).word(), Modifier.size(18.dp))
-                        Box(Modifier.align(Alignment.BottomEnd).offset(x = 3.dp, y = 3.dp)) { StateDot(d.state) }
-                    }
-                },
-                modifier = if (d.state == DeviceState.Online) Modifier else Modifier.alpha(0.6f),
-            )
-        }
-        // Adding a TV sits with the TVs, as the last chip.
-        AssistChip(onClick = actions.addDevice, label = { Text("Device") }, leadingIcon = { Icon(Icons.Default.Add, contentDescription = "Add a", Modifier.size(18.dp)) })
     }
 }
 

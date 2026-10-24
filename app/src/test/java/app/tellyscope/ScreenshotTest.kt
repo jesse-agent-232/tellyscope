@@ -18,6 +18,7 @@ import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
@@ -245,6 +246,44 @@ class ScreenshotTest {
     @Test fun md3_overview_dark() = md3("60_md3_overview", true)
     @Test fun md3_offline() = md3("62_md3_offline", false) { md3State().let { it.copy(selectedId = it.devices[2].id, device = DeviceUi(history = it.device.history)) } }
     @Test fun md3_offline_dark() = md3("62_md3_offline", true) { md3State().let { it.copy(selectedId = it.devices[2].id, device = DeviceUi(history = it.device.history)) } }
+
+    /**
+     * Scrolled past the hero: it has collapsed into the bar, with the ⋮ menu still in place. On a
+     * phone-height screen, so each tab has more than a screenful to scroll.
+     */
+    private fun collapsed(name: String, dark: Boolean, badge: String, tab: TvTab = TvTab.Overview, state: () -> UiState = ::md3State) {
+        val scroll = { compose.onNode(hasScrollAction()).performScrollToIndex(1); Unit }
+        shot(name, dark, before = scroll) { DeviceTabsScreen(state(), DeviceActions(), startTab = tab) }
+        compose.onAllNodesWithText(badge).onFirst().assertExists()
+        compose.onNodeWithContentDescription("More options").assertExists()
+        compose.onNodeWithText("Device").assertDoesNotExist() // the chips scrolled away, or were never there
+    }
+
+    private fun offlineMd3() = md3State().let { it.copy(selectedId = it.devices[2].id, device = DeviceUi(history = it.device.history)) }
+
+    @Config(qualifiers = "w411dp-h640dp-xxhdpi")
+    @Test fun md3_collapsed() = collapsed("61_md3_collapsed", false, "Connected")
+    @Config(qualifiers = "w411dp-h640dp-xxhdpi")
+    @Test fun md3_collapsed_dark() = collapsed("61_md3_collapsed", true, "Connected")
+    @Config(qualifiers = "w411dp-h640dp-xxhdpi")
+    @Test fun md3_offline_collapsed() = collapsed("62_md3_offline_collapsed", false, "Offline", state = ::offlineMd3)
+    @Config(qualifiers = "w411dp-h640dp-xxhdpi")
+    @Test fun md3_offline_collapsed_dark() = collapsed("62_md3_offline_collapsed", true, "Offline", state = ::offlineMd3)
+    @Config(qualifiers = "w411dp-h640dp-xxhdpi")
+    @Test fun md3_apps_collapsed() = collapsed("64_md3_apps_collapsed", false, "Connected", TvTab.Apps)
+    @Config(qualifiers = "w411dp-h640dp-xxhdpi")
+    @Test fun md3_apps_collapsed_dark() = collapsed("64_md3_apps_collapsed", true, "Connected", TvTab.Apps)
+    @Config(qualifiers = "w411dp-h640dp-xxhdpi")
+    @Test fun md3_files_collapsed() = collapsed("65_md3_files_collapsed", false, "Connected", TvTab.Files)
+    @Test fun md3_tweaks() { shot("66_md3_tweaks") { DeviceTabsScreen(md3State(), DeviceActions(), startTab = TvTab.Tweaks) } }
+    @Config(qualifiers = "w411dp-h640dp-xxhdpi")
+    @Test fun md3_tweaks_collapsed() = collapsed("66_md3_tweaks_collapsed", false, "Connected", TvTab.Tweaks)
+
+    @Test fun md3_expandedHasNoBarTitle() {
+        md3("60_md3_overview", false)
+        // At rest the bar holds only ⋮; the hero's pill says how the TV is doing instead.
+        compose.onNodeWithText("Connected").assertDoesNotExist()
+    }
     @Test fun md3_apps() { shot("64_md3_apps") { DeviceTabsScreen(md3State(), DeviceActions(), startTab = TvTab.Apps) } }
     @Test fun md3_apps_dark() { shot("64_md3_apps", dark = true) { DeviceTabsScreen(md3State(), DeviceActions(), startTab = TvTab.Apps) } }
     @Test fun md3_files() { shot("65_md3_files") { DeviceTabsScreen(md3State(), DeviceActions(), startTab = TvTab.Files) } }
