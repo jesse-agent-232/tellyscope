@@ -62,6 +62,6 @@ class DebloatStateTest {
     }
 
     @Test fun `an unknown TV still has something to do`() {
-        assertTrue(debloatState(DeviceUi(lists = Suggestions.Pick(null, emptyList()))).todo)
+        assertTrue(debloatState(DeviceUi(lists = Suggestions.NoList(null, emptyList()))).todo)
     }
 }

@@ -220,7 +220,7 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
             snackbar = snackbar,
         )
     } else if (debloat) {
-        // Its own back handler steps back from the review to the model before leaving.
+        // Its own back handler closes the list search before leaving.
         DebloatScreen(
             state.device.lists,
             onPick = vm::pickList,
@@ -229,6 +229,8 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
             snackbar = snackbar,
             source = state.listSource,
             tvMakers = listOfNotNull(state.selected?.brand, state.selected?.manufacturer).distinct(),
+            tv = state.selected,
+            tvApps = state.device.apps,
         )
     } else {
         DeviceTabsScreen(

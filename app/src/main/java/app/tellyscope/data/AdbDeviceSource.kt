@@ -446,9 +446,12 @@ class AdbDeviceSource(context: Context) : DeviceSource {
         val r = resolve(deviceId)
         when {
             r.index == null -> Suggestions.Unavailable
-            r.entry == null -> Suggestions.Pick(r.index.commit, r.index.devices)
+            r.match == ListMatch.None -> Suggestions.NoList(r.index.commit, r.index.devices)
             r.list == null -> Suggestions.Unavailable
-            else -> Suggestions.Ready(r.index.commit, r.list, r.sdk, suggest(r.list, apps(deviceId), r.sdk), r.index.devices)
+            else -> Suggestions.Ready(
+                r.index.commit, r.list, r.sdk, suggest(r.list, apps(deviceId), r.sdk), r.index.devices,
+                byMaker = r.match is ListMatch.Maker,
+            )
         }
     } catch (e: CancellationException) {
         throw e
@@ -473,9 +476,9 @@ class AdbDeviceSource(context: Context) : DeviceSource {
         }
     }
 
-    private class Resolved(val index: ListIndex?, val entry: ListEntry?, val list: DeviceList?, val sdk: Int?)
+    private class Resolved(val index: ListIndex?, val match: ListMatch?, val list: DeviceList?, val sdk: Int?)
 
-    /** This TV's list (picked, else matched), with its keep entries recorded for [apps] and [act]. */
+    /** This TV's list (picked, else matched, else its maker's), with its keep entries recorded for [apps] and [act]. */
     private suspend fun resolve(deviceId: String): Resolved {
         val index = lists.index() ?: return Resolved(null, null, null, null)
         val out = session(deviceId).shell(
@@ -483,10 +486,15 @@ class AdbDeviceSource(context: Context) : DeviceSource {
         ).output.lines().map { it.trim().ifEmpty { null } }
         val props = MATCH_KEYS.withIndex().associate { (i, k) -> k to out.getOrNull(i) }
         val key = key(deviceId)
-        val entry = lists.entryFor(index, key, props)
-        val list = entry?.let { lists.list(it) }
+        val match = lists.find(index, key, props)
+        val list = when (match) {
+            is ListMatch.Model -> lists.list(match.entry)
+            // A list that fails its checksum is left out; the rest still count.
+            is ListMatch.Maker -> match.entries.mapNotNull { lists.list(it) }.ifEmpty { null }?.let { merge(match.maker, it) }
+            ListMatch.None -> null
+        }
         keep[key] = list?.keep.orEmpty()
-        return Resolved(index, entry, list, out.getOrNull(MATCH_KEYS.size)?.toIntOrNull())
+        return Resolved(index, match, list, out.getOrNull(MATCH_KEYS.size)?.toIntOrNull())
     }
 
     override suspend fun press(deviceId: String, key: RemoteKey) = Remote(session(deviceId)).press(key)

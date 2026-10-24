@@ -47,7 +47,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -60,12 +59,18 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import app.tellyscope.data.AppInfo
+import app.tellyscope.data.Device
+import app.tellyscope.data.DeviceKind
 import app.tellyscope.data.ListEntry
 import app.tellyscope.data.Suggested
+import app.tellyscope.data.SuggestedGroup
 import app.tellyscope.data.Suggestions
+import app.tellyscope.data.deviceKind
 import app.tellyscope.data.listKind
 import app.tellyscope.data.listMakers
 import app.tellyscope.data.sourceName
+import app.tellyscope.data.squash
 
 @Composable
 private fun Muted(text: String) {
@@ -73,9 +78,9 @@ private fun Muted(text: String) {
 }
 
 /**
- * Debloat in two steps. First the TV's model: the matched list on its own, with a way to change
- * it; an unknown model starts at a search for the TV's maker, with nothing chosen. Then every
- * app that list would turn off, ticked as the list says, with a final confirm that names each one.
+ * Debloat opens on the apps to turn off, under a card naming what they came from: this TV's model
+ * list, else its maker's lists, unticked, else the TV's own apps to pick by hand. "Not this TV?"
+ * searches every list instead. The confirm names each app before anything runs.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -89,17 +94,21 @@ fun DebloatScreen(
     source: String? = null,
     /** The TV's brand, then its manufacturer; the first that names a list starts the search. */
     tvMakers: List<String> = emptyList(),
+    /** The TV, for the card when no list fits it. */
+    tv: Device? = null,
+    /** The TV's apps, to pick from by hand when no list fits it. */
+    tvApps: List<AppInfo> = emptyList(),
 ) {
     val ready = lists as? Suggestions.Ready
     val devices = when (lists) {
-        is Suggestions.Pick -> lists.devices
+        is Suggestions.NoList -> lists.devices
         is Suggestions.Ready -> lists.devices
         else -> emptyList()
     }
-    var step by rememberSaveable { mutableIntStateOf(1) }
-    var chosen by rememberSaveable { mutableStateOf(ready?.list?.id) }
-    // The matched list shows on its own; "Change", or no match, opens the search.
+    // A list picked in the search; until then, the one Tellyscope found.
+    var chosen by rememberSaveable { mutableStateOf<String?>(null) }
     var searching by rememberSaveable { mutableStateOf(false) }
+    var marked by rememberSaveable { mutableStateOf<String?>(null) }
     val makers = remember(devices) { listMakers(devices) }
     fun finds(term: String) = devices.filter { it.name.contains(term, ignoreCase = true) || makers.getValue(it.id).contains(term, ignoreCase = true) }
     // Nobody typed the prefill, so a maker no list names shows the full list, not "No results".
@@ -111,33 +120,34 @@ fun DebloatScreen(
         mutableStateOf(ready?.groups.orEmpty().flatMap { it.packages }.filter { it.ticked }.map { it.pkg }.toSet())
     }
     var confirming by remember { mutableStateOf(false) }
-    val showing = ready?.takeIf { it.list.id == chosen }
-    if (confirming && showing != null) {
+    val showing = ready?.takeIf { chosen == null || it.list.id == chosen }
+    // With no list, every app that's on and not protected, by name.
+    val groups = when {
+        showing != null -> showing.groups
+        lists is Suggestions.NoList -> listOf(
+            SuggestedGroup(
+                "Apps on this TV",
+                tvApps.filter { it.enabled && it.protectedReason == null }.sortedBy { it.label.lowercase() }
+                    .map { Suggested(it.packageName, it.label, note = null, optional = false, ticked = false) },
+            ),
+        )
+        else -> null
+    }
+    if (confirming && groups != null) {
         // The dialog's list is exactly what gets disabled.
-        val apps = showing.groups.flatMap { it.packages }.filter { it.pkg in ticked }
+        val apps = groups.flatMap { it.packages }.filter { it.pkg in ticked }
         DisableDialog(apps, onDisable = { confirming = false; onDisable(apps.map { it.pkg }); back() }, onDismiss = { confirming = false })
     }
-    val next = { chosen?.let { if (it != ready?.list?.id) onPick(it) }; step = 2 }
+    val use = { marked?.let { if (it != ready?.list?.id) { chosen = it; onPick(it) } }; searching = false }
     val keyboard = LocalSoftwareKeyboardController.current
-    val goBack = {
-        when {
-            step == 2 -> step = 1
-            searching && ready != null -> searching = false
-            else -> back()
-        }
-    }
+    val goBack = { if (searching) searching = false else back() }
     BackHandler(onBack = goBack)
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = {
-                    Column {
-                        Text(if (step == 1) "Which TV is this?" else "Review the apps")
-                        Text("Debloat · step $step of 2", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                },
+                title = { Text(if (searching) "Which TV is this?" else "Debloat") },
                 navigationIcon = {
                     IconButton(onClick = goBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
                 },
@@ -147,16 +157,12 @@ fun DebloatScreen(
             // Above the keyboard while the search is typed into.
             Surface(tonalElevation = 3.dp, modifier = Modifier.imePadding()) {
                 Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(16.dp)) {
-                    if (step == 1) {
-                        Button(
-                            onClick = next,
-                            enabled = chosen != null,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) { Text("Next") }
+                    if (searching) {
+                        Button(onClick = use, enabled = marked != null, modifier = Modifier.fillMaxWidth()) { Text("Use this list") }
                     } else {
                         Button(
                             onClick = { confirming = true },
-                            enabled = showing != null && ticked.isNotEmpty(),
+                            enabled = groups != null && ticked.isNotEmpty(),
                             modifier = Modifier.fillMaxWidth(),
                         ) { Text("Disable ${ticked.size} ${if (ticked.size == 1) "app" else "apps"}") }
                     }
@@ -164,22 +170,12 @@ fun DebloatScreen(
             }
         },
     ) { pad ->
-        if (step == 1) {
-            val picked = devices.firstOrNull { it.id == chosen }
+        if (searching) {
             LazyColumn(
                 Modifier.fillMaxSize().padding(pad),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                if (!searching && ready != null && picked != null) {
-                    // A match or an earlier pick: just that one, and a way to change it.
-                    item {
-                        Text("Tellyscope uses this list for your TV.", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(bottom = 8.dp))
-                        ListRow(picked, makers.getValue(picked.id), selected = true, onClick = null)
-                        TextButton(onClick = { searching = true }, modifier = Modifier.padding(top = 4.dp)) { Text("Change") }
-                    }
-                    return@LazyColumn
-                }
                 item {
                     OutlinedTextField(
                         q, { typed = it },
@@ -191,21 +187,16 @@ fun DebloatScreen(
                         singleLine = true,
                         // The keyboard's action key closes it, and moves on once a TV is picked.
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                        keyboardActions = KeyboardActions(onDone = { keyboard?.hide(); if (chosen != null) next() }),
+                        keyboardActions = KeyboardActions(onDone = { keyboard?.hide(); if (marked != null) use() }),
                         modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                     )
-                }
-                // Empty while a picked list reloads, if they came back to change it.
-                if (devices.isEmpty()) {
-                    item { Muted("Loading the lists…") }
-                    return@LazyColumn
                 }
                 val term = q.trim()
                 val shown = if (term.isEmpty()) emptyList() else finds(term).sortedBy { it.name.lowercase() }
                 // What found nothing: their search, or else the TV's own maker.
                 val missed = term.ifEmpty { if (typed == null) tvMakers.firstOrNull()?.trim()?.ifEmpty { null } else null }
                 if (shown.isNotEmpty()) {
-                    items(shown, key = { it.id }) { d -> ListRow(d, makers.getValue(d.id), d.id == chosen) { chosen = d.id } }
+                    items(shown, key = { it.id }) { d -> ListRow(d, makers.getValue(d.id), d.id == marked) { marked = d.id } }
                     return@LazyColumn
                 }
                 if (missed != null) item { Muted("No list for \u201c$missed\u201d. Pick the closest model.") }
@@ -216,7 +207,7 @@ fun DebloatScreen(
                             Text(makers.getValue(group.first().id), style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
                         }
                     }
-                    items(group.sortedBy { it.name.lowercase() }, key = { it.id }) { d -> ListRow(d, makers.getValue(d.id), d.id == chosen) { chosen = d.id } }
+                    items(group.sortedBy { it.name.lowercase() }, key = { it.id }) { d -> ListRow(d, makers.getValue(d.id), d.id == marked) { marked = d.id } }
                 }
             }
         } else {
@@ -225,7 +216,7 @@ fun DebloatScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                if (showing == null) {
+                if (groups == null) {
                     item {
                         Muted(
                             if (lists == Suggestions.Unavailable) "Couldn't load that list. Check the phone's internet and try again."
@@ -235,24 +226,43 @@ fun DebloatScreen(
                     return@LazyColumn
                 }
                 item {
+                    // A list's own kind: its model's entry, or for a maker's lists, the first of them.
+                    val entry = showing?.let { r -> devices.firstOrNull { it.id == r.list.id } ?: devices.firstOrNull { squash(makers.getValue(it.id)) == squash(r.list.name) } }
+                    val kind = entry?.let { listKind(it, makers.getValue(it.id)) } ?: tv?.let(::deviceKind) ?: DeviceKind.Tv
+                    when {
+                        showing == null -> MatchCard(kind, tv?.let(::name) ?: "This TV", "No list for this TV or its maker yet", Match.None) { marked = null; searching = true }
+                        showing.byMaker -> MatchCard(kind, showing.list.name, "No list for this model, so these come from ${showing.list.name}'s other models", Match.Loose) { marked = null; searching = true }
+                        showing.sdkMatches -> MatchCard(kind, showing.list.name, "This model's list · tested on ${showing.list.testedOs ?: showing.sdk?.let(::androidName)}", Match.Exact) { marked = null; searching = true }
+                        else -> MatchCard(
+                            kind, showing.list.name,
+                            showing.list.testedOs?.let { "This model's list, tested on $it, not this TV's Android" }
+                                ?: "This model's list, with no Android it was tested on",
+                            Match.Loose,
+                        ) { marked = null; searching = true }
+                    }
                     Text(
-                        "From the list for ${showing.list.name}. Untick anything you use. Nothing is deleted: each app is hidden, and History can turn it back on.",
+                        when {
+                            showing == null -> "Tick the apps to turn off. Apps the TV needs to run aren't shown."
+                            showing.sdkMatches && !showing.byMaker -> "These apps will be turned off. Untick any you use."
+                            else -> "Nothing is ticked: tick only the apps you know you don't use."
+                        } + " Nothing is deleted, and History can turn each one back on.",
                         style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(top = 12.dp),
                     )
                     // Nobody should debloat from a list they didn't mean to use.
-                    if (source != null) Text(
+                    if (source != null && showing != null) Text(
                         "This list comes from ${sourceName(source)}, not tellyscope-devices.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.error,
                     )
-                    if (!showing.sdkMatches) Muted(
-                        showing.list.testedOs?.let { "Tested on $it, not this TV's Android version, so nothing is ticked. Tick only what you know you don't use." }
-                            ?: "This list doesn't say which Android it was tested on, so nothing is ticked. Tick only what you know you don't use.",
-                    )
-                    if (showing.groups.isEmpty()) Muted("Nothing on the list is still on here.")
+                    if (groups.all { it.packages.isEmpty() }) {
+                        Muted(if (showing == null) "Every app left on is one the TV needs." else "Nothing on the list is still on here.")
+                    }
                 }
-                showing.groups.forEach { g ->
-                    item(key = "g:" + g.title) { Text(g.title, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp)) }
+                groups.filter { it.packages.isNotEmpty() }.forEach { g ->
+                    item(key = "g:" + g.title) {
+                        Text(g.title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 12.dp))
+                    }
                     items(g.packages, key = { it.pkg }) { p ->
                         Row(
                             Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium)
@@ -264,7 +274,7 @@ fun DebloatScreen(
                             Column(Modifier.weight(1f)) {
                                 Text(p.label, style = MaterialTheme.typography.bodyLarge)
                                 Text(
-                                    listOfNotNull(p.pkg, p.note, "optional".takeIf { p.optional }).joinToString(" · "),
+                                    listOfNotNull(p.pkg, p.note, "optional: tick it if you don't use it".takeIf { p.optional }).joinToString(" · "),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -273,6 +283,31 @@ fun DebloatScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+/** How well the list fits the TV: its model on its Android, near enough, or not at all. */
+private enum class Match { Exact, Loose, None }
+
+/** What the apps below came from, on top of the page, with the way out to every list. */
+@Composable
+private fun MatchCard(kind: DeviceKind, name: String, detail: String, match: Match, onNotThis: () -> Unit) {
+    val c = MaterialTheme.colorScheme
+    val (bg, fg) = when (match) {
+        Match.Exact -> c.secondaryContainer to c.onSecondaryContainer
+        Match.Loose -> c.tertiaryContainer to c.onTertiaryContainer
+        Match.None -> c.surfaceContainerHigh to c.onSurface
+    }
+    Surface(color = bg, contentColor = fg, shape = MaterialTheme.shapes.large, modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(DeviceIcons.of(kind), contentDescription = kind.word())
+            Spacer(Modifier.width(16.dp))
+            Column(Modifier.weight(1f)) {
+                Text(name, style = MaterialTheme.typography.titleMedium)
+                Text(detail, style = MaterialTheme.typography.bodySmall)
+            }
+            TextButton(onClick = onNotThis) { Text("Not this TV?") }
         }
     }
 }

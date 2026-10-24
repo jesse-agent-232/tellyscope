@@ -645,58 +645,116 @@ class ScreenshotTest {
     @Config(qualifiers = "w411dp-h2400dp-xxhdpi")
     @Test fun advanced() = shot("17_advanced") { AdvancedScreen(deviceState(), back = {}) }
 
-    @Test fun debloat_pick() {
-        val lists = deviceState().device.lists
-        shot("18_debloat_pick") { DebloatScreen(lists, {}, {}, {}, tvMakers = listOf("XGIMI")) }
-        // The match on its own, already chosen, with a way to change it; no list of every model.
-        compose.onNodeWithText("Next").assertIsEnabled()
-        compose.onNodeWithText("Change").assertExists()
+    @Test fun debloat_model() = debloatModel(dark = false)
+
+    @Test fun debloat_model_dark() = debloatModel(dark = true)
+
+    /** The TV's own list: straight to the apps, with "Not this TV?" in case it's wrong. */
+    private fun debloatModel(dark: Boolean) {
+        val lists = deviceState().device.lists as Suggestions.Ready
+        shot("18_debloat_model", dark) { DebloatScreen(lists, {}, {}, {}, tvMakers = listOf("XGIMI")) }
+        compose.onNodeWithText(lists.list.name).assertExists()
+        compose.onNodeWithText("This model's list", substring = true).assertExists()
+        compose.onNodeWithText("These apps will be turned off", substring = true).assertExists()
+        compose.onNodeWithText("optional: tick it if you don't use it", substring = true).assertExists()
+        compose.onNodeWithText("Not this TV?").assertExists()
         compose.onNodeWithText("TCL C-series").assertDoesNotExist()
+        val ticked = lists.groups.flatMap { it.packages }.count { it.ticked }
+        compose.onNodeWithText("Disable $ticked ${if (ticked == 1) "app" else "apps"}").assertIsEnabled()
     }
 
-    @Test fun debloat_pick_change() {
+    /** No list for the model: its maker's lists merged, nothing ticked. */
+    private fun makerLists(): Suggestions.Ready {
+        val r = deviceState().device.lists as Suggestions.Ready
+        return r.copy(
+            list = r.list.copy(id = "maker:xgimi", name = "XGIMI", testedOs = null, sdk = null),
+            groups = r.groups.map { g -> g.copy(packages = g.packages.map { it.copy(ticked = false) }) },
+            byMaker = true,
+        )
+    }
+
+    @Test fun debloat_maker() = debloatMaker(dark = false)
+
+    @Test fun debloat_maker_dark() = debloatMaker(dark = true)
+
+    private fun debloatMaker(dark: Boolean) {
+        val lists = makerLists()
+        shot("18_debloat_maker", dark) { DebloatScreen(lists, {}, {}, {}, tvMakers = listOf("XGIMI")) }
+        compose.onNodeWithText("XGIMI").assertExists()
+        compose.onNodeWithText("No list for this model", substring = true).assertExists()
+        compose.onNodeWithText("Nothing is ticked", substring = true).assertExists()
+        compose.onNodeWithText("tested on", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("Not this TV?").assertExists()
+        compose.onNodeWithText("Disable 0 apps").assertIsNotEnabled()
+    }
+
+    @Test fun debloat_noList() = debloatNoList(dark = false)
+
+    @Test fun debloat_noList_dark() = debloatNoList(dark = true)
+
+    /** Neither model nor maker has a list: the TV's own apps, to tick by hand. */
+    private fun debloatNoList(dark: Boolean) {
+        val s = deviceState()
+        val ready = s.device.lists as Suggestions.Ready
+        val tv = s.selected!!.let { it.copy(model = "TCL 55C735", manufacturer = "TCL", hit = it.hit.copy(maker = "TCL", hostname = null)) }
+        var disabled = emptyList<String>()
+        shot("18_debloat_none", dark) {
+            DebloatScreen(Suggestions.NoList(null, ready.devices), {}, { disabled = it }, {}, tv = tv, tvApps = s.device.apps)
+        }
+        compose.onNodeWithText("TCL 55C735").assertExists()
+        compose.onNodeWithText("No list for this TV or its maker yet").assertExists()
+        compose.onNodeWithText("Not this TV?").assertExists()
+        // Protected and already-off apps aren't offered.
+        compose.onNodeWithText("System UI").assertDoesNotExist()
+        compose.onNodeWithText("TV Recommendations").assertDoesNotExist()
+        compose.onNodeWithText("Disable 0 apps").assertIsNotEnabled()
+        compose.onNodeWithText("XGIMI Assistant").performClick()
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.onNodeWithText("Disable 1 app").performClick()
+        compose.mainClock.advanceTimeBy(1_000)
+        // The confirm still names the app before anything is turned off.
+        compose.onNodeWithText("Disable 1 app?").assertExists()
+        compose.onNodeWithText("Yes, disable them").performClick()
+        compose.mainClock.advanceTimeBy(1_000)
+        assertEquals(listOf("com.xgimi.assistant"), disabled)
+    }
+
+    private val notThisTv = { compose.onNodeWithText("Not this TV?").performClick(); Unit }
+
+    @Test fun debloat_notThisTv() {
         val lists = deviceState().device.lists
-        val change = { compose.onNodeWithText("Change").performClick(); Unit }
-        shot("18_debloat_pick_change", before = change) { DebloatScreen(lists, {}, {}, {}, tvMakers = listOf("XGIMI")) }
-        // The search starts at the TV's maker, and the match stays chosen.
+        shot("18_debloat_search", before = notThisTv) { DebloatScreen(lists, {}, {}, {}, tvMakers = listOf("XGIMI")) }
+        // The search starts at the TV's maker, with nothing marked until a list is tapped.
         compose.onNodeWithText("XGIMI MoGo 2 projector").assertExists()
         compose.onNodeWithText("TCL C-series").assertDoesNotExist()
-        compose.onNodeWithText("Next").assertIsEnabled()
+        compose.onNodeWithText("Use this list").assertIsNotEnabled()
     }
 
-    @Test fun debloat_pick_brand() {
+    @Test fun debloat_searchByBrand() {
         // Philips TVs report their factory, TPV, as manufacturer; the brand finds the list.
-        val ready = deviceState().device.lists as Suggestions.Ready
-        shot("18_debloat_pick_brand") { DebloatScreen(Suggestions.Pick(null, ready.devices), {}, {}, {}, tvMakers = listOf("Philips", "TPV")) }
+        val lists = makerLists()
+        shot("18_debloat_search_brand", before = notThisTv) { DebloatScreen(lists, {}, {}, {}, tvMakers = listOf("Philips", "TPV")) }
         compose.onNodeWithText("Philips 55OLED708").assertExists()
         compose.onNodeWithText("No list for", substring = true).assertDoesNotExist()
-        compose.onNodeWithText("Next").assertIsNotEnabled() // found, but not picked for them
     }
 
-    @Test fun debloat_unknownModel() {
+    @Test fun debloat_searchUnknownMaker() {
         // A maker no list names: the full list, with a line saying so, and nothing guessed.
-        val ready = deviceState().device.lists as Suggestions.Ready
-        shot("18_debloat_pick_unknown") { DebloatScreen(Suggestions.Pick(null, ready.devices), {}, {}, {}, tvMakers = listOf("TPV")) }
+        val lists = makerLists()
+        shot("18_debloat_search_unknown", before = notThisTv) { DebloatScreen(lists, {}, {}, {}, tvMakers = listOf("TPV")) }
         compose.onNodeWithText("No list for \u201cTPV\u201d", substring = true).assertExists()
         compose.onNodeWithText("Chromecast with Google TV 4K").assertExists()
-        compose.onNodeWithText("Next").assertIsNotEnabled()
     }
 
     @Test fun debloat_pickByHand() {
-        val ready = deviceState().device.lists as Suggestions.Ready
-        val pick = { compose.onNodeWithText("Philips 55OLED708").performClick(); Unit }
-        shot("18_debloat_pick_manual", before = pick) { DebloatScreen(Suggestions.Pick(null, ready.devices), {}, {}, {}, tvMakers = listOf("TPV")) }
-        compose.onNodeWithText("Next").assertIsEnabled()
-    }
-
-    @Test fun debloat_review() {
-        val lists = deviceState().device.lists as Suggestions.Ready
-        val next = { compose.onNodeWithText("Next").performClick(); Unit }
-        shot("19_debloat_review", before = next) { DebloatScreen(lists, {}, {}, {}) }
-        val apps = lists.groups.flatMap { it.packages }
-        for (a in apps) compose.onNodeWithText(a.label).assertExists()
-        val ticked = apps.count { it.ticked }
-        compose.onNodeWithText("Disable $ticked ${if (ticked == 1) "app" else "apps"}").assertIsEnabled()
+        val lists = makerLists()
+        val picked = mutableListOf<String>()
+        val pick = { notThisTv(); compose.mainClock.advanceTimeBy(1_000); compose.onNodeWithText("Philips 55OLED708").performClick(); Unit }
+        shot("18_debloat_search_manual", before = pick) { DebloatScreen(lists, { picked += it }, {}, {}, tvMakers = listOf("TPV")) }
+        compose.onNodeWithText("Use this list").performClick()
+        compose.mainClock.advanceTimeBy(1_000)
+        assertEquals(1, picked.size)
+        compose.onNodeWithText("Loading the list…").assertExists()
     }
 
     @Test fun debloat_review_otherAndroid() {
@@ -704,9 +762,9 @@ class ScreenshotTest {
         val lists = (deviceState().device.lists as Suggestions.Ready).let { r ->
             r.copy(sdk = 28, groups = r.groups.map { g -> g.copy(packages = g.packages.map { it.copy(ticked = false) }) })
         }
-        val next = { compose.onNodeWithText("Next").performClick(); Unit }
-        shot("19_debloat_review_other_android", before = next) { DebloatScreen(lists, {}, {}, {}) }
-        compose.onNodeWithText("so nothing is ticked", substring = true).assertExists()
+        shot("19_debloat_review_other_android") { DebloatScreen(lists, {}, {}, {}) }
+        compose.onNodeWithText("not this TV's Android", substring = true).assertExists()
+        compose.onNodeWithText("Nothing is ticked", substring = true).assertExists()
         compose.onNodeWithText("Disable 0 apps").assertIsNotEnabled()
     }
 
@@ -750,16 +808,13 @@ class ScreenshotTest {
     }
 
     @Test fun readme_debloat() {
-        val next = { compose.onNodeWithText("Next").performClick(); Unit }
-        shot("20_readme_debloat", before = next) { DebloatScreen(readmeLists(), {}, {}, {}) }
+        shot("20_readme_debloat") { DebloatScreen(readmeLists(), {}, {}, {}) }
         compose.onNodeWithText("Disable 4 apps").assertIsEnabled()
     }
 
     @Test fun readme_confirm() {
         // Over the review step, as in the app.
         val confirm = {
-            compose.onNodeWithText("Next").performClick()
-            compose.mainClock.advanceTimeBy(1_000)
             compose.onNodeWithText("Disable 4 apps").performClick()
             Unit
         }

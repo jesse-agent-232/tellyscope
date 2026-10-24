@@ -340,7 +340,7 @@ private fun AppMenu(state: UiState, actions: DeviceActions) {
     val device = state.selected ?: return
     if (about) AboutDialog(
         when (val l = state.device.lists) {
-            is Suggestions.Pick -> l.commit
+            is Suggestions.NoList -> l.commit
             is Suggestions.Ready -> l.commit
             else -> null
         },
@@ -447,7 +447,7 @@ internal data class DebloatState(
     val back: Int,
     /** Apps on the list still on, plus any that came back: the number on the Debloat tile. */
     val count: Int,
-    /** Debloat has something to do: apps to turn off, or a TV to pick. */
+    /** Debloat has something to show: apps to turn off, or that this TV has no list. */
     val todo: Boolean,
 )
 
@@ -460,7 +460,7 @@ internal fun debloatState(ui: DeviceUi): DebloatState {
     val candidates = ui.apps.filter { it.packageName in listed && (!it.enabled || it.protectedReason == null) }
     val on = candidates.filter { it.enabled }.map { it.packageName }.toSet()
     val count = (on + back).size
-    return DebloatState(candidates.size, on.size, back.size, count, count > 0 || ui.lists is Suggestions.Pick)
+    return DebloatState(candidates.size, on.size, back.size, count, count > 0 || ui.lists is Suggestions.NoList)
 }
 
 @Composable
@@ -486,7 +486,7 @@ private fun SuggestedCard(lists: Suggestions?, d: DebloatState, offline: Boolean
                             d.on == 0 -> if (d.total == 1) "The suggested app is off" else "All ${d.total} suggested apps are off"
                             else -> "${d.total - d.on} of ${d.total} suggested apps are off"
                         }
-                        is Suggestions.Pick -> "Tap Debloat to pick your TV"
+                        is Suggestions.NoList -> "No list for this TV yet"
                         Suggestions.Unavailable -> "Couldn't load the device lists"
                         null -> if (offline) "Connect to the TV to see its suggestions" else "Looking up this TV's list\u2026"
                     },
@@ -507,12 +507,13 @@ private fun SuggestedCard(lists: Suggestions?, d: DebloatState, offline: Boolean
             }
             val note = when {
                 lists is Suggestions.Unavailable -> "Check the phone's internet and open this TV again."
-                lists is Suggestions.Pick -> "Tellyscope doesn't know this model yet."
+                lists is Suggestions.NoList -> "Tap Debloat to pick the apps to turn off by hand."
+                lists is Suggestions.Ready && lists.byMaker -> "No list for this exact model, so these come from ${lists.list.name}'s other TVs."
                 lists is Suggestions.Ready && !d.todo -> "Debloat now opens Apps for one-off changes."
                 else -> null
             }
             note?.let { Text(it, Modifier.padding(end = 8.dp), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant) }
-            if (lists is Suggestions.Ready || lists is Suggestions.Pick) {
+            if (lists is Suggestions.Ready) {
                 Text("Lists adapted from cleanyourtv (MIT).", Modifier.padding(end = 8.dp), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant)
             }
         }

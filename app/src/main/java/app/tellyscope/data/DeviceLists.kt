@@ -33,7 +33,7 @@ data class ListEntry(
  * "Chromecast with Google TV" is Google's, while "Skyworth Coocaa K3" stays Skyworth's.
  */
 fun listMakers(devices: List<ListEntry>): Map<String, String> {
-    fun key(w: String) = w.lowercase().filter { it.isLetterOrDigit() }
+    fun key(w: String) = squash(w)
     val prefixes = devices.map { it.id.substringBefore('-') }.toSet()
     return devices.associate { e ->
         val words = e.name.split(' ').filter { it.isNotBlank() }
@@ -42,6 +42,50 @@ fun listMakers(devices: List<ListEntry>): Map<String, String> {
         e.id to if (key(first) in prefixes) first else words.firstOrNull { key(it) == prefix } ?: first
     }
 }
+
+/** Lowercase letters and digits only, so "MiTV-AXFR0" and "mitv axfr0" compare equal. */
+fun squash(s: String) = s.lowercase().filter { it.isLetterOrDigit() }
+
+/** How a TV's list was found: one list for its model, every list from its maker, or none. */
+sealed interface ListMatch {
+    data class Model(val entry: ListEntry) : ListMatch
+    data class Maker(val maker: String, val entries: List<ListEntry>) : ListMatch
+    data object None : ListMatch
+}
+
+/**
+ * The one list whose name or id contains the TV's model, letters and digits only. Null when none
+ * or several do, or when that list's maker isn't the TV's manufacturer: a wrong list is worse
+ * than the maker's lists, which start unticked.
+ */
+fun byModel(devices: List<ListEntry>, props: Map<String, String?>): ListEntry? {
+    val model = squash(props["model"].orEmpty()).takeIf { it.length >= 3 } ?: return null
+    val fit = devices.filter { model in squash(it.name) || model in squash(it.id) }.singleOrNull() ?: return null
+    return fit.takeIf { squash(listMakers(devices).getValue(it.id)) == squash(props["manufacturer"].orEmpty()) }
+}
+
+/** Every list from the TV's manufacturer, by [listMakers]. */
+fun byMaker(devices: List<ListEntry>, props: Map<String, String?>): List<ListEntry> {
+    val maker = squash(props["manufacturer"].orEmpty()).ifEmpty { return emptyList() }
+    val makers = listMakers(devices)
+    return devices.filter { squash(makers.getValue(it.id)) == maker }
+}
+
+/**
+ * A maker's lists as one: groups of the same title merged, each app once, and every list's keep
+ * entries together, so a keep in any of them protects the app. No tested Android, so nothing
+ * gets ticked.
+ */
+fun merge(maker: String, lists: List<DeviceList>): DeviceList = DeviceList(
+    id = "maker:" + squash(maker),
+    name = maker,
+    testedOs = null,
+    sdk = null,
+    keep = lists.flatMap { it.keep }.toSet(),
+    groups = lists.flatMap { it.groups }.groupBy { it.title }.map { (title, gs) ->
+        ListGroup(title, gs.flatMap { it.packages }.distinctBy { it.pkg })
+    },
+)
 
 data class ListIndex(val commit: String?, val devices: List<ListEntry>)
 
@@ -68,8 +112,8 @@ sealed interface Suggestions {
     /** No index (offline and nothing cached), or the chosen list failed its checksum. */
     data object Unavailable : Suggestions
 
-    /** No list matches this TV and none was picked: ask which TV it is. */
-    data class Pick(val commit: String?, val devices: List<ListEntry>) : Suggestions
+    /** No list for this TV's model or maker, and none was picked: clean up by hand in Apps. */
+    data class NoList(val commit: String?, val devices: List<ListEntry>) : Suggestions
 
     data class Ready(
         val commit: String?,
@@ -79,6 +123,8 @@ sealed interface Suggestions {
         val groups: List<SuggestedGroup>,
         /** Every list, for "Not this TV?". */
         val devices: List<ListEntry>,
+        /** [list] is [merge] of the maker's lists, as no list fits this model. */
+        val byMaker: Boolean = false,
     ) : Suggestions {
         val sdkMatches get() = sdk != null && sdk == list.sdk
     }
@@ -244,11 +290,16 @@ class DeviceLists(
 
     /**
      * The list for a TV: the one picked by hand for [key], else the first whose rule matches
-     * [props], else null for "Pick your TV".
+     * [props], else the one named after its model. Without one, every list from its maker.
      */
-    fun entryFor(index: ListIndex, key: String, props: Map<String, String?>): ListEntry? =
-        picked(key)?.let { id -> index.devices.firstOrNull { it.id == id } }
+    fun find(index: ListIndex, key: String, props: Map<String, String?>): ListMatch {
+        val one = picked(key)?.let { id -> index.devices.firstOrNull { it.id == id } }
             ?: index.devices.firstOrNull { matches(it.match, props) }
+            ?: byModel(index.devices, props)
+        if (one != null) return ListMatch.Model(one)
+        val maker = byMaker(index.devices, props)
+        return if (maker.isEmpty()) ListMatch.None else ListMatch.Maker(listMakers(index.devices).getValue(maker.first().id), maker)
+    }
 
     @Synchronized
     fun picked(key: String): String? = readPicks()[key]
