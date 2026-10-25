@@ -28,7 +28,7 @@ body:
     attributes:
       label: How did you connect?
       options:
-        - Port 5555 (classic network debugging)
+        - Classic network debugging
         - Wireless debugging (pairing code)
         - Couldn't connect
     validations:

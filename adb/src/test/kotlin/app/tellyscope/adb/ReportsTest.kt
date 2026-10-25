@@ -31,7 +31,7 @@ class ReportsTest {
         assertEquals("[Device] XGIMI XK03H (galileo)", q["title"])
         assertEquals("XGIMI XK03H (galileo)", q["model"])
         assertEquals("Android 11 (API 30), build RTT1.230922.001", q["android-version"])
-        assertEquals("Port 5555 (classic network debugging)", q["connection"])
+        assertEquals("Classic network debugging", q["connection"])
         assertEquals("0.8.0", q["app-version"])
         assertEquals("Connected, but something misbehaved", q["outcome"])
         assertEquals("Remote keys lag\n\nTellyscope 0.8.0 on Pixel 7, Android 14\n\nLog:\n```\nline 1\n```", q["details"])

@@ -95,7 +95,7 @@ data class Report(
         /** GitHub answers 414 a little past 8 KB; this leaves room for redirects through a login. */
         const val MAX_URL = 6000
 
-        private fun encode(s: String) = URLEncoder.encode(s, Charsets.UTF_8).replace("+", "%20")
+        private fun encode(s: String) = URLEncoder.encode(s, "UTF-8").replace("+", "%20")
     }
 }
 
@@ -106,7 +106,7 @@ object Reports {
 
     /** The options of our device_report.yml "How did you connect?" dropdown, word for word. */
     enum class Connection(val option: String) {
-        PORT_5555("Port 5555 (classic network debugging)"),
+        PORT_5555("Classic network debugging"),
         WIRELESS_DEBUGGING("Wireless debugging (pairing code)"),
         COULD_NOT_CONNECT("Couldn't connect"),
     }
