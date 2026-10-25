@@ -12,6 +12,8 @@ until this file has a section for its version.
 
 ## Unreleased
 
+## 0.6.3 — 2026-10-25
+
 - **Fixed:** A slow stats read no longer drops the TV mid-change. [#101](../../pull/101)
 - **Improved:** Each screen reads only what it shows, at its own rate. [#101](../../pull/101)
 - **New:** An Other chip in the pairing guide, for TVs not listed. [#103](../../pull/103)
