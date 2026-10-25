@@ -61,6 +61,25 @@ class HistoryBookTest {
         assertTrue(after.restorable(tv).isEmpty())
     }
 
+    @Test fun anOlderSwitchBackLosesItsUndoOnceANewerChangeTakesHome() {
+        val file = tmp.root.resolve("history.tsv")
+        val book = HistoryBook(file)
+        val back = book.record(tv, 1_000, Action.HomeBack, "fr.neamar.kiss", "Quickstep", Action.Home)
+        val elsewhere = book.record("tv-2", 1_000, Action.HomeBack, "fr.neamar.kiss", "Quickstep", Action.Home)
+        book.record(tv, 2_000, Action.Disable, "com.netflix.ninja", "Netflix", Action.Enable)
+        assertEquals(Action.Home, book.entries(tv).first { it.id == back.id }.undo) // not a home change
+
+        val switch = book.record(tv, 3_000, Action.Home, "com.android.launcher3", "Fossify Launcher", Action.Enable)
+        assertNull(HistoryBook(file).entries(tv).first { it.id == back.id }.undo)
+        assertEquals(Action.Home, book.entries("tv-2").first { it.id == elsewhere.id }.undo)
+
+        // Undoing a switch makes the old launcher Home again, so it counts too.
+        val back2 = book.record(tv, 4_000, Action.HomeBack, "org.fossify.home", "Quickstep", Action.Home)
+        assertEquals(Action.Home, book.entries(tv).first { it.id == back2.id }.undo)
+        book.record(tv, 5_000, Action.Enable, "com.android.launcher3", "Quickstep", undo = null, undoing = switch.id)
+        assertNull(book.entries(tv).first { it.id == back2.id }.undo)
+    }
+
     @Test fun baselineIsWrittenOnlyOnce() {
         val book = HistoryBook(tmp.root.resolve("history.tsv"))
         book.setBaseline(tv, setOf("com.old.off"))

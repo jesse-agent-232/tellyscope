@@ -430,7 +430,7 @@ internal fun AppRow(
                     Text(
                         when {
                             proposed == Action.Home && home != null -> Copy.explainHome(app.label, app.packageName, homeLabel!!, home)
-                            proposed == Action.HomeBack && back != null -> Copy.explainHomeBack(app.label, back)
+                            proposed == Action.HomeBack && back != null -> Copy.explainHomeBack(app.label, app.packageName, back)
                             app.listKeep && proposed != Action.Enable -> Copy.explain(proposed, app.label, app.packageName) + "\n\n" + Copy.KEEP_WARNING
                             else -> Copy.explain(proposed, app.label, app.packageName)
                         },

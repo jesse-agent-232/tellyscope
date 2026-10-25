@@ -46,9 +46,13 @@ class HistoryBook(private val file: File? = null) {
         undoing: Long? = null,
         previous: Map<String, String?>? = null,
     ): HistoryEntry {
-        if (undoing != null) {
-            val i = entries.indexOfFirst { it.id == undoing }
-            if (i >= 0) entries[i] = entries[i].copy(undoneAt = at)
+        val undone = undoing?.let { id -> entries.indexOfFirst { it.id == id } }?.takeIf { it >= 0 }
+        // Undoing a switch makes the old launcher Home again: a home change like any switch.
+        val takesHome = action == Action.Home || action == Action.HomeBack || undone?.let { entries[it].action == Action.Home } == true
+        undone?.let { entries[it] = entries[it].copy(undoneAt = at) }
+        if (takesHome) {
+            // An older "Switched home back" would switch to a launcher that has since lost Home: its Undo goes.
+            entries.replaceAll { if (it.deviceId == deviceId && it.action == Action.HomeBack && it.undoneAt == null) it.copy(undo = null) else it }
         }
         val entry = HistoryEntry((entries.maxOfOrNull { it.id } ?: 0) + 1, deviceId, at, action, packageName, label, undo, null, previous)
         entries += entry

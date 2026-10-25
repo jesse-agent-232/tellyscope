@@ -132,6 +132,28 @@ class Actions(private val shell: AdbShell) {
         return currentHome()?.substringBefore('/') == activity.substringBefore('/')
     }
 
+    /** [pkg]'s accessibility service, when [pkg] is a launcher that keeps Home with one. */
+    suspend fun homeService(pkg: String): String? = pkg.takeIf { it in HomeServices.LAUNCHERS }
+        ?.let { activitiesIn(shell.shell(Commands.A11Y_SERVICES).output).firstOrNull { s -> s.substringBefore('/') == pkg } }
+
+    suspend fun serviceOn(service: String): Boolean = HomeServices.has(shell.shell(Commands.A11Y_ON).output, service)
+
+    /**
+     * Turns accessibility [service] on or off, leaving the user's other services as they are, then
+     * reads the setting back. True when it took.
+     */
+    suspend fun setService(service: String, on: Boolean): Boolean {
+        require(ACTIVITY.matches(service)) { "not a service: $service" }
+        val list = shell.shell(Commands.A11Y_ON).output
+        val next = if (on) HomeServices.with(list, service) else HomeServices.without(list, service)
+        // Every entry goes inside one quoted shell word; a quote of its own would end it.
+        if (next.any { '\'' in it }) return false
+        if (next.isEmpty()) shell.shell("settings delete secure enabled_accessibility_services 2>&1")
+        else shell.shell("settings put secure enabled_accessibility_services '${next.joinToString(":")}' 2>&1")
+        if (on) shell.shell("settings put secure accessibility_enabled 1 2>&1")
+        return serviceOn(service) == on
+    }
+
     /** The activity Home opens, or null when Android would ask (its chooser lives in `android`). */
     private suspend fun currentHome(): String? =
         activitiesIn(shell.shell(Commands.HOME_ACTIVITY).output).singleOrNull()?.takeUnless { it.startsWith("android/") }
