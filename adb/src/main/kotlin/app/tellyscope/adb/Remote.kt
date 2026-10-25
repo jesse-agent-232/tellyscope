@@ -15,13 +15,10 @@ enum class RemoteKey(val code: Int, val repeats: Boolean = false) {
     OK(23),
     BACK(4),
     HOME(3),
-    MENU(82),
     PLAY_PAUSE(85),
     VOLUME_UP(24, repeats = true),
     VOLUME_DOWN(25, repeats = true),
     MUTE(164),
-    /** Sleep, not the power toggle: pressing it twice never wakes a TV the user meant to turn off. */
-    SLEEP(223),
 }
 
 class Remote(private val session: AdbSession, private val keys: KeyHelper? = null) {

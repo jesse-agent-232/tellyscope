@@ -122,6 +122,14 @@ interface DeviceSource {
     /** Restarts the TV. The link drops and reconnects on its own once the TV is back. False if the TV refused. */
     suspend fun reboot(deviceId: String): Boolean
 
+    /** Opens [packageName] on the TV, the way its launcher icon would. False when it has nothing to open. Not history. */
+    suspend fun launch(deviceId: String, packageName: String): Boolean
+
+    /** The Remote's dock for this TV, kept on the phone so it shows while the TV is off. */
+    suspend fun dock(deviceId: String): List<Docked>
+
+    suspend fun setDock(deviceId: String, dock: List<Docked>)
+
     /** Opens the TV's system update screen on the TV. False when the TV has no such screen. */
     suspend fun openUpdates(deviceId: String): Boolean
 

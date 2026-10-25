@@ -43,6 +43,10 @@ internal object Commands {
     const val HOME_ACTIVITY = "cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME"
     const val SET_HOME = "cmd package set-home-activity --user 0"
     const val HOME_ACTIVITIES = "cmd package query-activities --brief -a android.intent.action.MAIN -c android.intent.category.HOME"
+    /** Apps with an icon on a TV home screen, then those with one on a phone's; some TVs list only one kind. */
+    const val LAUNCHABLE =
+        "cmd package query-activities --brief -a android.intent.action.MAIN -c android.intent.category.LEANBACK_LAUNCHER 2>/dev/null; " +
+            "cmd package query-activities --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER 2>/dev/null"
     const val A11Y_SERVICES = "cmd package query-services --brief -a android.accessibilityservice.AccessibilityService"
     const val A11Y_ON = "settings get secure enabled_accessibility_services"
 

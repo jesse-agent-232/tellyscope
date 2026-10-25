@@ -333,7 +333,39 @@ object Copy {
     }
 
     const val REBOOT_TITLE = "Restart the TV?"
-    const val REBOOT_TEXT = "Whatever is playing stops, and the TV takes a minute or two to come back. Tellyscope reconnects on its own when it's back."
+    const val REBOOT_TEXT = "The TV turns off and on again. Tellyscope reconnects by itself when it's back, usually within a minute."
+    const val RESTARTING_TITLE = "Restarting…"
+    const val RESTARTING_TEXT = "The TV is restarting. Tellyscope will reconnect by itself."
+    const val RESTART_LATE_TITLE = "The TV hasn't come back yet"
+    const val RESTART_LATE_TEXT = "It's been a minute. Some TVs take longer to start; Retry waits another minute."
+    const val RESTART_LOST_TEXT = "Use the TV's own remote to turn it on, then tap Retry."
+
+    fun waitingFor(name: String, ms: Long): String {
+        val s = (ms / 1000).coerceAtLeast(0)
+        return "Waiting for $name · ${s / 60}:${(s % 60).toString().padStart(2, '0')}"
+    }
+
+    fun restartLost(name: String) = "Still can't reach $name"
+    fun backOnline(name: String) = "Back online. $name reconnected."
+
+    // Dock
+
+    const val ADD_TO_DOCK = "Add to dock"
+    const val DOCK_PICK_TITLE = "Add an app to the dock"
+    const val DOCK_PICK_HINT = "Tap an app to add it."
+    const val DOCK_ADDED = "Added"
+    const val DOCK_NO_APPS = "Still reading the TV's apps. Open this again in a moment."
+    const val DOCK_CHANGE = "Change app"
+    const val DOCK_REMOVE = "Remove from dock"
+    const val DOCK_REORDER = "Keep holding and move to reorder"
+
+    fun dockPickFrom(name: String) = "Apps installed on $name"
+    fun dockSwap(label: String) = "Put another app in $label's place"
+    fun cantOpen(label: String) = "The TV couldn't open $label. If it's turned off, turn it on in Apps."
+
+    fun leftDock(labels: List<String>) =
+        if (labels.size == 1) "${labels[0]} was uninstalled, so it left the dock."
+        else "${labels.size} apps were uninstalled, so they left the dock."
 
     fun restarting(minutes: Long) =
         if (minutes < 3) "Tellyscope reconnects on its own when the TV is back, usually within a couple of minutes."

@@ -208,6 +208,10 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
                 type = vm::type,
                 reboot = vm::reboot,
                 back = { remote = false },
+                retryRestart = vm::retryRestart,
+                stopWaiting = vm::stopWaiting,
+                launch = vm::launch,
+                setDock = vm::setDock,
             ),
         )
     } else if (advanced) {

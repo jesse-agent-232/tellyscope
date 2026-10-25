@@ -26,7 +26,9 @@ The TV and HDMI (streaming stick) device icons use the path data of the
 "cleaning_services", the off-Wi-Fi screen that of "wifi_off", and the
 Apps, Files and Tweaks tabs those of "apps", "folder" and "tune", the
 Upload files button that of "upload", the empty Movies folder that of
-"movie", and the links in Settings that of "open_in_new".
+"movie", the links in Settings that of "open_in_new", and the Remote's
+restart, waiting, can't-reach and dock menu icons those of "restart_alt",
+"hourglass_top", "link_off", "swap_horiz" and "remove_circle_outline".
 
 --------------------------------------------------------------------------------
 cleanyourtv — https://github.com/Gathin23/cleanyourtv

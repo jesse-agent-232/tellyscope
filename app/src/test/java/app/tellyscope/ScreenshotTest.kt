@@ -43,6 +43,7 @@ import app.tellyscope.adb.TvFile
 import app.tellyscope.adb.TvFolder
 import app.tellyscope.data.Action
 import app.tellyscope.data.AppInfo
+import app.tellyscope.data.Docked
 import app.tellyscope.data.AppNames
 import app.tellyscope.data.Device
 import app.tellyscope.data.DeviceState
@@ -921,13 +922,45 @@ class ScreenshotTest {
 
     @Test fun restore() = shot("11_restore", screen = true) { RestoreDialog(2, {}, {}) }
 
-    @Test fun remote() = shot("12_remote") { RemoteScreen(deviceState(), RemoteActions()) }
+    private val docked = listOf(Docked("com.google.android.youtube.tv", "YouTube"), Docked("com.netflix.ninja", "Netflix"))
 
-    @Test fun remote_dark() = shot("12_remote", dark = true) { RemoteScreen(deviceState(), RemoteActions()) }
+    private fun remoteState(apps: List<Docked> = docked, restart: Restart? = null) =
+        deviceState { copy(dock = apps) }.let { s -> restart?.let { s.copy(restarting = mapOf(s.selectedId!! to it)) } ?: s }
 
-    @Test fun remote_restarting() {
-        val state = deviceState().let { it.copy(restarting = mapOf(it.selectedId!! to Restart(now - 25_000, down = true))) }
-        shot("13_remote_restarting") { RemoteScreen(state, RemoteActions()) }
+    @Test fun remote() = shot("12_remote") { RemoteScreen(remoteState(), RemoteActions()) }
+
+    @Test fun remote_dark() = shot("12_remote", dark = true) { RemoteScreen(remoteState(), RemoteActions()) }
+
+    @Test fun remote_dockFull() {
+        val four = docked + listOf(Docked("org.jellyfin.androidtv", "Jellyfin"), Docked("com.spocky.projengmenu", "Projectivy Launcher"))
+        shot("12_remote_dock_full") { RemoteScreen(remoteState(four), RemoteActions()) }
+        // A full row has no Add to dock.
+        compose.onNodeWithText(Copy.ADD_TO_DOCK).assertDoesNotExist()
+    }
+
+    @Test fun remote_dockPicker() = shot("12_remote_dock_picker", screen = true, before = { compose.onNodeWithText(Copy.ADD_TO_DOCK).performClick() }) {
+        RemoteScreen(remoteState(), RemoteActions())
+    }
+
+    @Test fun remote_dockMenu() = shot(
+        "12_remote_dock_menu", screen = true,
+        before = { compose.onNodeWithContentDescription("Netflix").performSemanticsAction(SemanticsActions.OnLongClick) },
+    ) { RemoteScreen(remoteState(), RemoteActions()) }
+
+    @Test fun remote_restarting() = shot("13_remote_restarting", screen = true) {
+        RemoteScreen(remoteState(restart = Restart(now - 25_000, down = true)), RemoteActions())
+    }
+
+    @Test fun remote_restartHidden() = shot("13_remote_restart_hidden", before = { compose.onNodeWithText("Hide").performClick() }) {
+        RemoteScreen(remoteState(restart = Restart(now - 25_000, down = true)), RemoteActions())
+    }
+
+    @Test fun remote_restartLate() = shot("13_remote_restart_late", screen = true) {
+        RemoteScreen(remoteState(restart = Restart(now - 61_000, down = true)), RemoteActions())
+    }
+
+    @Test fun remote_restartLost() = shot("13_remote_restart_lost", screen = true) {
+        RemoteScreen(remoteState(restart = Restart(now - 130_000, down = true, waitFrom = now - 61_000, retried = true)), RemoteActions())
     }
 
     @Test fun device_restarting() {

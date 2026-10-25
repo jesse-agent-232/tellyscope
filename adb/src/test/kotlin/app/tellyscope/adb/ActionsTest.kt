@@ -277,4 +277,19 @@ class ActionsTest {
         assertTrue(Actions(sh).homeBack("com.google.android.tvlauncher", "com.google.android.tvlauncher/.MainActivity") is HomeResult.Failed)
         assertTrue(Actions(sh).homeBack("com.spocky.projengmenu") is HomeResult.Failed) // already Home
     }
+
+    @Test fun launchableListsEveryAppWithALauncherIcon() = runTest {
+        val sh = FakeShell(mapOf("cmd package query-activities" to ok(
+            "priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=false\n" +
+                "com.google.android.youtube.tv/com.google.android.apps.youtube.tv.activity.ShellActivity\n" +
+                "org.jellyfin.androidtv/.ui.startup.StartupActivity\n" +
+                "org.jellyfin.androidtv/.ui.startup.StartupActivity\n",
+        )))
+        assertEquals(setOf("com.google.android.youtube.tv", "org.jellyfin.androidtv"), Actions(sh).launchable())
+    }
+
+    @Test fun launchableIsUnknownWithoutCmd() = runTest {
+        val sh = FakeShell(mapOf("cmd package" to ShellResult("", 127)))
+        assertEquals(null, Actions(sh).launchable())
+    }
 }

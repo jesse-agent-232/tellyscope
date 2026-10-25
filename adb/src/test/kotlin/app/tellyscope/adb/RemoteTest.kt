@@ -15,8 +15,8 @@ class RemoteTest {
     @Test fun keysSendTheirCode() = runTest {
         val sh = FakeShell()
         assertTrue(Remote(sh).press(RemoteKey.DOWN))
-        assertTrue(Remote(sh).press(RemoteKey.SLEEP))
-        assertEquals(listOf("input keyevent 20", "input keyevent 223"), sh.ran)
+        assertTrue(Remote(sh).press(RemoteKey.MUTE))
+        assertEquals(listOf("input keyevent 20", "input keyevent 164"), sh.ran)
     }
 
     @Test fun keysGoThroughTheHelperWhileItRuns() = runBlocking { // see KeyHelperTest

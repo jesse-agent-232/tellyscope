@@ -23,6 +23,8 @@ import app.tellyscope.data.ConnectResult
 import app.tellyscope.data.Device
 import app.tellyscope.data.DeviceSource
 import app.tellyscope.data.DeviceState
+import app.tellyscope.data.Dock
+import app.tellyscope.data.Docked
 import app.tellyscope.data.HistoryEntry
 import app.tellyscope.data.NetworkInfo
 import app.tellyscope.data.NotAnApp
@@ -93,6 +95,8 @@ data class DeviceUi(
     val tweaks: TvTweaks? = null,
     /** Another device asking the TV for debugging access; null when nothing is asking. */
     val request: ConnectionRequest? = null,
+    /** The Remote's app shortcuts, in order. */
+    val dock: List<Docked> = emptyList(),
 )
 
 data class SideloadUi(
@@ -147,8 +151,27 @@ data class UiState(
 /** An action that went through on [deviceId]; the snackbar offers its undo. */
 data class Done(val deviceId: String, val entry: HistoryEntry)
 
-/** A restart in progress: [down] once the TV has dropped, so its coming back can be told apart from not having left. */
-data class Restart(val since: Long, val down: Boolean = false)
+/**
+ * A restart in progress: [down] once the TV has dropped, so its coming back can be told apart from
+ * not having left. Each wait lasts [RESTART_WAIT_MS] from [waitFrom]: the first from [since], the
+ * next from each Retry.
+ */
+data class Restart(val since: Long, val down: Boolean = false, val waitFrom: Long = since, val retried: Boolean = false) {
+    enum class Phase { Waiting, Late, Lost }
+
+    /**
+     * Late once the first minute is up; Lost when a Retry's minute is up too. A TV that never
+     * dropped stays Waiting: it ignored the restart, which [RESTART_GRACE_MS] reports instead.
+     */
+    fun phase(now: Long) = when {
+        !down || now - waitFrom < RESTART_WAIT_MS -> Phase.Waiting
+        retried -> Phase.Lost
+        else -> Phase.Late
+    }
+}
+
+/** Most TVs are back within this; after it the Remote asks whether to keep waiting. */
+const val RESTART_WAIT_MS = 60_000L
 
 /** [DeviceUi.busy] value while "Restore everything" runs. */
 const val RESTORING = "restore"
@@ -349,7 +372,8 @@ class TellyscopeViewModel(
         // History lives on the phone, so it shows (and undo is offered) even while the TV is off.
         viewModelScope.launch {
             val history = source.history(device.id)
-            _state.update { if (it.selectedId == device.id) it.copy(device = it.device.copy(history = history)) else it }
+            val dock = source.dock(device.id)
+            _state.update { if (it.selectedId == device.id) it.copy(device = it.device.copy(history = history, dock = dock)) else it }
         }
         if (device.state != DeviceState.Online) return
         liveJob = viewModelScope.launch {
@@ -367,6 +391,7 @@ class TellyscopeViewModel(
                 // Read first: update {} may run its block again, and must never call the TV.
                 val apps = source.apps(id!!)
                 updateDevice(id) { it.copy(apps = apps) }
+                pruneDock(id, apps)
                 val tweaks = source.tweaks(id)
                 updateDevice(id) { it.copy(tweaks = tweaks) }
                 loadFiles()
@@ -544,6 +569,7 @@ class TellyscopeViewModel(
             val history = source.history(id)
             updateDevice(id) { it.copy(apps = apps, busy = null, history = history) }
             if (undoing == null) _done.value = Done(id, entry)
+            if (action == Action.Uninstall) pruneDock(id, apps)
         }
     }
 
@@ -967,6 +993,54 @@ class TellyscopeViewModel(
         }
     }
 
+    /** Retry once a restart runs late: the link tries the TV again, and the wait starts over for a minute. */
+    fun retryRestart() {
+        val id = _state.value.selectedId ?: return
+        _state.update { s ->
+            val r = s.restarting[id] ?: return@update s
+            s.copy(restarting = s.restarting + (id to r.copy(waitFrom = clock(), retried = true)))
+        }
+        viewModelScope.launch { source.reconnect(id) }
+    }
+
+    /** Close on "Still can't reach": stop waiting, and the Remote shows the TV as offline. */
+    fun stopWaiting() {
+        val id = _state.value.selectedId ?: return
+        _state.update { it.copy(restarting = it.restarting - id) }
+    }
+
+    /** The dock's add, swap, remove and reorder all land here, saved per TV. */
+    fun setDock(dock: List<Docked>) {
+        val id = _state.value.selectedId ?: return
+        updateDevice(id) { it.copy(dock = dock) }
+        viewModelScope.launch { source.setDock(id, dock) }
+    }
+
+    /** A dock tap: opens the app on the TV, without a history entry. */
+    fun launch(app: Docked) {
+        val id = _state.value.selectedId ?: return
+        viewModelScope.launch {
+            val ok = try {
+                source.launch(id, app.packageName)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                _notice.value = Copy.REMOTE_LOST
+                return@launch
+            }
+            if (!ok) _notice.value = Copy.cantOpen(app.label)
+        }
+    }
+
+    /** An app uninstalled, here or on the TV itself, leaves the dock, and the snackbar says so. */
+    private suspend fun pruneDock(id: String, apps: List<AppInfo>) {
+        val (kept, gone) = Dock.prune(source.dock(id), apps)
+        if (gone.isEmpty()) return
+        source.setDock(id, kept)
+        updateDevice(id) { it.copy(dock = kept) }
+        _notice.value = Copy.leftDock(gone.map { it.label })
+    }
+
     /**
      * A restart ends when the TV is back online after dropping, or stops at a refusal. One still
      * online after [RESTART_GRACE_MS] never went down, so the TV ignored the request.
@@ -974,9 +1048,13 @@ class TellyscopeViewModel(
     private fun restarts(current: Map<String, Restart>, known: List<Device>): Map<String, Restart> {
         val now = clock()
         return current.mapNotNull { (id, r) ->
-            val state = known.firstOrNull { it.id == id }?.state ?: return@mapNotNull null
+            val device = known.firstOrNull { it.id == id } ?: return@mapNotNull null
+            val state = device.state
             when {
-                state == DeviceState.Online && r.down -> null
+                state == DeviceState.Online && r.down -> {
+                    _notice.value = Copy.backOnline(name(device))
+                    null
+                }
                 state == DeviceState.Online && now - r.since > RESTART_GRACE_MS -> {
                     _notice.value = Copy.REBOOT_IGNORED
                     null

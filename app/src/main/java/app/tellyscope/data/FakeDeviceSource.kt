@@ -314,6 +314,17 @@ class FakeDeviceSource(
         return true
     }
 
+    override suspend fun launch(deviceId: String, packageName: String): Boolean {
+        delay(200)
+        return appsFor(deviceId).any { it.packageName == packageName && it.launchable && it.enabled }
+    }
+
+    private val docks = DockBook()
+
+    override suspend fun dock(deviceId: String) = docks[deviceId]
+
+    override suspend fun setDock(deviceId: String, dock: List<Docked>) = docks.set(deviceId, dock)
+
     override suspend fun reboot(deviceId: String): Boolean {
         delay(300)
         remembered[deviceId]?.let { remembered[deviceId] = it.copy(state = DeviceState.Offline) }
@@ -372,15 +383,15 @@ class FakeDeviceSource(
 
 
         val baseApps = listOf(
-            AppInfo("com.spocky.projengmenu", "Projectivy Launcher", 0xFF3D5AFE, false, true, "this is your home screen", "4.52"),
-            AppInfo("com.google.android.youtube.tv", "YouTube", 0xFFC4302B, false, true, null, "4.40.303"),
-            AppInfo("com.netflix.ninja", "Netflix", 0xFFB20710, false, true, null, "11.2.0", removable = true),
-            AppInfo("org.jellyfin.androidtv", "Jellyfin", 0xFF7B5EA7, false, true, null, "0.17.4", removable = true),
+            AppInfo("com.spocky.projengmenu", "Projectivy Launcher", 0xFF3D5AFE, false, true, "this is your home screen", "4.52", launchable = true),
+            AppInfo("com.google.android.youtube.tv", "YouTube", 0xFFC4302B, false, true, null, "4.40.303", launchable = true),
+            AppInfo("com.netflix.ninja", "Netflix", 0xFFB20710, false, true, null, "11.2.0", removable = true, launchable = true),
+            AppInfo("org.jellyfin.androidtv", "Jellyfin", 0xFF7B5EA7, false, true, null, "0.17.4", removable = true, launchable = true),
             AppInfo("com.xgimi.assistant", "XGIMI Assistant", null, true, true, null, "2.1.8"),
             AppInfo("com.xgimi.ota", "XGIMI Updates", null, true, true, null, "1.4.0"),
             AppInfo("com.google.android.tvrecommendations", "TV Recommendations", null, true, false, null, "1.0"),
             AppInfo("com.android.systemui", "System UI", null, true, true, "the TV needs this to draw the screen", "11"),
-            AppInfo("com.android.tv.settings", "Settings", null, true, true, "you need this to change TV settings", "11"),
+            AppInfo("com.android.tv.settings", "Settings", null, true, true, "you need this to change TV settings", "11", launchable = true),
             AppInfo("com.google.android.gms", "Google Play services", null, true, true, "most apps stop working without it", "24.38"),
             AppInfo("com.google.android.inputmethod.latin", "Gboard", null, true, true, "you'd lose the on-screen keyboard", "14.1"),
         )

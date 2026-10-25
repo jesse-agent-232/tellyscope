@@ -132,6 +132,10 @@ class Actions(private val shell: AdbShell) {
         return currentHome()?.substringBefore('/') == activity.substringBefore('/')
     }
 
+    /** Packages the TV can open from a launcher icon; null when it didn't say (no `cmd` before Android 7). */
+    suspend fun launchable(): Set<String>? =
+        packagesIn(shell.shell(Commands.LAUNCHABLE).output).ifEmpty { null }
+
     /** [pkg]'s accessibility service as the TV has it installed; null when it has none. */
     suspend fun homeService(pkg: String): String? =
         activitiesIn(shell.shell(Commands.A11Y_SERVICES).output).firstOrNull { it.substringBefore('/') == pkg }

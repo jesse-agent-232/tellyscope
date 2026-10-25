@@ -12,6 +12,10 @@ until this file has a section for its version.
 
 ## Unreleased
 
+- **New:** Dock up to four apps on the Remote, one tap to open. [#PR](../../pull/PR)
+- **Improved:** Restart TV sits in the Remote's top bar and waits with you. [#PR](../../pull/PR)
+- **Improved:** Sleep and Menu leave the Remote, making room for the dock. [#PR](../../pull/PR)
+
 ## 0.7.0 — 2026-10-25
 
 - **New:** The Remote is back, and keys land in about 50 ms. [#111](../../pull/111)

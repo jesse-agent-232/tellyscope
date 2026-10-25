@@ -434,7 +434,7 @@ private fun AppMenu(state: UiState, actions: DeviceActions) {
 
 /** One group of the menu, as a slightly darker rounded block inside it. */
 @Composable
-private fun MenuBlock(items: @Composable () -> Unit) {
+internal fun MenuBlock(items: @Composable () -> Unit) {
     Surface(
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceContainerHighest,

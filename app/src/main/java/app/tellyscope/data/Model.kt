@@ -125,7 +125,12 @@ data class AppInfo(
     val homeService: Boolean = false,
     /** This TV's list says to keep it: Stop, Disable and Uninstall still run, after a warning. */
     val listKeep: Boolean = false,
+    /** Has an icon on a launcher, so the Remote's dock can open it. */
+    val launchable: Boolean = false,
 )
+
+/** An app on the Remote's dock. [label] is kept so it can be named after the app is gone. */
+data class Docked(val packageName: String, val label: String)
 
 data class Socket(val app: String, val remote: String, val state: String)
 data class AppTraffic(val app: String, val rxMb: Int, val txMb: Int)
