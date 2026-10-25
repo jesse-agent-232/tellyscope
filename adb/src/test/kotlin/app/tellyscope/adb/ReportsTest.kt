@@ -55,7 +55,7 @@ class ReportsTest {
         assertEquals("Android 11 (API 30), build RTT1.230922.001", q["android"])
         assertEquals("Could not connect over ADB", q["stage"])
         val details = q.getValue("details")
-        assertTrue(details.startsWith("Stuck at Allow\n\nApps the TV came with (2, plus 0 Android core):\ncom.google.android.tvlauncher\ncom.xgimi.filemanager\n"), details)
+        assertTrue(details.startsWith("Stuck at Allow\n\nApps the TV came with (2 maker and Google, 0 Android core):\ncom.google.android.tvlauncher\ncom.xgimi.filemanager\n"), details)
         assertTrue("User-installed apps: 7 (not listed)" in details)
     }
 
@@ -66,24 +66,22 @@ class ReportsTest {
     }
 
     @Test fun longAppListFitsTheLinkAndTheRestWaitsForAComment() {
-        val big = tv.copy(stockPackages = (1..400).map { "com.vendor.app%03d".format(it) } + listOf("android", "com.android.providers.tv"))
+        val vendor = (1..400).map { "com.vendor.app%03d".format(it) }
+        val big = tv.copy(stockPackages = listOf("android", "com.android.printspooler") + vendor)
         val r = Reports.newTv(app, big, Reports.Stage.HERE_IS_MY_LIST, "")
         assertTrue(r.link.length <= Report.MAX_URL, "${r.link.length}")
         val details = query(r.link).getValue("details")
-        assertTrue(details.startsWith("Apps the TV came with (400, plus 2 Android core):\ncom.vendor.app001\n"), details)
-        val shown = details.lines().count { it.startsWith("com.vendor.") }
-        assertTrue(shown in 100..399, "$shown")
-        assertTrue("+${400 - shown} more, added as a comment" in details, details)
-        // Every app is either in the issue or in the comment, once.
-        val rest = r.rest!!.lines().drop(1)
-        assertEquals((1..400).map { "com.vendor.app%03d".format(it) }, details.lines().filter { it.startsWith("com.vendor.") } + rest)
-        assertFalse("com.android.providers.tv" in details + r.rest)
+        assertTrue(details.startsWith("Apps the TV came with (400 maker and Google, 2 Android core):\ncom.vendor.app001\n"), details)
+        val shown = details.lines().filter { it.startsWith("com.") || it == "android" }
+        assertTrue(shown.size in 100..399, "${shown.size}")
+        assertTrue("+${402 - shown.size} more, added as a comment" in details, details)
+        // Every app is in the issue or in the comment, once, and the Android core is what's cut first.
+        assertEquals(vendor + listOf("android", "com.android.printspooler"), shown + r.rest!!.lines().drop(1))
     }
 
-    @Test fun androidCoreIsOnlyCounted() {
-        val details = Reports.newTv(app, tv.copy(stockPackages = listOf("android", "com.android.systemui", "com.google.android.katniss")), Reports.Stage.HERE_IS_MY_LIST, "").fields.getValue("details")
-        assertTrue("Apps the TV came with (1, plus 2 Android core):\ncom.google.android.katniss\n" in details, details)
-        assertFalse("systemui" in details)
+    @Test fun androidCoreComesLastNotOut() {
+        val details = Reports.newTv(app, tv.copy(stockPackages = listOf("android", "com.android.printspooler", "com.google.android.katniss")), Reports.Stage.HERE_IS_MY_LIST, "").fields.getValue("details")
+        assertTrue("Apps the TV came with (1 maker and Google, 2 Android core):\ncom.google.android.katniss\nandroid\ncom.android.printspooler\n" in details, details)
     }
 
     @Test fun longLogKeepsItsNewestLines() {

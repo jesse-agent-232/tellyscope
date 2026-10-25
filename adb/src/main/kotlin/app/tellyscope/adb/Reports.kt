@@ -170,17 +170,19 @@ object Reports {
     }
 
     /**
-     * "Help add this TV": cleanyourtv's tv-list.yml, with the apps the TV came with. The Android
-     * core every TV has is only counted; of the rest, the issue lists as many as fit.
+     * "Help add this TV": cleanyourtv's tv-list.yml, with the apps the TV came with, as many as fit.
+     * The Android core every TV has comes last, so it's what the budget cuts first; debloat lists
+     * still turn some of it off, so it isn't dropped.
      */
     fun newTv(app: AppFacts, tv: TvFacts, stage: Stage, details: String): Report {
-        val (core, listed) = tv.stockPackages.partition(::isCore)
+        val (core, own) = tv.stockPackages.partition(::isCore)
+        val listed = own + core
         val written = Redact.text(details.trim(), tv.identifiers)
         return fit(listed.size) { keep ->
             val more = listed.size - keep
             val body = buildString {
                 if (written.isNotEmpty()) append(written).append("\n\n")
-                append("Apps the TV came with (${listed.size}, plus ${core.size} Android core):\n")
+                append("Apps the TV came with (${own.size} maker and Google, ${core.size} Android core):\n")
                 listed.take(keep).forEach { append(it).append("\n") }
                 if (more > 0) append("+$more more, added as a comment\n")
                 append("\nUser-installed apps: ${tv.userApps} (not listed)\n")
@@ -203,7 +205,7 @@ object Reports {
         }
     }
 
-    /** `android` and `com.android.*`: on every TV, and never what a debloat list is about. */
+    /** `android` and `com.android.*`: on every TV, so the least a list of this one's apps needs. */
     private fun isCore(pkg: String) = pkg == "android" || pkg.startsWith("com.android.")
 
     /**
@@ -222,7 +224,7 @@ object Reports {
         val bare = build(0)
         val details = bare.fields.getValue("details")
         var chars = details.length
-        while (chars > 0 && bare.copy(fields = bare.fields + ("details" to details.take(chars) + CUT)).link.length > Report.MAX_URL) chars -= 200
+        while (chars > 0 && bare.copy(fields = bare.fields + ("details" to details.take(chars) + CUT)).link.length > Report.MAX_URL) chars = (chars - 200).coerceAtLeast(0)
         return bare.copy(
             fields = bare.fields + ("details" to details.take(chars) + CUT),
             rest = listOfNotNull(details.drop(chars), bare.rest).joinToString("\n\n"),
