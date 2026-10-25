@@ -40,6 +40,8 @@ internal object Commands {
     const val PACKAGES = "pm list packages -U"
     /** Apps the user installed: the only ones Tellyscope may uninstall. */
     const val USER_PACKAGES = "pm list packages -3"
+    /** The apps the TV came with, disabled ones included. */
+    const val SYSTEM_PACKAGES = "pm list packages -s"
     const val HOME_ACTIVITY = "cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME"
     const val SET_HOME = "cmd package set-home-activity --user 0"
     const val HOME_ACTIVITIES = "cmd package query-activities --brief -a android.intent.action.MAIN -c android.intent.category.HOME"
