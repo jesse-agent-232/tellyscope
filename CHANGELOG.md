@@ -12,8 +12,8 @@ until this file has a section for its version.
 
 ## Unreleased
 
-- **Fixed:** A slow stats read no longer drops the TV mid-change. [#99](../../pull/99)
-- **Improved:** Each screen reads only what it shows, at its own rate. [#99](../../pull/99)
+- **Fixed:** A slow stats read no longer drops the TV mid-change. [#101](../../pull/101)
+- **Improved:** Each screen reads only what it shows, at its own rate. [#101](../../pull/101)
 
 ## 0.6.2 — 2026-10-25
 
