@@ -39,23 +39,34 @@ data class Stats(
 )
 
 /** One process and the package it belongs to; null for native daemons. */
-data class AppProcess(val pid: Int, val name: String, val packageName: String?, val cpuPercent: Double, val rssKb: Long)
+data class AppProcess(val pid: Int, val name: String, val packageName: String?, val cpuPercent: Double?, val rssKb: Long)
 
 /** Where [DeviceLink] gets readings from; [DeviceMonitor] in the app, a fake in tests. */
 fun interface MonitorSource {
     fun stats(): Flow<Stats>
 }
 
+/** How much of the process list a screen needs. */
+enum class ProcessLevel {
+    /** Nothing shown: no process read; the last list is kept. */
+    NONE,
+
+    /** Memory per app (Overview, Apps): `ps`, no CPU and no screen state. */
+    LIGHT,
+
+    /** CPU per process and the screen state (Advanced): `top` and `dumpsys power`. */
+    FULL,
+}
+
 /**
  * What the app tells one TV's stats loop. [during] pauses it while a change runs, so a slow read
- * never competes with `pm`, an install or a Home switch; [processes] says whether a screen shows
- * the process list.
+ * never competes with `pm`, an install or a Home switch; [processes] says how much of the process
+ * list the open screen shows.
  */
 class StatsGate {
     private val running = MutableStateFlow(0)
 
-    /** False skips `top` and `dumpsys power`, the heavy read; the last list is kept. */
-    val processes = MutableStateFlow(true)
+    val processes = MutableStateFlow(ProcessLevel.FULL)
 
     val busy: Boolean get() = running.value > 0
 
@@ -74,8 +85,8 @@ class StatsGate {
 }
 
 /**
- * Live stats on three tiers: CPU/RAM/network speed every [fast], processes and screen state every [medium]
- * while [StatsGate.processes] is on, identity/storage/uptime/temperature/packages every [slow].
+ * Live stats on three tiers: CPU/RAM/network speed every [fast], processes at [StatsGate.processes]'s
+ * level every [medium] and at once when it changes, identity/storage/uptime/temperature/packages every [slow].
  * The first emission comes after one fast interval, since CPU % needs two samples.
  * A read slower than [readTimeout] skips that sample. Shell failures throw, and so does a slow read
  * the TV then doesn't follow with an `echo` answer within [pingTimeout], so the caller can mark it
@@ -97,6 +108,7 @@ class DeviceMonitor(
         var lastSlow: TimeMark? = null
         var mediumStats: Pair<List<AppProcess>, Boolean?> = emptyList<AppProcess>() to null
         var lastMedium: TimeMark? = null
+        var lastLevel = ProcessLevel.NONE
         var prev: Fast? = null
 
         while (true) {
@@ -105,9 +117,11 @@ class DeviceMonitor(
                 readSlow()?.let { slowStats = it }
                 lastSlow = TimeSource.Monotonic.markNow()
             }
-            if (gate.processes.value && lastMedium.due(medium)) {
-                readMedium(slowStats.packages)?.let { mediumStats = it }
+            val level = gate.processes.value
+            if (level != ProcessLevel.NONE && (level != lastLevel || lastMedium.due(medium))) {
+                readProcesses(level, slowStats.packages, mediumStats.second)?.let { mediumStats = it }
                 lastMedium = TimeSource.Monotonic.markNow()
+                lastLevel = level
             }
             val now = readFast()
             val last = prev
@@ -160,13 +174,28 @@ class DeviceMonitor(
         return if (bytes < 0 || ms <= 0) null else bytes * 1000 / ms
     }
 
-    private suspend fun readMedium(packages: Map<Int, List<String>>): Pair<List<AppProcess>, Boolean?>? {
-        val (top, power) = Commands.split(run(Commands.MEDIUM) ?: return null, 2)
-        val known = packages.values.flatten().toSet()
-        val procs = Parsers.processes(top).map { p ->
-            AppProcess(p.pid, p.name, Parsers.owner(p, packages, known), p.cpuPercent, p.rssKb)
+    /** The light read keeps [screenOn] from the last full one; only Advanced shows it. */
+    private suspend fun readProcesses(level: ProcessLevel, packages: Map<Int, List<String>>, screenOn: Boolean?): Pair<List<AppProcess>, Boolean?>? {
+        val (procs, screen) = if (level == ProcessLevel.FULL) {
+            val (top, power) = Commands.split(run(Commands.MEDIUM) ?: return null, 2)
+            Parsers.processes(top) to Parsers.screenOn(power)
+        } else {
+            (readPs() ?: return null) to screenOn
         }
-        return procs to Parsers.screenOn(power)
+        val known = packages.values.flatten().toSet()
+        return procs.map { p -> AppProcess(p.pid, p.name, Parsers.owner(p, packages, known), p.cpuPercent, p.rssKb) } to screen
+    }
+
+    /** Set once `ps -o` printed nothing usable; plain `ps` from then on. */
+    private var plainPs = false
+
+    private suspend fun readPs(): List<Parsers.Process>? {
+        if (!plainPs) {
+            val procs = Parsers.psProcesses(run(Commands.LIGHT) ?: return null)
+            if (procs.isNotEmpty()) return procs
+            plainPs = true
+        }
+        return Parsers.psProcesses(run("ps") ?: return null)
     }
 
     private suspend fun readSlow(): Stats? {

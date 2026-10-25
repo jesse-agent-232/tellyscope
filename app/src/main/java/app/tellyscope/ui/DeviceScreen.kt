@@ -52,6 +52,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.tellyscope.adb.ProcessLevel
 import app.tellyscope.adb.TvFile
 import app.tellyscope.adb.TvFolder
 import app.tellyscope.data.Action
@@ -109,8 +110,8 @@ data class DeviceActions(
     val dismissRequest: () -> Unit = {},
     /** Folds an Apps tab's System section away, or opens it; remembered across restarts. */
     val foldSystem: (AppsTab, Boolean) -> Unit = { _, _ -> },
-    /** Whether the open tab shows the process list; only then does the TV's process read run. */
-    val showProcesses: (Boolean) -> Unit = {},
+    /** How much of the process list the open tab shows; the TV's process read follows it. */
+    val showProcesses: (ProcessLevel) -> Unit = {},
 )
 
 /** Off while the remote is made faster: the device page hides its Remote button. */

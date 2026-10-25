@@ -95,6 +95,10 @@ class DeviceMonitorTest {
         assertEquals(mapOf(10087 to listOf("com.google.android.youtube.tv")), s.packages)
     }
 
+    private companion object {
+        const val SEP = "\n@@tellyscope@@\n"
+    }
+
     /** Answers the fast read and `echo`, logs every command, and hangs on `top` until cancelled. */
     private class SlowTop(val onTop: () -> Unit = {}) : AdbShell {
         val ran = mutableListOf<String>()
@@ -149,12 +153,66 @@ class DeviceMonitorTest {
         assertEquals(listOf("echo"), ran)
     }
 
-    @Test fun processesOffSkipsTheHeavyRead() = runTest {
-        val gate = StatsGate().apply { processes.value = false }
+    @Test fun noProcessLevelSkipsTheProcessRead() = runTest {
+        val gate = StatsGate().apply { processes.value = ProcessLevel.NONE }
         val tv = SlowTop()
         val s = DeviceMonitor(tv, gate = gate).stats().first()
         assertEquals(emptyList<AppProcess>(), s.processes)
-        assertTrue(tv.ran.none { it.startsWith("top") }, "ran: ${tv.ran}")
+        assertTrue(tv.ran.none { it.startsWith("top") || it.startsWith("ps") }, "ran: ${tv.ran}")
         assertTrue("echo" !in tv.ran)
+    }
+
+    /** Answers `ps -A -o` with [ps], plain `ps` with [plain]; `top` and `dumpsys` are logged and answered empty. */
+    private class PsTv(val ps: String, val plain: String = "") : AdbShell {
+        val ran = mutableListOf<String>()
+
+        override suspend fun shell(command: String): ShellResult {
+            ran += command
+            return when {
+                command.startsWith("cat /proc/stat") -> ok("cpu  25 0 0 75 0 0 0 0\n@@tellyscope@@\nMemTotal: 2000 kB\n")
+                command.startsWith("ps -A") -> ok(ps)
+                command == "ps" -> ok(plain)
+                command.startsWith("getprop") -> ok("${SEP.repeat(4)}package:com.google.android.youtube.tv uid:10087\n")
+                else -> ok("")
+            }
+        }
+    }
+
+    @Test fun lightLevelReadsMemoryWithoutTop() = runTest {
+        val gate = StatsGate().apply { processes.value = ProcessLevel.LIGHT }
+        val tv = PsTv("PID USER RSS NAME\n2201 u0_a87 319488 com.google.android.youtube.tv\n512 system 122880 system_server\n")
+        val s = DeviceMonitor(tv, gate = gate).stats().take(3).toList().last()
+        assertEquals(
+            listOf(
+                AppProcess(2201, "com.google.android.youtube.tv", "com.google.android.youtube.tv", null, 319488),
+                AppProcess(512, "system_server", null, null, 122880),
+            ),
+            s.processes,
+        )
+        assertEquals(null, s.screenOn)
+        assertTrue(tv.ran.none { it.startsWith("top") || it.startsWith("dumpsys") }, "ran: ${tv.ran}")
+    }
+
+    @Test fun lightLevelFallsBackToPlainPs() = runTest {
+        // A ps that ignores -o: only its header comes back, so plain ps is read instead.
+        val gate = StatsGate().apply { processes.value = ProcessLevel.LIGHT }
+        val tv = PsTv(
+            ps = "USER PID PPID VSIZE RSS WCHAN PC NAME\n",
+            plain = "USER PID PPID VSIZE RSS WCHAN PC NAME\nu0_a87 2201 300 1200000 319488 ffffffff 00000000 S com.google.android.youtube.tv\n",
+        )
+        val s = DeviceMonitor(tv, gate = gate).stats().first()
+        assertEquals(listOf(AppProcess(2201, "com.google.android.youtube.tv", "com.google.android.youtube.tv", null, 319488)), s.processes)
+        assertTrue("ps" in tv.ran)
+    }
+
+    @Test fun openingAdvancedReadsTheFullListAtOnce() = runTest {
+        val gate = StatsGate().apply { processes.value = ProcessLevel.LIGHT }
+        val tv = PsTv("PID USER RSS NAME\n")
+        backgroundScope.launch { DeviceMonitor(tv, gate = gate).stats().collect {} }
+        runCurrent()
+        assertTrue(tv.ran.none { it.startsWith("top") })
+        gate.processes.value = ProcessLevel.FULL
+        advanceTimeBy(2_001)
+        assertTrue(tv.ran.any { it.startsWith("top") }, "ran: ${tv.ran}")
     }
 }

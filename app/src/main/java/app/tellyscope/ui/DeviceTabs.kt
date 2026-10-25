@@ -93,6 +93,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import app.tellyscope.adb.ProcessLevel
 import app.tellyscope.adb.TvFolder
 import app.tellyscope.data.Action
 import app.tellyscope.data.AppInfo
@@ -174,10 +175,10 @@ fun DeviceTabsScreen(
     // "See changes" lands on Tweaks scrolled to Recent changes, the list's third item, after the hero.
     var toChanges by remember { mutableStateOf(false) }
     var shown by rememberSaveable { mutableStateOf(tab) }
-    // Overview and Apps (Running, RAM per app) show processes; Files and Tweaks don't need the read.
+    // Overview and Apps (Running, sorted by RAM) need memory per app only; Files and Tweaks need no read.
     DisposableEffect(tab, device.id) {
-        actions.showProcesses(tab == TvTab.Overview || tab == TvTab.Apps)
-        onDispose { actions.showProcesses(false) }
+        actions.showProcesses(if (tab == TvTab.Overview || tab == TvTab.Apps) ProcessLevel.LIGHT else ProcessLevel.NONE)
+        onDispose { actions.showProcesses(ProcessLevel.NONE) }
     }
     LaunchedEffect(tab) {
         if (tab == shown) return@LaunchedEffect

@@ -2,6 +2,7 @@
 
 package app.tellyscope.data
 
+import app.tellyscope.adb.ProcessLevel
 import app.tellyscope.adb.ApkInfo
 import app.tellyscope.adb.ConnectionRequest
 import app.tellyscope.adb.InstallResult
@@ -51,8 +52,8 @@ interface DeviceSource {
     /** Fast-tier stats. Completes when the device goes offline. */
     fun live(deviceId: String): Flow<Snapshot>
 
-    /** Reads the process list only for [deviceId], while a screen shows it; null for none. */
-    fun showProcesses(deviceId: String?) {}
+    /** Reads the process list at [level] only for [deviceId], while a screen shows it; null for none. */
+    fun showProcesses(deviceId: String?, level: ProcessLevel) {}
 
     suspend fun apps(deviceId: String): List<AppInfo>
 

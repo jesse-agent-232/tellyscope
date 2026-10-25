@@ -13,6 +13,7 @@ until this file has a section for its version.
 ## Unreleased
 
 - **Fixed:** A slow stats read no longer drops the TV mid-change. [#99](../../pull/99)
+- **Improved:** Overview and Apps read only memory per app, lighter on the TV. [#99](../../pull/99)
 
 ## 0.6.2 — 2026-10-25
 

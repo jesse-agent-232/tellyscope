@@ -32,6 +32,7 @@ import app.tellyscope.adb.Remote
 import app.tellyscope.adb.RemoteKey
 import app.tellyscope.adb.Stats
 import app.tellyscope.adb.PairResult
+import app.tellyscope.adb.ProcessLevel
 import app.tellyscope.adb.pairOnFreshPort
 import app.tellyscope.adb.Tweak
 import app.tellyscope.adb.Tweaks
@@ -70,7 +71,8 @@ class AdbDeviceSource(context: Context) : DeviceSource {
     private val appContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob())
     private val links = ConcurrentHashMap<String, DeviceLink>()
-    @Volatile private var processesFor: String? = null
+    /** The TV whose process list is on screen, and how much of it. */
+    @Volatile private var processesFor: Pair<String, ProcessLevel>? = null
     private val hits = ConcurrentHashMap<String, ScanHit>()
     private val store = DeviceStore(File(appContext.filesDir, "devices.tsv"))
     private val saved = ConcurrentHashMap<String, SavedDevice>()
@@ -112,7 +114,7 @@ class AdbDeviceSource(context: Context) : DeviceSource {
         val link = DeviceLink(host, port, scope, knownGood = knownGood, open = { h, p ->
             pending?.also { pending = null } ?: Connector.connect(h, p)
         })
-        link.gate.processes.value = host == processesFor
+        link.gate.processes.value = processesFor?.takeIf { it.first == host }?.second ?: ProcessLevel.NONE
         links.put(host, link)?.disconnect()
         watchers.put(host, scope.launch {
             // Save a fresh reading only when what's kept of it changed, not every 2 s.
@@ -298,16 +300,16 @@ class AdbDeviceSource(context: Context) : DeviceSource {
                     tempC = s.temperatureC?.toInt(),
                     uptimeSeconds = s.uptimeSeconds ?: 0,
                     screenOn = s.screenOn,
-                    procs = s.processes.map { Proc(it.pid, it.name, it.packageName, it.cpuPercent, (it.rssKb / 1024).toInt()) },
+                    procs = s.processes.map { Proc(it.pid, it.name, it.packageName, it.cpuPercent ?: 0.0, (it.rssKb / 1024).toInt()) },
                     netBytesPerSec = s.netBytesPerSec,
                     softwareMonth = s.softwareMonth,
                 )
             }
     }
 
-    override fun showProcesses(deviceId: String?) {
-        processesFor = deviceId
-        links.forEach { (host, link) -> link.gate.processes.value = host == deviceId }
+    override fun showProcesses(deviceId: String?, level: ProcessLevel) {
+        processesFor = deviceId?.let { it to level }
+        links.forEach { (host, link) -> link.gate.processes.value = if (host == deviceId) level else ProcessLevel.NONE }
     }
 
     /** Runs a change with that TV's stats paused, so a slow stats read can't compete with it or cut it off. */
