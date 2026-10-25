@@ -9,6 +9,7 @@ import app.tellyscope.adb.InstallResult
 import app.tellyscope.adb.InstalledVersion
 import app.tellyscope.adb.Progress
 import app.tellyscope.adb.RemoteKey
+import app.tellyscope.adb.TvFacts
 import app.tellyscope.adb.TvFile
 import app.tellyscope.adb.TvFolder
 import app.tellyscope.adb.Tweak
@@ -156,4 +157,7 @@ interface DeviceSource {
      * when the prompt was gone or showed another fingerprint by then.
      */
     suspend fun answerRequest(deviceId: String, request: ConnectionRequest, allow: Boolean, always: Boolean): Boolean
+
+    /** What a report says about the TV: model, Android, the apps it came with. Throws if it's gone. */
+    suspend fun facts(deviceId: String): TvFacts
 }

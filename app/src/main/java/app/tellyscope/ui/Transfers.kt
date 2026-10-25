@@ -274,6 +274,7 @@ fun SideloadDialog(s: SideloadUi, actions: DeviceActions) {
             when (s.step) {
                 SideloadUi.Step.Reading, SideloadUi.Step.Ready -> TextButton(onClick = actions.closeSideload) { Text("Cancel") }
                 SideloadUi.Step.Installed -> TextButton(onClick = actions.closeSideload) { Text("Done") }
+                SideloadUi.Step.Failed -> TextButton(onClick = { actions.reportInstall(s) }) { Text("Report a problem") }
                 else -> Unit
             }
         },

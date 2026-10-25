@@ -65,8 +65,8 @@ internal const val CLEANYOURTV = "https://github.com/Gathin23/cleanyourtv"
 internal val OWN_LISTS_GUIDE = RELEASES.removeSuffix("/releases") + "/blob/main/CONTRIBUTING.md#using-your-own-lists"
 
 /**
- * App-wide choices, not tied to one TV: update checks first, then a folded Advanced with where the
- * debloat lists come from and how to use your own.
+ * App-wide choices, not tied to one TV: update checks and Report a problem first, then a folded
+ * Advanced with where the debloat lists come from and how to use your own.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -80,6 +80,7 @@ fun SettingsScreen(
     alphaBuild: Boolean,
     onCheckUpdates: (Boolean) -> Unit,
     back: () -> Unit,
+    onReport: () -> Unit = {},
     snackbar: SnackbarHostState = remember { SnackbarHostState() },
 ) {
     var editing by rememberSaveable { mutableStateOf(false) }
@@ -103,9 +104,9 @@ fun SettingsScreen(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            if (checkUpdates != null) item {
+            item {
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
-                    Row(
+                    if (checkUpdates != null) Row(
                         Modifier.fillMaxWidth()
                             .toggleable(checkUpdates, role = Role.Switch, onValueChange = onCheckUpdates)
                             .padding(16.dp),
@@ -119,7 +120,19 @@ fun SettingsScreen(
                                 style = MaterialTheme.typography.bodyMedium,
                             )
                         }
+                        Spacer(Modifier.width(16.dp))
                         Switch(checked = checkUpdates, onCheckedChange = null)
+                    }
+                    if (checkUpdates != null) HorizontalDivider(color = MaterialTheme.colorScheme.surface)
+                    Row(Modifier.fillMaxWidth().clickable(onClick = onReport).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(BugReport, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(Modifier.width(16.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text("Report a problem", style = MaterialTheme.typography.titleSmall)
+                            Text("Opens an issue on Tellyscope\u2019s GitHub. You see the text first.", style = MaterialTheme.typography.bodyMedium)
+                        }
+                        Spacer(Modifier.width(16.dp))
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
                     }
                 }
             }

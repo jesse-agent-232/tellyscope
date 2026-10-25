@@ -15,6 +15,7 @@ import app.tellyscope.adb.HomeResult
 import app.tellyscope.adb.InstallResult
 import app.tellyscope.adb.Progress
 import app.tellyscope.adb.Sideload
+import app.tellyscope.adb.TvFacts
 import app.tellyscope.adb.TvFile
 import app.tellyscope.adb.TvFolder
 import app.tellyscope.adb.Actions
@@ -653,6 +654,8 @@ class AdbDeviceSource(context: Context) : DeviceSource {
 
     override suspend fun answerRequest(deviceId: String, request: ConnectionRequest, allow: Boolean, always: Boolean) =
         ConnectionPrompt(session(deviceId)).answer(request, allow, always)
+
+    override suspend fun facts(deviceId: String) = TvFacts.read(session(deviceId))
 
     /**
      * The history key for a TV, read from it once connected and saved with it. Until it has

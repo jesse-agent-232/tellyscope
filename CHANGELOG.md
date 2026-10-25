@@ -16,6 +16,7 @@ until this file has a section for its version.
 
 ## 0.8.0 — 2026-10-25
 
+- **New:** Report a problem or help add your TV: GitHub opens with the report filled in. [#127](../../pull/127)
 - **New:** About shows the app's version and its GitHub page. [#125](../../pull/125)
 - **New:** Dock up to four apps on the Remote, one tap to open. [#120](../../pull/120)
 - **Improved:** Restart TV sits in the Remote's top bar and waits with you. [#120](../../pull/120)

@@ -36,6 +36,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import app.tellyscope.adb.AppFacts
 import app.tellyscope.adb.Connector
 import app.tellyscope.adb.StatsProfile
 import app.tellyscope.data.AdbDeviceSource
@@ -52,6 +53,8 @@ import app.tellyscope.ui.Done
 import app.tellyscope.ui.PermissionScreen
 import app.tellyscope.ui.RemoteActions
 import app.tellyscope.ui.RemoteScreen
+import app.tellyscope.ui.ReportKind
+import app.tellyscope.ui.ReportScreen
 import app.tellyscope.ui.ScanScreen
 import app.tellyscope.ui.SettingsScreen
 import app.tellyscope.ui.TellyscopeViewModel
@@ -95,6 +98,7 @@ class MainActivity : ComponentActivity() {
                                         AndroidPhoneStorage(applicationContext),
                                         updates = if (scenario != null) null else updateCheck(),
                                         folds = FoldBook(File(filesDir, "folds.properties")),
+                                        appFacts = AppFacts(installedVersion(), "${Build.MANUFACTURER} ${Build.MODEL}, Android ${Build.VERSION.RELEASE}"),
                                     )
                                 }
                             },
@@ -106,9 +110,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @Suppress("DEPRECATION") // the flags overload is API 33+
+    private fun installedVersion() = packageManager.getPackageInfo(packageName, 0).versionName.orEmpty()
+
     private fun updateCheck(): UpdateCheck {
-        @Suppress("DEPRECATION") // the flags overload is API 33+
-        val version = packageManager.getPackageInfo(packageName, 0).versionName.orEmpty()
+        val version = installedVersion()
         // Alpha builds install as app.tellyscope.alpha (app/build.gradle.kts).
         return UpdateCheck(File(filesDir, "updates.properties"), version, alpha = packageName.endsWith(".alpha"))
     }
@@ -197,6 +203,9 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
             onOpenWifi = { context.openWifiSettings() },
             phoneKey = remember { Connector.fingerprint() },
         )
+    } else if (state.report != null) {
+        BackHandler { vm.closeReport() }
+        state.report?.let { ReportScreen(it, onOpened = vm::reportOpened, close = vm::closeReport) }
     } else if (remote) {
         BackHandler { remote = false }
         DisposableEffect(Unit) { onDispose { vm.closeRemote() } }
@@ -229,6 +238,7 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
             checkUpdates = state.checkUpdates,
             alphaBuild = state.alphaBuild,
             onCheckUpdates = vm::setCheckUpdates,
+            onReport = { vm.openReport(ReportKind.Problem) },
             back = { settings = false },
             snackbar = snackbar,
         )
@@ -245,6 +255,7 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
             tv = state.selected,
             tvApps = state.device.apps,
             busy = state.device.busy != null,
+            onHelpAdd = { vm.openReport(ReportKind.NewTv) },
         )
     } else {
         DeviceTabsScreen(
@@ -267,6 +278,10 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
                 allowDowngrade = vm::allowDowngrade,
                 install = vm::install,
                 closeSideload = vm::closeSideload,
+                reportInstall = { s ->
+                    vm.closeSideload()
+                    vm.openReport(ReportKind.Problem, s.app?.let { "Tried to install ${it.label} ${it.info.versionName.orEmpty()}".trim() }.orEmpty(), s.detail)
+                },
                 openInstalled = vm::openInstalled,
                 folder = vm::folder,
                 pickFile = { folder -> vm.folder(folder); pickFile.launch(arrayOf("*/*")) },

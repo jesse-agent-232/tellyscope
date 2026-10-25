@@ -31,8 +31,11 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -65,6 +68,7 @@ import androidx.compose.ui.unit.dp
 import app.tellyscope.data.AppInfo
 import app.tellyscope.data.Device
 import app.tellyscope.data.DeviceKind
+import app.tellyscope.data.DeviceState
 import app.tellyscope.data.ListEntry
 import app.tellyscope.data.RELEASES
 import app.tellyscope.data.Suggested
@@ -104,6 +108,8 @@ fun DebloatScreen(
     tvApps: List<AppInfo> = emptyList(),
     /** Something is running on this TV: Disable waits for it, like the Apps tab does. */
     busy: Boolean = false,
+    /** Help add this TV to cleanyourtv, offered when a search finds no list. */
+    onHelpAdd: () -> Unit = {},
 ) {
     val ready = lists as? Suggestions.Ready
     val devices = when (lists) {
@@ -206,6 +212,8 @@ fun DebloatScreen(
                     return@LazyColumn
                 }
                 if (missed != null) item { Muted("No list for \u201c$missed\u201d. Pick the closest model.") }
+                // Only a connected TV can say which apps it came with.
+                if (missed != null && tv?.state == DeviceState.Online) item { HelpAddCard(onHelpAdd) }
                 // Every list, by maker, with the maker in view while scrolling.
                 devices.groupBy { makers.getValue(it.id).lowercase().filter(Char::isLetterOrDigit) }.toSortedMap().forEach { (key, group) ->
                     stickyHeader(key = "m:$key") {
@@ -293,6 +301,28 @@ fun DebloatScreen(
     }
 }
 
+/** No list for this TV: send its model and stock apps to cleanyourtv, where the lists come from. */
+@Composable
+private fun HelpAddCard(onHelpAdd: () -> Unit) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+    ) {
+        Row(Modifier.padding(16.dp)) {
+            Icon(AddToQueue, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.width(16.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Not in the list? Help add this TV", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    "Send its model and stock apps to cleanyourtv, where Tellyscope\u2019s lists come from. You see the text first.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                FilledTonalButton(onClick = onHelpAdd, modifier = Modifier.align(Alignment.End).padding(top = 8.dp)) { Text("Help add this TV") }
+            }
+        }
+    }
+}
+
 /** How well the list fits the TV: its model on its Android, near enough, or not at all. */
 private enum class Match { Exact, Loose, None }
 
@@ -360,7 +390,7 @@ fun AboutDialog(commit: String?, onDismiss: () -> Unit, version: String = instal
                 Text("Version $version", style = MaterialTheme.typography.titleSmall)
                 Text("Made by ${REPO.removePrefix("https://github.com/").substringBefore('/')}", style = MaterialTheme.typography.bodyMedium)
                 Row(
-                    Modifier.clickable(role = Role.Button) { runCatching { browser.openUri(REPO) } }.padding(vertical = 4.dp),
+                    Modifier.heightIn(min = 48.dp).clickable(role = Role.Button) { runCatching { browser.openUri(REPO) } },
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(REPO.removePrefix("https://"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)

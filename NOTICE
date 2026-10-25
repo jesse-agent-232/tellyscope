@@ -29,6 +29,8 @@ Upload files button that of "upload", the empty Movies folder that of
 "movie", the links in Settings that of "open_in_new", and the Remote's
 restart, waiting, can't-reach and dock menu icons those of "restart_alt",
 "hourglass_top", "link_off", "swap_horiz" and "remove_circle_outline".
+Report a problem, Help add this TV and Add the rest use those of
+"bug_report", "add_to_queue" and "content_copy".
 
 --------------------------------------------------------------------------------
 Store badges in docs/badges/ (README only, not in the app)

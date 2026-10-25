@@ -84,6 +84,8 @@ data class DeviceActions(
     val allowDowngrade: (Boolean) -> Unit = {},
     val install: () -> Unit = {},
     val closeSideload: () -> Unit = {},
+    /** Report a problem from a failed install, with what the TV said. */
+    val reportInstall: (SideloadUi) -> Unit = {},
     val openInstalled: () -> Unit = {},
     val folder: (TvFolder) -> Unit = {},
     /** Shows that folder, then opens the system picker for a file to send into it. */

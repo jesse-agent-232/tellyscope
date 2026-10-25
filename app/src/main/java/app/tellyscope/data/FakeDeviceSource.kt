@@ -8,6 +8,7 @@ import app.tellyscope.adb.InstallResult
 import app.tellyscope.adb.InstalledVersion
 import app.tellyscope.adb.Progress
 import app.tellyscope.adb.RemoteKey
+import app.tellyscope.adb.TvFacts
 import app.tellyscope.adb.TvFile
 import app.tellyscope.adb.TvFolder
 import app.tellyscope.adb.Tweak
@@ -365,7 +366,18 @@ class FakeDeviceSource(
 
     override suspend fun answerRequest(deviceId: String, request: ConnectionRequest, allow: Boolean, always: Boolean) = false
 
+    override suspend fun facts(deviceId: String) = TvFacts(
+        manufacturer = "XGIMI", model = "Horizon Pro", device = "XK03H", androidVersion = "11", sdk = 30,
+        build = "RTT1.230922.001", stockPackages = fakeStock, userApps = 7, identifiers = emptySet(),
+    )
+
     private companion object {
+        /** Enough stock apps that a cleanyourtv report spills into "Add the rest". */
+        val fakeStock = listOf(
+            "com.google.android.youtube.tv", "com.netflix.ninja", "com.amazon.amazonvideo.livingroom", "com.xgimi.ota",
+            "com.xgimi.assistant", "com.xgimi.vcontrol", "com.xgimi.filemanager", "com.xgimi.gallery",
+        ) + (1..240).map { "com.xgimi.service$it" } + (1..60).map { "com.android.component$it" }
+
         val fakeList = DeviceList(
             id = "xgimi-horizon-pro",
             name = "XGIMI Horizon Pro",
