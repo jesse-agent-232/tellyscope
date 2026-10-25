@@ -22,6 +22,7 @@ import app.tellyscope.adb.ConnectionPrompt
 import app.tellyscope.adb.ConnectionRequest
 import app.tellyscope.adb.Connector
 import app.tellyscope.adb.DeviceLink
+import app.tellyscope.adb.KeyHelper
 import app.tellyscope.adb.LabelHelper
 import app.tellyscope.adb.LanScanner
 import app.tellyscope.adb.NetworkStats
@@ -87,6 +88,8 @@ class AdbDeviceSource(context: Context) : DeviceSource {
     private val names = NameBook(File(appContext.filesDir, "names.tsv"))
     /** Last label seen per package, so history entries read like the app list. */
     private val labels = ConcurrentHashMap<String, String>()
+    /** The remote's key helper on each TV, while the remote is open. */
+    private val keyHelpers = ConcurrentHashMap<String, KeyHelper>()
     private val helperDex by lazy { appContext.assets.open("label-helper.jar").use { it.readBytes() } }
     private val appNames = AppNames(File(appContext.filesDir, "app-names"))
     private val lists = DeviceLists(File(appContext.filesDir, "lists"))
@@ -188,6 +191,7 @@ class AdbDeviceSource(context: Context) : DeviceSource {
     override suspend fun forget(deviceId: String) {
         restored.await()
         watchers.remove(deviceId)?.cancel()
+        keyHelpers.remove(deviceId)?.close()
         links.remove(deviceId)?.disconnect()
         hits.remove(deviceId)
         restoring -= deviceId
@@ -550,9 +554,22 @@ class AdbDeviceSource(context: Context) : DeviceSource {
         return Resolved(index, match, list, out.getOrNull(MATCH_KEYS.size)?.toIntOrNull())
     }
 
-    override suspend fun press(deviceId: String, key: RemoteKey) = busy(deviceId) { Remote(session(deviceId)).press(key) }
+    override suspend fun press(deviceId: String, key: RemoteKey) = busy(deviceId) { remote(deviceId).press(key) }
 
-    override suspend fun type(deviceId: String, text: String) = busy(deviceId) { Remote(session(deviceId)).type(text) }
+    /** One helper per link: a reconnect brings a new session, and the old helper went with the old one. */
+    private suspend fun remote(deviceId: String): Remote {
+        val session = session(deviceId)
+        val keys = keyHelpers.compute(deviceId) { _, k ->
+            if (k?.session === session) k else KeyHelper(session, helperDex).also { k?.close() }
+        }
+        return Remote(session, keys)
+    }
+
+    override fun closeRemote() {
+        keyHelpers.keys.toList().forEach { keyHelpers.remove(it)?.close() }
+    }
+
+    override suspend fun type(deviceId: String, text: String) = busy(deviceId) { remote(deviceId).type(text) }
 
     override suspend fun reboot(deviceId: String) = Remote(session(deviceId)).reboot()
 

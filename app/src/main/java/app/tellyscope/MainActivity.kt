@@ -199,6 +199,7 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
         )
     } else if (remote) {
         BackHandler { remote = false }
+        DisposableEffect(Unit) { onDispose { vm.closeRemote() } }
         RemoteScreen(
             state = state,
             snackbar = snackbar,

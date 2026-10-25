@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package app.tellyscope.adb
 
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import java.io.IOException
 import kotlin.test.Test
@@ -16,6 +17,32 @@ class RemoteTest {
         assertTrue(Remote(sh).press(RemoteKey.DOWN))
         assertTrue(Remote(sh).press(RemoteKey.SLEEP))
         assertEquals(listOf("input keyevent 20", "input keyevent 223"), sh.ran)
+    }
+
+    @Test fun keysGoThroughTheHelperWhileItRuns() = runBlocking { // see KeyHelperTest
+        val sh = FakeShell().apply { execOutput = "ready\n1\n" }
+        assertTrue(Remote(sh, KeyHelper(sh, byteArrayOf(1))).press(RemoteKey.LEFT))
+        assertEquals("21\n", sh.execInput.readUtf8())
+        assertTrue(sh.ran.none { it.startsWith("input") })
+    }
+
+    @Test fun textGoesThroughTheHelperWhileItRuns() = runBlocking { // see KeyHelperTest
+        val sh = FakeShell().apply { execOutput = "ready\n1\n" }
+        assertTrue(Remote(sh, KeyHelper(sh, byteArrayOf(1))).type("hello tv"))
+        assertEquals("thello tv\n", sh.execInput.readUtf8())
+        assertTrue(sh.ran.none { it.startsWith("input") })
+    }
+
+    @Test fun textFallsBackToInputWhenTheHelperCannotStart() = runBlocking { // see KeyHelperTest
+        val sh = FakeShell().apply { execOutput = "" }
+        assertTrue(Remote(sh, KeyHelper(sh, byteArrayOf(1))).type("hi"))
+        assertEquals(Remote.typeCommand("hi"), sh.ran.last())
+    }
+
+    @Test fun keysFallBackToInputWhenTheHelperCannotStart() = runBlocking { // see KeyHelperTest
+        val sh = FakeShell().apply { execOutput = "" }
+        assertTrue(Remote(sh, KeyHelper(sh, byteArrayOf(1))).press(RemoteKey.HOME))
+        assertEquals("input keyevent 3", sh.ran.last())
     }
 
     @Test fun keyRefusedByTheTvIsFalse() = runTest {

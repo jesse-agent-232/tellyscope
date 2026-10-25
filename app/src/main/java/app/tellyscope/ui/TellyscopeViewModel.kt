@@ -915,6 +915,8 @@ class TellyscopeViewModel(
         }
     }
 
+    fun closeRemote() = source.closeRemote()
+
     /** Types on the TV. Returns why it can't, or null once it's on its way. */
     fun type(text: String): String? {
         if (!Remote.typeable(text)) return Copy.cantType(text)

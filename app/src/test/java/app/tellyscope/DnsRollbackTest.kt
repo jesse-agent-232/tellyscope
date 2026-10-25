@@ -2,6 +2,7 @@
 
 package app.tellyscope
 
+import app.tellyscope.adb.AdbPipe
 import app.tellyscope.adb.AdbSession
 import app.tellyscope.adb.RemoteEntry
 import app.tellyscope.adb.ShellResult
@@ -32,6 +33,7 @@ private class NoDnsTv(private val failing: Set<Int>) : AdbSession {
 
     override suspend fun push(bytes: ByteArray, remotePath: String) = Unit
     override suspend fun reboot() = Unit
+    override suspend fun exec(command: String): AdbPipe = throw IOException("no exec")
     override fun install(source: Source, size: Long, vararg options: String) = Unit
     override fun installMultiple(apks: List<File>, vararg options: String) = Unit
     override fun push(source: Source, remotePath: String, mode: Int, lastModifiedMs: Long) = Unit

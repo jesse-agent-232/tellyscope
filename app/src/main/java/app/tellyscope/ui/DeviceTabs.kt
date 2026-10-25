@@ -223,7 +223,7 @@ fun DeviceTabsScreen(
                             containerColor = lerp(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surfaceContainer, collapse),
                         ),
                         actions = {
-                            if (REMOTE_ENABLED) TextButton(onClick = actions.remote, enabled = !offline) { Text("Remote") }
+                            TextButton(onClick = actions.remote, enabled = !offline) { Text("Remote") }
                             AppMenu(state, actions)
                         },
                     )

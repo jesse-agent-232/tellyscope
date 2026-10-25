@@ -24,10 +24,14 @@ enum class RemoteKey(val code: Int, val repeats: Boolean = false) {
     SLEEP(223),
 }
 
-class Remote(private val session: AdbSession) {
+class Remote(private val session: AdbSession, private val keys: KeyHelper? = null) {
 
-    /** False when the TV answered with an error. Throws if the link is gone. */
-    suspend fun press(key: RemoteKey): Boolean = session.shell("input keyevent ${key.code}").exitCode == 0
+    /**
+     * False when the TV answered with an error. Throws if the link is gone. Goes through [keys]
+     * while its helper runs, and `input keyevent` when it can't.
+     */
+    suspend fun press(key: RemoteKey): Boolean =
+        keys?.press(key.code) ?: (session.shell("input keyevent ${key.code}").exitCode == 0)
 
     /**
      * Opens the TV's own system update screen. Some builds have none, and older `am` reports a
@@ -38,8 +42,8 @@ class Remote(private val session: AdbSession) {
         return r.exitCode == 0 && !r.output.contains("Error")
     }
 
-    /** Types [text] into whatever box has focus on the TV. Check [typeable] first. */
-    suspend fun type(text: String): Boolean = session.shell(typeCommand(text)).exitCode == 0
+    /** Types [text] into whatever box has focus on the TV, through [keys] like [press]. Check [typeable] first. */
+    suspend fun type(text: String): Boolean = keys?.type(text) ?: (session.shell(typeCommand(text)).exitCode == 0)
 
     /**
      * Restarts the TV. adbd's `reboot:` service works for the shell user on stock builds; where a

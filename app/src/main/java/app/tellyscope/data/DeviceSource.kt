@@ -113,6 +113,9 @@ interface DeviceSource {
     /** One remote key. False when the TV answered with an error; throws when it's gone. */
     suspend fun press(deviceId: String, key: RemoteKey): Boolean
 
+    /** The remote screen closed: stop anything [press] left running on the TVs. */
+    fun closeRemote() {}
+
     /** Types into the focused box on the TV. The caller checks [app.tellyscope.adb.Remote.typeable] first. */
     suspend fun type(deviceId: String, text: String): Boolean
 

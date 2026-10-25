@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package app.tellyscope.adb
 
+import okio.BufferedSink
+import okio.BufferedSource
 import okio.Sink
 import okio.Source
 import java.io.File
@@ -34,4 +36,13 @@ interface AdbSession : AdbShell, AdbTransfer, AutoCloseable {
 
     /** Asks adbd to restart the device (the `reboot:` service, what `adb reboot` uses). */
     suspend fun reboot()
+
+    /** Starts [command] with its stdin and stdout left open, for a helper that stays up. Throws [java.io.IOException] if the link is gone. */
+    suspend fun exec(command: String): AdbPipe
+}
+
+/** A running command's stdin and stdout, with no terminal in between. Closing it ends the command's stdin. */
+interface AdbPipe : AutoCloseable {
+    val stdin: BufferedSink
+    val stdout: BufferedSource
 }

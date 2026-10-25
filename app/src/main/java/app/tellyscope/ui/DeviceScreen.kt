@@ -114,9 +114,6 @@ data class DeviceActions(
     val showStats: (StatsProfile) -> Unit = {},
 )
 
-/** Off while the remote is made faster: the device page hides its Remote button. */
-internal const val REMOTE_ENABLED = false
-
 /**
  * The TV's vitals in one small card: internal storage as a full bar, since it decides whether an
  * install fits, then CPU, RAM, temperature and network speed as plain numbers.

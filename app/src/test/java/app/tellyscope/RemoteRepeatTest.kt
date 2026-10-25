@@ -3,6 +3,7 @@
 package app.tellyscope
 
 import app.tellyscope.adb.RemoteKey
+import app.tellyscope.ui.REPEAT_EVERY_MS
 import app.tellyscope.ui.repeatWhileHeld
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -27,6 +28,13 @@ class RemoteRepeatTest {
         var held = true
         repeatWhileHeld(RemoteKey.VOLUME_UP, held = { held }) { presses++; if (presses == 5) held = false; true }
         assertEquals(5, presses)
+    }
+
+    @Test fun aKeyTheTvTakesAtOnceRepeatsAtAndroidsRate() = runTest {
+        var presses = 0
+        // Held for one second after the first repeat: the TV answering at once must not skip a list.
+        repeatWhileHeld(RemoteKey.DOWN, held = { testScheduler.currentTime < 400 + 1000 }) { presses++; true }
+        assertEquals(1 + 1000 / REPEAT_EVERY_MS.toInt(), presses)
     }
 
     @Test fun okNeverRepeats() = runTest {

@@ -81,7 +81,6 @@ import app.tellyscope.adb.RemoteKey
 import app.tellyscope.data.DeviceState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.yield
 
 data class RemoteActions(
     /** Suspends until the TV answers, so a held key never queues up presses. False when it didn't take the key. */
@@ -92,18 +91,24 @@ data class RemoteActions(
     val back: () -> Unit = {},
 )
 
-/** A held key repeats after this, then as fast as the TV takes them. */
+/** A held key repeats after this, then every [REPEAT_EVERY_MS], or slower if the TV is slower. */
 private const val REPEAT_AFTER_MS = 400L
+
+/** Android's own key repeat rate. The key helper answers in about 20 ms, which would skip whole lists. */
+internal const val REPEAT_EVERY_MS = 50L
 
 /**
  * One press, then repeats while [held] for keys that repeat. Stops at the first key the TV didn't
- * take (refused, dropped, or no TV selected), and yields between repeats, so a press that answers
- * at once can't keep the main thread busy.
+ * take (refused, dropped, or no TV selected).
  */
 internal suspend fun repeatWhileHeld(key: RemoteKey, held: () -> Boolean, press: suspend (RemoteKey) -> Boolean) {
     if (!press(key) || !key.repeats) return
     delay(REPEAT_AFTER_MS)
-    while (held() && press(key)) yield()
+    var last = System.nanoTime()
+    while (held() && press(key)) {
+        delay((REPEAT_EVERY_MS - (System.nanoTime() - last) / 1_000_000).coerceAtLeast(0))
+        last = System.nanoTime()
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

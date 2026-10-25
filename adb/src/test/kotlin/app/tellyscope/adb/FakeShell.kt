@@ -7,6 +7,7 @@ import okio.Source
 import okio.buffer
 import okio.source
 import java.io.File
+import java.io.IOException
 
 /** Answers by the first matching command prefix and records what ran. */
 class FakeShell(
@@ -40,6 +41,24 @@ class FakeShell(
     override suspend fun reboot() {
         rebootFails?.let { throw it }
         rebooted = true
+    }
+
+    /** The helper's whole stdout for the next [exec], read as it goes; null refuses the exec. */
+    var execOutput: String? = null
+    val execs = mutableListOf<String>()
+    /** Everything written to an [exec]'s stdin. */
+    val execInput = Buffer()
+    var execClosed = false
+
+    override suspend fun exec(command: String): AdbPipe {
+        failWith?.let { throw it }
+        execs += command
+        val out = Buffer().writeUtf8(execOutput ?: throw IOException("exec refused"))
+        return object : AdbPipe {
+            override val stdin = execInput
+            override val stdout = out
+            override fun close() { execClosed = true }
+        }
     }
 
     override fun close() { closed = true }

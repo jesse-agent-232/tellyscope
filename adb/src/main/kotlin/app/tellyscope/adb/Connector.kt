@@ -192,5 +192,16 @@ internal class KadbSession(private val kadb: Kadb) : AdbSession {
         runInterruptible(Dispatchers.IO) { kadb.open("reboot:").close() }
     }
 
+    /** `exec:` is adbd's raw service: no pty, so bytes go both ways untouched. */
+    override suspend fun exec(command: String): AdbPipe {
+        val stream = runInterruptible(Dispatchers.IO) { kadb.open("exec:$command") }
+        return object : AdbPipe {
+            // Already buffered: `.buffer()` here would be their internal Buffer, cut off from the TV.
+            override val stdin = stream.sink
+            override val stdout = stream.source
+            override fun close() = stream.close()
+        }
+    }
+
     override fun close() = kadb.close()
 }
