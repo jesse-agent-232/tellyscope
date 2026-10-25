@@ -465,10 +465,6 @@ class ScreenshotTest {
     @Test fun tabs_files() = tabShots(TvTab.Files, "42_tabs_files")
     @Test fun tabs_tweaks() = tabShots(TvTab.Tweaks, "43_tabs_tweaks")
     @Test fun tabs_overview_dark() = shot("40_tabs_overview", dark = true) { DeviceTabsScreen(tabsState(), DeviceActions(), startTab = TvTab.Overview) }
-    // The last app row clears the Remote and Install FABs stacked over the list's end.
-    @Test fun tabs_apps_end() = shot("41_tabs_apps_end", before = { compose.onNode(hasScrollAction()).performScrollToKey("tail"); compose.mainClock.advanceTimeBy(1_000) }) {
-        DeviceTabsScreen(tabsState(), DeviceActions(), startTab = TvTab.Apps)
-    }
     @Test fun tabs_apps_dark() = shot("41_tabs_apps", dark = true) { DeviceTabsScreen(tabsState(), DeviceActions(), startTab = TvTab.Apps) }
     @Test fun tabs_files_dark() = shot("42_tabs_files", dark = true) { DeviceTabsScreen(tabsState(), DeviceActions(), startTab = TvTab.Files) }
     @Test fun tabs_tweaks_dark() = shot("43_tabs_tweaks", dark = true) { DeviceTabsScreen(tabsState(), DeviceActions(), startTab = TvTab.Tweaks) }

@@ -54,7 +54,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ShortNavigationBar
 import androidx.compose.material3.ShortNavigationBarItem
-import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -205,19 +204,13 @@ fun DeviceTabsScreen(
     Box {
         Scaffold(
             snackbarHost = { SnackbarHost(snackbar) },
-            // Each tab's main action as Material's extended FAB: install on Apps, upload on Files, the Remote
-            // elsewhere. Where a tab has its own, the Remote stacks above it as a small FAB.
+            // Each tab's main action as Material's extended FAB: the Remote on Overview, install on Apps, upload on Files.
             floatingActionButton = {
-                if (!offline) Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    when (tab) {
-                        TvTab.Apps, TvTab.Files -> SmallFloatingActionButton(onClick = actions.remote) { Icon(TileIcons.Remote, contentDescription = "Remote") }
-                        else -> ExtendedFloatingActionButton(onClick = actions.remote, icon = { Icon(TileIcons.Remote, null) }, text = { Text("Remote") })
-                    }
-                    when (tab) {
-                        TvTab.Apps -> ExtendedFloatingActionButton(onClick = actions.pickApp, icon = { Icon(Icons.Default.Add, null) }, text = { Text("Install app") })
-                        TvTab.Files -> ExtendedFloatingActionButton(onClick = { actions.pickFile(ui.files.folder) }, icon = { Icon(TileIcons.Upload, null) }, text = { Text("Upload files") })
-                        else -> {}
-                    }
+                if (!offline) when (tab) {
+                    TvTab.Overview -> ExtendedFloatingActionButton(onClick = actions.remote, icon = { Icon(TileIcons.Remote, null) }, text = { Text("Remote") })
+                    TvTab.Apps -> ExtendedFloatingActionButton(onClick = actions.pickApp, icon = { Icon(Icons.Default.Add, null) }, text = { Text("Install app") })
+                    TvTab.Files -> ExtendedFloatingActionButton(onClick = { actions.pickFile(ui.files.folder) }, icon = { Icon(TileIcons.Upload, null) }, text = { Text("Upload files") })
+                    else -> {}
                 }
             },
             topBar = {
@@ -255,8 +248,7 @@ fun DeviceTabsScreen(
                 Modifier.fillMaxSize().padding(pad),
                 state = list,
                 // No top padding: the Apps tabs pin at the list's top edge, flush under the bar; the hero carries the 4dp.
-                // The bottom keeps the last row clear of the FABs: two of them stacked on Apps and Files.
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = if (!offline && (tab == TvTab.Apps || tab == TvTab.Files)) 152.dp else 96.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 val snap = ui.snapshot
