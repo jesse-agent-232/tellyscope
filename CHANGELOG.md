@@ -12,6 +12,8 @@ until this file has a section for its version.
 
 ## Unreleased
 
+## 0.7.0 — 2026-10-25
+
 - **New:** The Remote is back, and keys land in about 50 ms. [#111](../../pull/111)
 - **Improved:** Typing from the Remote takes a fraction of a second. [#111](../../pull/111)
 - **Improved:** The Remote opens from a button at the bottom of the TV page. [#113](../../pull/113)
