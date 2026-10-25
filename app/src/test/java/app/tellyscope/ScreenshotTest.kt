@@ -465,6 +465,10 @@ class ScreenshotTest {
     @Test fun tabs_files() = tabShots(TvTab.Files, "42_tabs_files")
     @Test fun tabs_tweaks() = tabShots(TvTab.Tweaks, "43_tabs_tweaks")
     @Test fun tabs_overview_dark() = shot("40_tabs_overview", dark = true) { DeviceTabsScreen(tabsState(), DeviceActions(), startTab = TvTab.Overview) }
+    // The last app row clears the Remote and Install FABs stacked over the list's end.
+    @Test fun tabs_apps_end() = shot("41_tabs_apps_end", before = { compose.onNode(hasScrollAction()).performScrollToKey("tail"); compose.mainClock.advanceTimeBy(1_000) }) {
+        DeviceTabsScreen(tabsState(), DeviceActions(), startTab = TvTab.Apps)
+    }
     @Test fun tabs_apps_dark() = shot("41_tabs_apps", dark = true) { DeviceTabsScreen(tabsState(), DeviceActions(), startTab = TvTab.Apps) }
     @Test fun tabs_files_dark() = shot("42_tabs_files", dark = true) { DeviceTabsScreen(tabsState(), DeviceActions(), startTab = TvTab.Files) }
     @Test fun tabs_tweaks_dark() = shot("43_tabs_tweaks", dark = true) { DeviceTabsScreen(tabsState(), DeviceActions(), startTab = TvTab.Tweaks) }
@@ -615,6 +619,8 @@ class ScreenshotTest {
         for (t in listOf("Install app", "Debloat", "Send file")) compose.onNodeWithText(t).assertIsEnabled()
         for (t in listOf("Internal storage", "Network", "Suggested for this TV", "Check for updates")) compose.onNodeWithText(t).assertExists()
         compose.onNodeWithText("Updated ", substring = true).assertExists()
+        // The Remote is the page's FAB, no longer a button in the top bar.
+        compose.onNodeWithText("Remote", useUnmergedTree = true).assertExists()
     }
 
     @Test fun device_overview_dark() = shot("04_device", dark = true) { DeviceTabsScreen(deviceState(), DeviceActions()) }
@@ -638,6 +644,8 @@ class ScreenshotTest {
         compose.onNodeWithText("Internal storage").assertExists()
         compose.onAllNodesWithText("\u2014").assertCountEquals(4)
         compose.onNodeWithText("Updated ", substring = true).assertExists()
+        // No Remote while the TV is away.
+        compose.onNodeWithText("Remote", useUnmergedTree = true).assertDoesNotExist()
     }
 
     @Test fun device_storageFull() {

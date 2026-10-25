@@ -54,6 +54,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ShortNavigationBar
 import androidx.compose.material3.ShortNavigationBarItem
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -204,12 +205,19 @@ fun DeviceTabsScreen(
     Box {
         Scaffold(
             snackbarHost = { SnackbarHost(snackbar) },
-            // Each tab's main action as Material's extended FAB: install on Apps, upload on Files.
+            // Each tab's main action as Material's extended FAB: install on Apps, upload on Files, the Remote
+            // elsewhere. Where a tab has its own, the Remote stacks above it as a small FAB.
             floatingActionButton = {
-                if (!offline) when (tab) {
-                    TvTab.Apps -> ExtendedFloatingActionButton(onClick = actions.pickApp, icon = { Icon(Icons.Default.Add, null) }, text = { Text("Install app") })
-                    TvTab.Files -> ExtendedFloatingActionButton(onClick = { actions.pickFile(ui.files.folder) }, icon = { Icon(TileIcons.Upload, null) }, text = { Text("Upload files") })
-                    else -> {}
+                if (!offline) Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    when (tab) {
+                        TvTab.Apps, TvTab.Files -> SmallFloatingActionButton(onClick = actions.remote) { Icon(TileIcons.Remote, contentDescription = "Remote") }
+                        else -> ExtendedFloatingActionButton(onClick = actions.remote, icon = { Icon(TileIcons.Remote, null) }, text = { Text("Remote") })
+                    }
+                    when (tab) {
+                        TvTab.Apps -> ExtendedFloatingActionButton(onClick = actions.pickApp, icon = { Icon(Icons.Default.Add, null) }, text = { Text("Install app") })
+                        TvTab.Files -> ExtendedFloatingActionButton(onClick = { actions.pickFile(ui.files.folder) }, icon = { Icon(TileIcons.Upload, null) }, text = { Text("Upload files") })
+                        else -> {}
+                    }
                 }
             },
             topBar = {
@@ -222,10 +230,7 @@ fun DeviceTabsScreen(
                         colors = TopAppBarDefaults.topAppBarColors(
                             containerColor = lerp(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surfaceContainer, collapse),
                         ),
-                        actions = {
-                            TextButton(onClick = actions.remote, enabled = !offline) { Text("Remote") }
-                            AppMenu(state, actions)
-                        },
+                        actions = { AppMenu(state, actions) },
                     )
                 }
             },
@@ -250,7 +255,8 @@ fun DeviceTabsScreen(
                 Modifier.fillMaxSize().padding(pad),
                 state = list,
                 // No top padding: the Apps tabs pin at the list's top edge, flush under the bar; the hero carries the 4dp.
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp),
+                // The bottom keeps the last row clear of the FABs: two of them stacked on Apps and Files.
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = if (!offline && (tab == TvTab.Apps || tab == TvTab.Files)) 152.dp else 96.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 val snap = ui.snapshot
@@ -599,6 +605,14 @@ private fun StatusRow(icon: ImageVector, title: String, sub: String?, button: St
 private object TileIcons {
     // Absolute commands only: Compose's path parser misplaces a relative move after a close.
     val Upload = icon("Upload", "M9 16H15V10H19L12 3L5 10H9ZM5 18H19V20H5Z")
+    // Material's settings_remote: a remote with a ring button and two signal arcs.
+    val Remote = icon(
+        "Remote",
+        "M9 9H15A1 1 0 0 1 16 10V22A1 1 0 0 1 15 23H9A1 1 0 0 1 8 22V10A1 1 0 0 1 9 9Z" +
+            "M12 11A2 2 0 1 0 12 15A2 2 0 1 0 12 11Z" +
+            "M7.05 6.05L8.46 7.46A5 5 0 0 1 15.54 7.46L16.95 6.05A7 7 0 0 0 7.05 6.05Z" +
+            "M4.22 3.22L5.63 4.63A9 9 0 0 1 18.37 4.63L19.78 3.22A11 11 0 0 0 4.22 3.22Z",
+    )
     val Movie = icon("Movie", "M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z")
 
     private fun icon(name: String, path: String) = ImageVector.Builder(name, 24.dp, 24.dp, 24f, 24f)
