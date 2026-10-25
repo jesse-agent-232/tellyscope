@@ -60,6 +60,7 @@ import app.tellyscope.data.Suggested
 import app.tellyscope.data.SuggestedGroup
 import app.tellyscope.data.Proc
 import app.tellyscope.data.Suggestions
+import app.tellyscope.ui.AboutDialog
 import app.tellyscope.ui.AdvancedScreen
 import app.tellyscope.ui.AppsTab
 import app.tellyscope.ui.ConnectScreen
@@ -902,6 +903,8 @@ class ScreenshotTest {
     @Test fun permission_denied() = shot("08_permission_denied") { PermissionScreen(denied = true, canAsk = true, {}, {}) }
 
     @Test fun forget() = shot("09_forget", screen = true) { ForgetDialog("xgimi-projector", {}, {}) }
+
+    @Test fun about() = shot("83_about", screen = true) { AboutDialog("4f1c2a9e7b3d5c60", {}, version = "0.8.0-alpha.2") }
 
     @Test fun scan_offWifi() = scan(
         ScanUi(scanning = false, noLan = true, hits = listOf(chromecast), rows = mapOf(chromecast.ip to RowState.Found)),

@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -55,7 +56,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -63,6 +66,7 @@ import app.tellyscope.data.AppInfo
 import app.tellyscope.data.Device
 import app.tellyscope.data.DeviceKind
 import app.tellyscope.data.ListEntry
+import app.tellyscope.data.RELEASES
 import app.tellyscope.data.Suggested
 import app.tellyscope.data.SuggestedGroup
 import app.tellyscope.data.Suggestions
@@ -338,14 +342,31 @@ internal fun DisableDialog(apps: List<Suggested>, onDisable: () -> Unit, onDismi
     )
 }
 
-/** About and licences; [commit] is the cleanyourtv commit the downloaded lists were built from. */
+internal val REPO = RELEASES.removeSuffix("/releases")
+
+/**
+ * About and licences: the installed version, who makes it and the repo, then the licences.
+ * [commit] is the cleanyourtv commit the downloaded lists were built from; [version] is the
+ * installed versionName, alpha suffix included.
+ */
 @Composable
-fun AboutDialog(commit: String?, onDismiss: () -> Unit) {
+fun AboutDialog(commit: String?, onDismiss: () -> Unit, version: String = installedVersion()) {
+    val browser = LocalUriHandler.current
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("About Tellyscope") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Version $version", style = MaterialTheme.typography.titleSmall)
+                Text("Made by ${REPO.removePrefix("https://github.com/").substringBefore('/')}", style = MaterialTheme.typography.bodyMedium)
+                Row(
+                    Modifier.clickable(role = Role.Button) { runCatching { browser.openUri(REPO) } }.padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(REPO.removePrefix("https://"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.width(4.dp))
+                    Icon(OpenInNew, contentDescription = null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                }
                 Text("Free software under the GNU GPL v3.", style = MaterialTheme.typography.bodyMedium)
                 Text(
                     "Device lists are adapted from cleanyourtv by Gathin (MIT licence), " +
@@ -360,6 +381,13 @@ fun AboutDialog(commit: String?, onDismiss: () -> Unit) {
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
     )
+}
+
+@Composable
+private fun installedVersion(): String {
+    val context = LocalContext.current
+    @Suppress("DEPRECATION") // the flags overload is API 33+
+    return remember { context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty() }
 }
 
 /** "Android 11" for SDK 30; just the SDK where the release name isn't known. */
