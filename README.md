@@ -14,6 +14,8 @@ Debloat your Android TV, install apps, and browse and transfer files on it, all 
 
 Or get updates automatically with [Obtainium](#get-it).
 
+[![Watch the demo](docs/site/demo-thumb.webp)](https://youtu.be/N_PeDw5GiCc)
+
 <img src="docs/screenshots/clean-home.jpg" alt="A TV home screen after debloating: the inputs and the user's own apps, with no ads or suggestions" width="100%">
 
 <sub>A TV after Tellyscope: only the inputs and your own apps.</sub>
