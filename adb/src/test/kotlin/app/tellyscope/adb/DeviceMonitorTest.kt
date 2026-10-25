@@ -165,7 +165,7 @@ class DeviceMonitorTest {
     }
 
     /** Answers `ps -A -o` with [ps], plain `ps` with [plain]; `top` and `dumpsys` are logged and answered empty. */
-    private class PsTv(val ps: String, val plain: String = "") : AdbShell {
+    private class PsTv(var ps: String, val plain: String = "") : AdbShell {
         val ran = mutableListOf<String>()
 
         override suspend fun shell(command: String): ShellResult {
@@ -205,6 +205,18 @@ class DeviceMonitorTest {
         val s = DeviceMonitor(tv, gate = gate).stats().first()
         assertEquals(listOf(AppProcess(2201, "com.google.android.youtube.tv", "com.google.android.youtube.tv", null, 319488)), s.processes)
         assertTrue("ps" in tv.ran)
+    }
+
+    @Test fun aBlankPsReplyDoesNotSwitchToPlainPs() = runTest {
+        val gate = StatsGate().apply { profile.value = StatsProfile.OVERVIEW }
+        val tv = PsTv("")
+        val readings = mutableListOf<Stats>()
+        backgroundScope.launch { DeviceMonitor(tv, gate = gate, clock = testScheduler.timeSource).stats().collect { readings += it } }
+        runCurrent()
+        tv.ps = "PID USER RSS NAME\n2201 u0_a87 319488 com.google.android.youtube.tv\n"
+        advanceTimeBy(2_001)
+        assertEquals(listOf(2201), readings.last().processes.map { it.pid })
+        assertTrue("ps" !in tv.ran, "ran: ${tv.ran}")
     }
 
     @Test fun openingAdvancedReadsTheFullListAtOnce() = runTest {

@@ -206,12 +206,16 @@ class DeviceMonitor(
         return procs.map { p -> AppProcess(p.pid, p.name, Parsers.owner(p, packages, known), p.cpuPercent, p.rssKb) } to screen
     }
 
-    /** Set once `ps -o` printed nothing usable; plain `ps` from then on. */
+    /** Set once `ps -o` answered without a single process row; plain `ps` from then on. */
     private var plainPs = false
 
     private suspend fun readPs(): List<Parsers.Process>? {
         if (!plainPs) {
-            val procs = Parsers.psProcesses(run(Commands.LIGHT) ?: return null)
+            val out = run(Commands.LIGHT) ?: return null
+            // A blank reply is a hiccup that skips the sample. Plain `ps` lists only the shell's own
+            // processes on toybox, so it's only for a `ps` that answers but ignores `-o`.
+            if (out.isBlank()) return null
+            val procs = Parsers.psProcesses(out)
             if (procs.isNotEmpty()) return procs
             plainPs = true
         }
