@@ -33,17 +33,17 @@ Debloat your Android TV, install apps, and browse and transfer files on it, all 
     <td><img src="docs/screenshots/send.png" alt="Sending a video from the phone to the TV's Movies folder"></td>
     <td><img src="docs/screenshots/tweaks.png" alt="TV tweaks: ad-blocking Private DNS on, faster animations, clear caches and screenshot"></td>
     <td><img src="docs/screenshots/home.png" alt="Making Projectivy Launcher the home screen: the confirm names both launchers"></td>
-    <td></td>
+    <td><img src="docs/screenshots/move.png" alt="A preview of Move to a new TV: the review step lists the apps to turn off and the settings to copy, before anything changes"></td>
   </tr>
   <tr>
     <td align="center"><sub>Send files to the TV</sub></td>
     <td align="center"><sub>Block ads and tweak the TV</sub></td>
     <td align="center"><sub>Set default launcher</sub></td>
-    <td></td>
+    <td align="center"><sub>Move your setup to a new TV (coming in 0.9)</sub></td>
   </tr>
 </table>
 
-<sub>Rendered from the app's screenshot tests with sample data.</sub>
+<sub>Rendered from the app's screenshot tests with sample data, except the 0.9 preview.</sub>
 
 ## Get it
 
@@ -77,7 +77,7 @@ Tellyscope is a phone app that talks to your Android TV, Google TV or Fire TV ov
 
   <img src="docs/screenshots/clean-home.jpg" alt="A TV home screen after debloating: the inputs and the user's own apps, with no ads or suggestions" width="100%">
 
-  <sub>A TV after Tellyscope: only the inputs and your own apps.</sub>
+  <sub>A TV after Tellyscope.</sub>
 
 - **History.** Every change is listed with an Undo, and **Restore everything** turns back on what Tellyscope turned off. Undoing a **Turn on** asks first, since it disables the app again. History is kept per TV, across restarts.
 - **Install apps.** Pick an APK, several split APKs or an `.apks`/`.xapk`/`.apkm` bundle on your phone. Before installing, Tellyscope shows the app's name, version and size and says whether it's new, an update, a reinstall or an older version. It won't install an older version over a newer one unless you tick the box. If the TV refuses, you get the reason in plain words.

@@ -934,9 +934,17 @@ class ScreenshotTest {
 
     @Test fun remote_dark() = shot("12_remote", dark = true) { RemoteScreen(remoteState(), RemoteActions()) }
 
+    /**
+     * The apps' own icons, for the README's Remote shot only. Test resources, so they never reach the
+     * APK; the names and logos belong to their owners (see NOTICE).
+     */
+    private fun realIcon(pkg: String): ByteArray? = javaClass.classLoader?.getResourceAsStream("dock-icons/$pkg.png")?.use { it.readBytes() }
+
     @Test fun remote_dockFull() {
-        val four = docked + listOf(Docked("org.jellyfin.androidtv", "Jellyfin"), Docked("com.spocky.projengmenu", "Projectivy Launcher"))
-        shot("12_remote_dock_full") { RemoteScreen(remoteState(four), RemoteActions()) }
+        val four = docked + listOf(Docked("org.jellyfin.androidtv", "Jellyfin"), Docked("com.spotify.tv.android", "Spotify"))
+        val spotify = AppInfo("com.spotify.tv.android", "Spotify", null, false, true, null, "", launchable = true)
+        val state = deviceState { copy(dock = four, apps = (apps + spotify).map { a -> realIcon(a.packageName)?.let { a.copy(icon = it) } ?: a }) }
+        shot("12_remote_dock_full") { RemoteScreen(state, RemoteActions()) }
         // A full row has no Add to dock.
         compose.onNodeWithText(Copy.ADD_TO_DOCK).assertDoesNotExist()
     }
