@@ -12,7 +12,7 @@ until this file has a section for its version.
 
 ## Unreleased
 
-- **New:** Get Tellyscope from Orion Store or Obtainium, with badges in the README. [#PR](../../pull/PR)
+- **New:** Get Tellyscope from Orion Store or Obtainium, with badges in the README. [#123](../../pull/123)
 
 ## 0.8.0 — 2026-10-25
 
