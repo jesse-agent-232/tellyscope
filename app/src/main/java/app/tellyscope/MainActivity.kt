@@ -37,7 +37,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import app.tellyscope.adb.Connector
-import app.tellyscope.adb.ProcessLevel
+import app.tellyscope.adb.StatsProfile
 import app.tellyscope.data.AdbDeviceSource
 import app.tellyscope.data.AndroidPhoneStorage
 import app.tellyscope.data.FakeDeviceSource
@@ -212,8 +212,8 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
     } else if (advanced) {
         BackHandler { advanced = false }
         DisposableEffect(Unit) {
-            vm.showProcesses(ProcessLevel.FULL)
-            onDispose { vm.showProcesses(ProcessLevel.NONE) }
+            vm.showStats(StatsProfile.ADVANCED)
+            onDispose { vm.showStats(StatsProfile.OTHER) }
         }
         AdvancedScreen(state, back = { advanced = false }, snackbar = snackbar)
     } else if (settings) {
@@ -278,7 +278,7 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
                 answerRequest = vm::answerRequest,
                 dismissRequest = vm::dismissRequest,
                 foldSystem = vm::foldSystem,
-                showProcesses = vm::showProcesses,
+                showStats = vm::showStats,
             ),
         )
     }

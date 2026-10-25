@@ -4,10 +4,12 @@ package app.tellyscope.adb
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -153,8 +155,8 @@ class DeviceMonitorTest {
         assertEquals(listOf("echo"), ran)
     }
 
-    @Test fun noProcessLevelSkipsTheProcessRead() = runTest {
-        val gate = StatsGate().apply { processes.value = ProcessLevel.NONE }
+    @Test fun otherScreensSkipTheProcessRead() = runTest {
+        val gate = StatsGate().apply { profile.value = StatsProfile.OTHER }
         val tv = SlowTop()
         val s = DeviceMonitor(tv, gate = gate).stats().first()
         assertEquals(emptyList<AppProcess>(), s.processes)
@@ -179,7 +181,7 @@ class DeviceMonitorTest {
     }
 
     @Test fun lightLevelReadsMemoryWithoutTop() = runTest {
-        val gate = StatsGate().apply { processes.value = ProcessLevel.LIGHT }
+        val gate = StatsGate().apply { profile.value = StatsProfile.OVERVIEW }
         val tv = PsTv("PID USER RSS NAME\n2201 u0_a87 319488 com.google.android.youtube.tv\n512 system 122880 system_server\n")
         val s = DeviceMonitor(tv, gate = gate).stats().take(3).toList().last()
         assertEquals(
@@ -195,7 +197,7 @@ class DeviceMonitorTest {
 
     @Test fun lightLevelFallsBackToPlainPs() = runTest {
         // A ps that ignores -o: only its header comes back, so plain ps is read instead.
-        val gate = StatsGate().apply { processes.value = ProcessLevel.LIGHT }
+        val gate = StatsGate().apply { profile.value = StatsProfile.OVERVIEW }
         val tv = PsTv(
             ps = "USER PID PPID VSIZE RSS WCHAN PC NAME\n",
             plain = "USER PID PPID VSIZE RSS WCHAN PC NAME\nu0_a87 2201 300 1200000 319488 ffffffff 00000000 S com.google.android.youtube.tv\n",
@@ -206,13 +208,56 @@ class DeviceMonitorTest {
     }
 
     @Test fun openingAdvancedReadsTheFullListAtOnce() = runTest {
-        val gate = StatsGate().apply { processes.value = ProcessLevel.LIGHT }
+        // From Apps, whose round is 10 s: the switch doesn't wait that out.
+        val gate = StatsGate().apply { profile.value = StatsProfile.APPS }
         val tv = PsTv("PID USER RSS NAME\n")
-        backgroundScope.launch { DeviceMonitor(tv, gate = gate).stats().collect {} }
+        backgroundScope.launch { DeviceMonitor(tv, gate = gate, clock = testScheduler.timeSource).stats().collect {} }
         runCurrent()
         assertTrue(tv.ran.none { it.startsWith("top") })
-        gate.processes.value = ProcessLevel.FULL
-        advanceTimeBy(2_001)
+        gate.profile.value = StatsProfile.ADVANCED
+        runCurrent()
         assertTrue(tv.ran.any { it.startsWith("top") }, "ran: ${tv.ran}")
+    }
+
+    /** Commands each screen's profile runs in its first 20 s: (fast reads, ps, top). */
+    private fun TestScope.reads(profile: StatsProfile): Triple<Int, Int, Int> {
+        val gate = StatsGate().apply { this.profile.value = profile }
+        val tv = PsTv("PID USER RSS NAME\n2201 u0_a87 319488 com.google.android.youtube.tv\n")
+        backgroundScope.launch { DeviceMonitor(tv, gate = gate, clock = testScheduler.timeSource).stats().collect {} }
+        advanceTimeBy(20_001)
+        return Triple(
+            tv.ran.count { it.startsWith("cat /proc/stat") },
+            tv.ran.count { it.startsWith("ps") },
+            tv.ran.count { it.startsWith("top") },
+        )
+    }
+
+    @Test fun overviewReadsStripAndMemoryEvery2s() = runTest { assertEquals(Triple(11, 11, 0), reads(StatsProfile.OVERVIEW)) }
+
+    @Test fun appsReadsStripAndMemoryEvery10s() = runTest { assertEquals(Triple(3, 3, 0), reads(StatsProfile.APPS)) }
+
+    @Test fun advancedReadsStripAndTopEvery2s() = runTest { assertEquals(Triple(11, 0, 11), reads(StatsProfile.ADVANCED)) }
+
+    @Test fun otherScreensReadOnlyTheStripEvery10s() = runTest { assertEquals(Triple(3, 0, 0), reads(StatsProfile.OTHER)) }
+
+    @Test fun aTopSlowerThanTheRoundReadsBackToBackWithoutOverlap() = runTest {
+        var inFlight = 0
+        var most = 0
+        var tops = 0
+        val tv = AdbShell { cmd ->
+            inFlight++
+            most = maxOf(most, inFlight)
+            try {
+                if (cmd.startsWith("top")) { tops++; delay(3_000) }
+                if (cmd.startsWith("cat /proc/stat")) ok("cpu  25 0 0 75 0 0 0 0${SEP}MemTotal: 2000 kB\n") else ok("")
+            } finally {
+                inFlight--
+            }
+        }
+        val gate = StatsGate().apply { profile.value = StatsProfile.ADVANCED }
+        backgroundScope.launch { DeviceMonitor(tv, gate = gate, clock = testScheduler.timeSource).stats().collect {} }
+        advanceTimeBy(12_001)
+        assertEquals(1, most)
+        assertEquals(5, tops) // at 0, 3, 6, 9 and 12 s: one after another, none queued up
     }
 }

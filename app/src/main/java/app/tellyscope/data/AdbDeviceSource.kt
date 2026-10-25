@@ -31,8 +31,8 @@ import app.tellyscope.adb.ProtectedReason
 import app.tellyscope.adb.Remote
 import app.tellyscope.adb.RemoteKey
 import app.tellyscope.adb.Stats
+import app.tellyscope.adb.StatsProfile
 import app.tellyscope.adb.PairResult
-import app.tellyscope.adb.ProcessLevel
 import app.tellyscope.adb.pairOnFreshPort
 import app.tellyscope.adb.Tweak
 import app.tellyscope.adb.Tweaks
@@ -71,8 +71,8 @@ class AdbDeviceSource(context: Context) : DeviceSource {
     private val appContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob())
     private val links = ConcurrentHashMap<String, DeviceLink>()
-    /** The TV whose process list is on screen, and how much of it. */
-    @Volatile private var processesFor: Pair<String, ProcessLevel>? = null
+    /** The TV on screen and its screen's refresh rates; every other TV reads at [StatsProfile.OTHER]. */
+    @Volatile private var statsFor: Pair<String, StatsProfile>? = null
     private val hits = ConcurrentHashMap<String, ScanHit>()
     private val store = DeviceStore(File(appContext.filesDir, "devices.tsv"))
     private val saved = ConcurrentHashMap<String, SavedDevice>()
@@ -114,7 +114,7 @@ class AdbDeviceSource(context: Context) : DeviceSource {
         val link = DeviceLink(host, port, scope, knownGood = knownGood, open = { h, p ->
             pending?.also { pending = null } ?: Connector.connect(h, p)
         })
-        link.gate.processes.value = processesFor?.takeIf { it.first == host }?.second ?: ProcessLevel.NONE
+        link.gate.profile.value = statsFor?.takeIf { it.first == host }?.second ?: StatsProfile.OTHER
         links.put(host, link)?.disconnect()
         watchers.put(host, scope.launch {
             // Save a fresh reading only when what's kept of it changed, not every 2 s.
@@ -307,9 +307,9 @@ class AdbDeviceSource(context: Context) : DeviceSource {
             }
     }
 
-    override fun showProcesses(deviceId: String?, level: ProcessLevel) {
-        processesFor = deviceId?.let { it to level }
-        links.forEach { (host, link) -> link.gate.processes.value = if (host == deviceId) level else ProcessLevel.NONE }
+    override fun showStats(deviceId: String?, profile: StatsProfile) {
+        statsFor = deviceId?.let { it to profile }
+        links.forEach { (host, link) -> link.gate.profile.value = if (host == deviceId) profile else StatsProfile.OTHER }
     }
 
     /** Runs a change with that TV's stats paused, so a slow stats read can't compete with it or cut it off. */

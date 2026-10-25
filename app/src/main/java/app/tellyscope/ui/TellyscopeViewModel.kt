@@ -7,7 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.tellyscope.adb.ConnectionRequest
 import app.tellyscope.adb.InstallKind
-import app.tellyscope.adb.ProcessLevel
+import app.tellyscope.adb.StatsProfile
 import app.tellyscope.adb.InstallResult
 import app.tellyscope.adb.InstalledVersion
 import app.tellyscope.adb.Progress
@@ -334,8 +334,8 @@ class TellyscopeViewModel(
         if (transferJobs[_state.value.selectedId]?.isActive != true) select(device.id)
     }
 
-    /** Only the TV on screen reads its process list, and only as much as the screen shows. */
-    fun showProcesses(level: ProcessLevel) = source.showProcesses(_state.value.selectedId, level)
+    /** The TV on screen refreshes at the open screen's rates; the others at the slowest. */
+    fun showStats(profile: StatsProfile) = source.showStats(_state.value.selectedId, profile)
 
     fun select(id: String?) {
         liveJob?.cancel()

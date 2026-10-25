@@ -38,7 +38,7 @@ class DeviceLink(
     private val _stats = MutableStateFlow<Stats?>(null)
     val stats: StateFlow<Stats?> = _stats.asStateFlow()
 
-    /** Pauses the stats while a change runs on this TV, and turns the process list on and off. */
+    /** Pauses the stats while a change runs on this TV, and sets their refresh rates. */
     val gate = StatsGate()
 
     @Volatile var session: AdbSession? = null

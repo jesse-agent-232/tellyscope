@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package app.tellyscope.adb
 
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -59,14 +58,29 @@ enum class ProcessLevel {
 }
 
 /**
+ * How often one screen refreshes what it shows: the stat strip (CPU, RAM, network) every [fastEvery],
+ * the process list at [processes] every [processEvery].
+ */
+data class StatsProfile(val fastEvery: Duration, val processes: ProcessLevel, val processEvery: Duration) {
+    companion object {
+        val OVERVIEW = StatsProfile(2.seconds, ProcessLevel.LIGHT, 2.seconds)
+        val APPS = StatsProfile(10.seconds, ProcessLevel.LIGHT, 10.seconds)
+        val ADVANCED = StatsProfile(2.seconds, ProcessLevel.FULL, 2.seconds)
+
+        /** Files, Tweaks, Remote, Settings, Debloat, and every TV that isn't on screen. */
+        val OTHER = StatsProfile(10.seconds, ProcessLevel.NONE, 10.seconds)
+    }
+}
+
+/**
  * What the app tells one TV's stats loop. [during] pauses it while a change runs, so a slow read
- * never competes with `pm`, an install or a Home switch; [processes] says how much of the process
- * list the open screen shows.
+ * never competes with `pm`, an install or a Home switch; [profile] is the open screen's refresh
+ * rates. Until a screen sets one, everything is read every 2 s.
  */
 class StatsGate {
     private val running = MutableStateFlow(0)
 
-    val processes = MutableStateFlow(ProcessLevel.FULL)
+    val profile = MutableStateFlow(StatsProfile.ADVANCED)
 
     val busy: Boolean get() = running.value > 0
 
@@ -85,8 +99,10 @@ class StatsGate {
 }
 
 /**
- * Live stats on three tiers: CPU/RAM/network speed every [fast], processes at [StatsGate.processes]'s
- * level every [medium] and at once when it changes, identity/storage/uptime/temperature/packages every [slow].
+ * Live stats on three tiers, at the rates of [StatsGate.profile]: CPU/RAM/network speed, the process
+ * list (read at once when its level changes), and identity/storage/uptime/temperature/packages every
+ * [slow]. Reads run one after another, never overlapping: a tier slower than its interval just
+ * reads back to back. A new profile takes effect at once, not after the old interval.
  * The first emission comes after one fast interval, since CPU % needs two samples.
  * A read slower than [readTimeout] skips that sample. Shell failures throw, and so does a slow read
  * the TV then doesn't follow with an `echo` answer within [pingTimeout], so the caller can mark it
@@ -94,33 +110,36 @@ class StatsGate {
  */
 class DeviceMonitor(
     private val shell: AdbShell,
-    private val fast: Duration = 2.seconds,
-    private val medium: Duration = 10.seconds,
     private val slow: Duration = 60.seconds,
     private val readTimeout: Duration = 10.seconds,
     private val pingTimeout: Duration = 10.seconds,
+    /** While a change runs, how often the TV is pinged instead of read. */
+    private val pingEvery: Duration = 10.seconds,
     private val gate: StatsGate = StatsGate(),
-    /** Times network speed; tests pass the test scheduler's clock. */
+    /** Times the tiers and network speed; tests pass the test scheduler's clock. */
     private val clock: TimeSource.WithComparableMarks = TimeSource.Monotonic,
 ) : MonitorSource {
     override fun stats(): Flow<Stats> = flow {
         var slowStats = Stats(cpuPercent = null, memory = null)
         var lastSlow: TimeMark? = null
-        var mediumStats: Pair<List<AppProcess>, Boolean?> = emptyList<AppProcess>() to null
-        var lastMedium: TimeMark? = null
+        var procStats: Pair<List<AppProcess>, Boolean?> = emptyList<AppProcess>() to null
+        var lastProcs: TimeMark? = null
         var lastLevel = ProcessLevel.NONE
         var prev: Fast? = null
 
         while (true) {
-            // A skipped tier waits its whole interval again, so a TV that is always slow isn't asked every 2 s.
+            val profile = gate.profile.value
+            // Tiers are timed from the start of the round they ran in, so a 2 s tier runs every round.
+            val started = clock.markNow()
+            // A skipped tier waits its whole interval again, so a TV that is always slow isn't asked every round.
             if (lastSlow.due(slow)) {
                 readSlow()?.let { slowStats = it }
-                lastSlow = TimeSource.Monotonic.markNow()
+                lastSlow = started
             }
-            val level = gate.processes.value
-            if (level != ProcessLevel.NONE && (level != lastLevel || lastMedium.due(medium))) {
-                readProcesses(level, slowStats.packages, mediumStats.second)?.let { mediumStats = it }
-                lastMedium = TimeSource.Monotonic.markNow()
+            val level = profile.processes
+            if (level != ProcessLevel.NONE && (level != lastLevel || lastProcs.due(profile.processEvery))) {
+                readProcesses(level, slowStats.packages, procStats.second)?.let { procStats = it }
+                lastProcs = started
                 lastLevel = level
             }
             val now = readFast()
@@ -131,14 +150,15 @@ class DeviceMonitor(
                     slowStats.copy(
                         cpuPercent = pct,
                         memory = now.memory,
-                        processes = mediumStats.first,
-                        screenOn = mediumStats.second,
+                        processes = procStats.first,
+                        screenOn = procStats.second,
                         netBytesPerSec = rate(last, now),
                     ),
                 )
             }
             if (now != null) prev = now
-            delay(fast)
+            val wait = profile.fastEvery - started.elapsedNow()
+            if (wait.isPositive()) withTimeoutOrNull(wait) { gate.profile.first { it != profile } }
         }
     }
 
@@ -147,10 +167,10 @@ class DeviceMonitor(
     /**
      * Null skips the sample: the read ran past [readTimeout] while a change was running, or the TV
      * still answered `echo` after it. While a change runs nothing is read, but the TV is pinged
-     * every [medium], so one that dies mid-change still ends the change instead of hanging it.
+     * every [pingEvery], so one that dies mid-change still ends the change instead of hanging it.
      */
     private suspend fun run(command: String): String? {
-        while (withTimeoutOrNull(medium) { gate.awaitIdle() } == null) ping()
+        while (withTimeoutOrNull(pingEvery) { gate.awaitIdle() } == null) ping()
         withTimeoutOrNull(readTimeout) { shell.shell(command).output }?.let { return it }
         if (!gate.busy) ping()
         return null
