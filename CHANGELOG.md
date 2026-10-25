@@ -12,8 +12,8 @@ until this file has a section for its version.
 
 ## Unreleased
 
-- **New:** The Remote is back, and keys land in about 50 ms.
-- **Improved:** Typing from the Remote takes a fraction of a second.
+- **New:** The Remote is back, and keys land in about 50 ms. [#111](../../pull/111)
+- **Improved:** Typing from the Remote takes a fraction of a second. [#111](../../pull/111)
 - **Fixed:** Apps no longer crashes on TVs that list an app twice. [#109](../../pull/109)
 
 ## 0.6.3 — 2026-10-25
