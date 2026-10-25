@@ -28,6 +28,10 @@ The per-TV lists behind **Suggested for this TV** live in the [tellyscope-device
 
 You don't have to trust ours. Fork tellyscope-devices, edit the lists in your fork, and keep `index.json` on schema 1 with each file's sha256 updated. Then in the app open **Settings** (in the ⋮ menu at the top right), open **Advanced** at the bottom, tap **Use your own debloat lists**, and paste the raw address of the folder that holds `index.json`, for example `https://raw.githubusercontent.com/<you>/tellyscope-devices/main/`. Only HTTPS is accepted, and a source that doesn't serve a schema 1 index is refused without changing anything. Switching drops the cached lists. While your source is in use, the review step says where the list came from. The built-in protected list still wins over any list, and **Reset to default** goes back to tellyscope-devices.
 
+## Launchers
+
+[`app/src/main/assets/launchers.json`](app/src/main/assets/launchers.json) lists the third-party launchers Tellyscope knows. Set `"accessibility": true` only for a launcher that keeps Home with its own accessibility service: Set as default turns that service on, and an accessibility service can read the screen. Check the APK's manifest for a service with `BIND_ACCESSIBILITY_SERVICE`, and put the version you checked in `"checked"`. The list ships with the app and is never fetched, so a custom list source can't add to it.
+
 ## README screenshots
 
 They come from the screenshot tests, so they always show the current UI with sample data. To refresh them, render the tests, then put them in phone frames (needs Python 3 with Pillow):

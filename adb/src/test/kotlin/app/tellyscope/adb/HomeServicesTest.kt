@@ -37,11 +37,10 @@ class HomeServicesTest {
         }
     }
 
-    @Test fun onlyListedLaunchersGetTheirServiceTurnedOn() = runTest {
+    @Test fun theServiceIsReadFromTheTv() = runTest {
         val sh = tv()
         assertEquals(projectivy, Actions(sh).homeService("com.spocky.projengmenu"))
-        // An installed service, but not a launcher known to need it for Home.
-        assertNull(Actions(sh).homeService("com.other.app"))
+        assertNull(Actions(sh).homeService("me.efesser.flauncher"))
     }
 
     @Test fun turningItOnAndOffLeavesTheUsersServicesAlone() = runTest {

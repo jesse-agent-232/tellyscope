@@ -1180,7 +1180,7 @@ class ScreenshotTest {
     private fun homeBack(dark: Boolean) {
         val back = { compose.onNode(hasScrollAction()).performScrollToNode(hasText(Copy.confirm(Action.HomeBack))); Unit }
         shot("78_apps_home_back", dark, before = back) { DeviceTabsScreen(homeBackState(confirming = true), DeviceActions(), startTab = TvTab.Apps) }
-        compose.onNodeWithText(Copy.explainHomeBack("Projectivy Launcher", "com.spocky.projengmenu", "Google TV Home")).assertExists()
+        compose.onNodeWithText(Copy.explainHomeBack("Projectivy Launcher", "Google TV Home", service = false)).assertExists()
     }
     @Test fun apps_homeBack() = homeBack(false)
     @Test fun apps_homeBack_dark() = homeBack(true)

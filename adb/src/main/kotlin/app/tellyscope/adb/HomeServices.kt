@@ -2,18 +2,10 @@
 package app.tellyscope.adb
 
 /**
- * Launchers that keep Home with their own accessibility service, for TVs whose Home button opens
- * the TV's launcher whatever the default is. Set as default turns that service on; Undo and
- * Switch home back turn it off. An allowlist: an accessibility service can read the screen, so
- * Tellyscope turns one on only for a launcher known to use it for Home.
+ * The `enabled_accessibility_services` setting, for launchers that keep Home with their own
+ * accessibility service. Which launchers those are is the app's `launchers.json`.
  */
 object HomeServices {
-    val LAUNCHERS = setOf(
-        "com.spocky.projengmenu", // Projectivy Launcher
-        "com.overdevs.at4k", // AT4K Launcher
-        "com.spauldhaliwal.dispatch", // Dispatch
-    )
-
     /** [list] is the `enabled_accessibility_services` setting: colon-separated, "null" when unset. */
     fun has(list: String?, service: String) = entries(list).any { full(it) == full(service) }
 

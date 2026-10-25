@@ -76,6 +76,11 @@ class AdbDeviceSource(context: Context) : DeviceSource {
     @Volatile private var statsFor: Pair<String, StatsProfile>? = null
     private val hits = ConcurrentHashMap<String, ScanHit>()
     private val store = DeviceStore(File(appContext.filesDir, "devices.tsv"))
+    /** Launchers whose accessibility service a switch may turn on: only those `launchers.json` names. */
+    private val serviceLaunchers by lazy {
+        parseLaunchers(appContext.assets.open("launchers.json").bufferedReader().use { it.readText() })
+            .filter { it.accessibility }.map { it.pkg }.toSet()
+    }
     private val saved = ConcurrentHashMap<String, SavedDevice>()
     /** Remembered TVs that haven't answered since launch: shown offline, not "connecting". */
     private val restoring = ConcurrentHashMap.newKeySet<String>()
@@ -358,6 +363,7 @@ class AdbDeviceSource(context: Context) : DeviceSource {
                 removable = p.name in userInstalled,
                 homeInstead = homeOptions?.takeIf { p.name in it.others }?.current,
                 homeBack = back?.takeIf { p.name == homeOptions?.current }?.let { names[it.pkg]?.label ?: AppNames.fallback(it.pkg) },
+                homeService = p.name in serviceLaunchers,
                 listKeep = p.name in keep,
             )
         }.sortedBy { it.label.lowercase() }
@@ -439,7 +445,7 @@ class AdbDeviceSource(context: Context) : DeviceSource {
         return when (val r = actions.makeHome(packageName)) {
             is HomeResult.Switched -> {
                 // Where the TV sends Home to its own launcher, the new one holds it with this service.
-                val service = actions.homeService(packageName)?.takeUnless { actions.serviceOn(it) }
+                val service = packageName.takeIf { it in serviceLaunchers }?.let { actions.homeService(it) }?.takeUnless { actions.serviceOn(it) }
                 val on = service?.let { actions.setService(it, true) }
                 val label = labels[packageName] ?: AppNames.fallback(packageName)
                 book.record(
@@ -475,7 +481,7 @@ class AdbDeviceSource(context: Context) : DeviceSource {
         return when (val r = Actions(shell).homeBack(target.pkg, target.activity)) {
             is HomeResult.Switched -> {
                 // Off with Home: it would keep sending Home to [added]. Undo, a switch, turns it on again.
-                val service = Actions(shell).homeService(added)?.takeIf { Actions(shell).serviceOn(it) }
+                val service = added.takeIf { it in serviceLaunchers }?.let { Actions(shell).homeService(it) }?.takeIf { Actions(shell).serviceOn(it) }
                 val off = service?.let { Actions(shell).setService(it, false) }
                 book.record(
                     deviceId = key,

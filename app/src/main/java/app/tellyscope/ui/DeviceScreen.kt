@@ -429,8 +429,8 @@ internal fun AppRow(
                 } else {
                     Text(
                         when {
-                            proposed == Action.Home && home != null -> Copy.explainHome(app.label, app.packageName, homeLabel!!, home)
-                            proposed == Action.HomeBack && back != null -> Copy.explainHomeBack(app.label, app.packageName, back)
+                            proposed == Action.Home && home != null -> Copy.explainHome(app.label, app.packageName, homeLabel!!, home, app.homeService)
+                            proposed == Action.HomeBack && back != null -> Copy.explainHomeBack(app.label, back, app.homeService)
                             app.listKeep && proposed != Action.Enable -> Copy.explain(proposed, app.label, app.packageName) + "\n\n" + Copy.KEEP_WARNING
                             else -> Copy.explain(proposed, app.label, app.packageName)
                         },

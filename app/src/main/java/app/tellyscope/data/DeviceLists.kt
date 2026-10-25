@@ -139,7 +139,7 @@ sealed interface Suggestions {
 }
 
 /** Same rule tellyscope-devices checks; a name goes into a `pm` shell line. */
-private val PACKAGE = Regex("[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z0-9_]+)+")
+internal val PACKAGE = Regex("[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z0-9_]+)+")
 private val FILE = Regex("devices/[A-Za-z0-9][A-Za-z0-9._-]*\\.json")
 private val SHA256 = Regex("[0-9a-f]{64}")
 private const val SCHEMA = 1
@@ -414,7 +414,7 @@ internal fun depth(text: String): Int {
 }
 
 /** [f] over each element, leaving out any that isn't an object or that [f] can't read. */
-private fun <T : Any> JSONArray.objectsOrSkip(f: (JSONObject) -> T?): List<T> = (0 until length()).mapNotNull {
+internal fun <T : Any> JSONArray.objectsOrSkip(f: (JSONObject) -> T?): List<T> = (0 until length()).mapNotNull {
     try {
         f(getJSONObject(it))
     } catch (_: org.json.JSONException) {
@@ -422,5 +422,5 @@ private fun <T : Any> JSONArray.objectsOrSkip(f: (JSONObject) -> T?): List<T> = 
     }
 }
 private fun JSONArray.strings() = (0 until length()).map { getString(it) }
-private fun JSONObject.optStringOrNull(k: String) = if (isNull(k)) null else optString(k)
+internal fun JSONObject.optStringOrNull(k: String) = if (isNull(k)) null else optString(k)
 private fun JSONObject.optIntOrNull(k: String) = if (isNull(k)) null else optInt(k)

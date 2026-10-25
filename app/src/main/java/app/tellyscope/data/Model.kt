@@ -121,6 +121,8 @@ data class AppInfo(
     val homeInstead: String? = null,
     /** On the home screen the user added: the name of the launcher "Switch home back" returns to. */
     val homeBack: String? = null,
+    /** A launcher that keeps Home with its accessibility service: the switch turns it on, the way back off. */
+    val homeService: Boolean = false,
     /** This TV's list says to keep it: Stop, Disable and Uninstall still run, after a warning. */
     val listKeep: Boolean = false,
 )

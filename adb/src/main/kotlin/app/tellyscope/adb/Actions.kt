@@ -132,9 +132,9 @@ class Actions(private val shell: AdbShell) {
         return currentHome()?.substringBefore('/') == activity.substringBefore('/')
     }
 
-    /** [pkg]'s accessibility service, when [pkg] is a launcher that keeps Home with one. */
-    suspend fun homeService(pkg: String): String? = pkg.takeIf { it in HomeServices.LAUNCHERS }
-        ?.let { activitiesIn(shell.shell(Commands.A11Y_SERVICES).output).firstOrNull { s -> s.substringBefore('/') == pkg } }
+    /** [pkg]'s accessibility service as the TV has it installed; null when it has none. */
+    suspend fun homeService(pkg: String): String? =
+        activitiesIn(shell.shell(Commands.A11Y_SERVICES).output).firstOrNull { it.substringBefore('/') == pkg }
 
     suspend fun serviceOn(service: String): Boolean = HomeServices.has(shell.shell(Commands.A11Y_ON).output, service)
 
