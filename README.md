@@ -12,7 +12,8 @@ Debloat your Android TV, install apps, and browse and transfer files on it, all 
 
 <a href="../../releases/latest"><img src="https://img.shields.io/badge/Download-signed%20APK-00696B?style=for-the-badge&logo=android&logoColor=white" alt="Download the signed APK" height="40"></a>
 
-Or get updates automatically with [Obtainium](#get-it).
+<a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/man15h/tellyscope"><img src="https://img.shields.io/badge/Get%20it%20on-Obtainium-00696B?style=for-the-badge&logo=obtainium&logoColor=white" alt="Get it on Obtainium" height="40"></a>
+<a href="https://rookieenough.github.io/Orion-Data/redirect.html?id=tellyscope&icon=https%3A%2F%2Fraw.githubusercontent.com%2Fman15h%2Ftellyscope%2Fmain%2Fdocs%2Flogo%2Ficon.svg"><img src="https://img.shields.io/badge/Get%20it%20on-Orion%20Store-00696B?style=for-the-badge&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB3aWR0aD0iMTAyNCIgaGVpZ2h0PSIxMDI0IiB2aWV3Qm94PSIwIDAgMTAyNCAxMDI0IiB2ZXJzaW9uPSIxLjEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI%2BCiAgPGRlZnM%2BCiAgICA8IS0tIEdyYWRpZW50IGZvciB0aGUgYmFja2dyb3VuZCAocHVycGxlLWJsdWUpIC0tPgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJiZ0dyYWRpZW50IiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3R5bGU9InN0b3AtY29sb3I6IzdCN0ZFODtzdG9wLW9wYWNpdHk6MSIgLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdHlsZT0ic3RvcC1jb2xvcjojNUI1RkRFO3N0b3Atb3BhY2l0eToxIiAvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM%2BCiAgCiAgPCEtLSBCYWNrZ3JvdW5kIHJvdW5kZWQgc3F1YXJlIC0tPgogIDxyZWN0IHg9IjAiIHk9IjAiIHdpZHRoPSIxMDI0IiBoZWlnaHQ9IjEwMjQiIHJ4PSIyMjYiIHJ5PSIyMjYiIGZpbGw9InVybCgjYmdHcmFkaWVudCkiLz4KICAKICA8IS0tIFdoaXRlIHRyaWFuZ2xlICh0b3ApIC0gVU5DSEFOR0VEIC0tPgogIDxwb2x5Z29uIHBvaW50cz0iNTEyLDI0MCA3MjAsNTIwIDMwNCw1MjAiIGZpbGw9IiNGRkZGRkYiLz4KICAKICA8IS0tIFdoaXRlIGNpcmNsZSAoYm90dG9tIGxlZnQpIC0gQklHR0VSICYgUkVQT1NJVElPTkVEIC0tPgogIDxjaXJjbGUgY3g9IjM3NyIgY3k9IjY4NSIgcj0iMTI1IiBmaWxsPSIjRkZGRkZGIi8%2BCiAgCiAgPCEtLSBXaGl0ZSByb3VuZGVkIHNxdWFyZSAoYm90dG9tIHJpZ2h0KSAtIEJJR0dFUiAmIFJFUE9TSVRJT05FRCAtLT4KICA8cmVjdCB4PSI1MjIiIHk9IjU2MCIgd2lkdGg9IjI1MCIgaGVpZ2h0PSIyNTAiIHJ4PSI0MCIgcnk9IjQwIiBmaWxsPSIjRkZGRkZGIi8%2BCjwvc3ZnPg%3D%3D" alt="Get it on Orion Store" height="40"></a>
 
 [![Watch the demo](docs/site/demo-thumb.webp)](https://youtu.be/N_PeDw5GiCc)
 
@@ -64,7 +65,8 @@ Or get updates automatically with [Obtainium](#get-it).
 ## Get it
 
 - **GitHub Releases.** Download `Tellyscope-<version>.apk` from the [latest release](../../releases/latest) and open it on your phone. You may need to allow installs from your browser or file manager first. Pre-releases marked `-alpha` are test builds: they install as a separate app next to the regular one, with the same name and icon.
-- **Obtainium.** To get updates automatically, add this repository's GitHub address in [Obtainium](https://github.com/ImranR98/Obtainium). Turn on **Include prereleases** only if you want the alpha builds.
+- **Obtainium.** To get updates automatically, tap the Obtainium badge above on your phone, or add this repository's GitHub address in [Obtainium](https://github.com/ImranR98/Obtainium). Turn on **Include prereleases** only if you want the alpha builds.
+- **Orion Store.** Tellyscope is in the [Orion Store](https://github.com/RookieEnough/Orion-Store) catalog: tap the Orion Store badge above on your phone, or search for Tellyscope in the app. Orion installs it from this project's GitHub releases and tells you when there's an update.
 
 Tellyscope needs a phone on Android 8.0 or newer, on the same Wi-Fi as the TV, and a TV with developer options turned on ([how](#setting-up-your-tv)).
 

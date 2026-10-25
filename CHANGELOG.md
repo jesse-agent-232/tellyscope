@@ -12,6 +12,8 @@ until this file has a section for its version.
 
 ## Unreleased
 
+- **New:** Get Tellyscope from Orion Store or Obtainium, with badges in the README. [#PR](../../pull/PR)
+
 ## 0.8.0 — 2026-10-25
 
 - **New:** Dock up to four apps on the Remote, one tap to open. [#120](../../pull/120)
