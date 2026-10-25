@@ -19,17 +19,12 @@ OUT = Path(__file__).parent
 # Output name and the phone-sized screenshot it comes from. The tests scroll the page themselves,
 # so the top bar and the tabs along the bottom stay in shot.
 SHOTS = {
-    "welcome": "00_welcome",
-    "add-tv": "01_scan_in_progress",
-    "connect": "03_connect_allow",
     "tv-page": "04_device",
+    "remote": "12_remote_dock_full",
     "debloat": "20_readme_debloat",
     "install": "23_readme_install",
     "send": "25_readme_send",
-    "files": "24_readme_files",
-    "history": "22_readme_history",
     "tweaks": "29_readme_tweaks",
-    "request": "17_device_request",
     "home": "30_readme_home",
 }
 
