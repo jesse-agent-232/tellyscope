@@ -61,8 +61,8 @@ data class TvFacts(
 
 /**
  * A GitHub issue to open from the phone, pre-filled through the form's query parameters. Nothing is
- * sent: the user reads [text], then posts it from their own GitHub login. When [link] would be too
- * long, it leaves [overflowField] empty and the user pastes [clipboard] into it.
+ * sent: the user reads [text], then posts it from their own GitHub login. [link] always fits; what
+ * had to be cut for that is [rest], for a comment on the issue once it's posted.
  */
 data class Report(
     val repo: String,
@@ -72,7 +72,8 @@ data class Report(
     val fields: Map<String, String>,
     /** Field id to the label the form shows, for [text]. */
     val labels: Map<String, String>,
-    val overflowField: String,
+    /** The package or log lines left out of the issue, redacted like the rest; null when nothing was. */
+    val rest: String? = null,
 ) {
     /** What the user sees before anything opens: the title and every field. */
     val text: String
@@ -81,18 +82,14 @@ data class Report(
             fields.forEach { (id, value) -> append("\n### ").append(labels[id] ?: id).append("\n\n").append(value).append("\n") }
         }
 
-    /** Whether the whole report fits in the link; if not, the UI says "Copy and open GitHub". */
-    val fits: Boolean get() = url(fields).length <= MAX_URL
-
-    /** The form, pre-filled with everything, or everything but [overflowField] when it doesn't [fit][fits]. */
-    val link: String get() = if (fits) url(fields) else url(fields - overflowField)
-
-    /** For the clipboard when it doesn't [fit][fits]: the field the link leaves out. */
-    val clipboard: String? get() = if (fits) null else fields[overflowField]
-
-    private fun url(values: Map<String, String>): String =
-        "https://github.com/$repo/issues/new?" + (listOf("template" to template, "title" to title) + values.toList())
+    /** The form, pre-filled. */
+    val link: String
+        get() = "https://github.com/$repo/issues/new?" + (listOf("template" to template, "title" to title) + fields.toList())
             .joinToString("&") { (k, v) -> "$k=${encode(v)}" }
+
+    /** The user's own issues on [repo], newest first: where the one just posted is, to add [rest] to. */
+    val myIssues: String
+        get() = "https://github.com/$repo/issues?q=" + encode("is:issue author:@me sort:created-desc")
 
     companion object {
         /** GitHub answers 414 a little past 8 KB; this leaves room for redirects through a login. */
@@ -130,62 +127,109 @@ object Reports {
         BROKE_AFTER("Something broke after the debloat"),
     }
 
-    /** "Report a problem": our device_report.yml. [log] is the app's log; [tv] is null when it never connected. */
+    /**
+     * "Report a problem": our device_report.yml. [log] is the app's log, of which the issue keeps the
+     * newest lines that fit; [tv] is null when it never connected.
+     */
     fun problem(app: AppFacts, tv: TvFacts?, connection: Connection, outcome: Outcome, details: String, log: String?): Report {
         val redact = { s: String -> Redact.text(s, tv?.identifiers.orEmpty()) }
-        val body = buildString {
-            append(redact(details.trim()).ifEmpty { "(nothing written)" })
-            append("\n\nTellyscope ${app.version} on ${redact(app.phone)}")
-            log?.let { append("\n\nLog:\n```\n").append(redact(it.trim())).append("\n```") }
+        val written = redact(details.trim()).ifEmpty { "(nothing written)" } + "\n\nTellyscope ${app.version} on ${redact(app.phone)}"
+        // Redacted whole, before it's split: a key or PEM block spans lines.
+        val lines = log?.trim()?.let(redact)?.lines().orEmpty()
+        return fit(lines.size) { keep ->
+            val cut = lines.size - keep
+            val body = written + if (log == null) "" else buildString {
+                append("\n\nLog:\n```\n")
+                if (cut > 0) append("(earlier $cut lines cut, added as a comment)\n")
+                lines.takeLast(keep).forEach { append(it).append("\n") }
+                append("```")
+            }
+            Report(
+                repo = OURS,
+                template = "device_report.yml",
+                title = "[Device] ${tv?.name ?: "Unknown TV"}",
+                fields = linkedMapOf(
+                    "model" to (tv?.name ?: "Unknown TV"),
+                    "android-version" to (tv?.android ?: "Unknown"),
+                    "connection" to connection.option,
+                    "app-version" to app.version,
+                    "outcome" to outcome.option,
+                    "details" to body,
+                ),
+                labels = mapOf(
+                    "model" to "TV make and model",
+                    "android-version" to "Android TV / Google TV version",
+                    "connection" to "How did you connect?",
+                    "app-version" to "Tellyscope version",
+                    "outcome" to "What happened?",
+                    "details" to "Details",
+                ),
+                rest = if (cut > 0) "Earlier log lines:\n```\n" + lines.take(cut).joinToString("\n") + "\n```" else null,
+            )
         }
-        return Report(
-            repo = OURS,
-            template = "device_report.yml",
-            title = "[Device] ${tv?.name ?: "Unknown TV"}",
-            fields = linkedMapOf(
-                "model" to (tv?.name ?: "Unknown TV"),
-                "android-version" to (tv?.android ?: "Unknown"),
-                "connection" to connection.option,
-                "app-version" to app.version,
-                "outcome" to outcome.option,
-                "details" to body,
-            ),
-            labels = mapOf(
-                "model" to "TV make and model",
-                "android-version" to "Android TV / Google TV version",
-                "connection" to "How did you connect?",
-                "app-version" to "Tellyscope version",
-                "outcome" to "What happened?",
-                "details" to "Details",
-            ),
-            overflowField = "details",
+    }
+
+    /**
+     * "Help add this TV": cleanyourtv's tv-list.yml, with the apps the TV came with. The Android
+     * core every TV has is only counted; of the rest, the issue lists as many as fit.
+     */
+    fun newTv(app: AppFacts, tv: TvFacts, stage: Stage, details: String): Report {
+        val (core, listed) = tv.stockPackages.partition(::isCore)
+        val written = Redact.text(details.trim(), tv.identifiers)
+        return fit(listed.size) { keep ->
+            val more = listed.size - keep
+            val body = buildString {
+                if (written.isNotEmpty()) append(written).append("\n\n")
+                append("Apps the TV came with (${listed.size}, plus ${core.size} Android core):\n")
+                listed.take(keep).forEach { append(it).append("\n") }
+                if (more > 0) append("+$more more, added as a comment\n")
+                append("\nUser-installed apps: ${tv.userApps} (not listed)\n")
+                append("Sent from Tellyscope ${app.version}")
+            }
+            Report(
+                repo = CLEANYOURTV,
+                template = "tv-list.yml",
+                title = "[TV] ${listOfNotNull(tv.manufacturer, tv.model).joinToString(" ").ifEmpty { "Unknown TV" }}" +
+                    (tv.androidVersion?.let { " (Android $it)" } ?: ""),
+                fields = linkedMapOf(
+                    "model" to tv.name,
+                    "android" to tv.android,
+                    "stage" to stage.option,
+                    "details" to body,
+                ),
+                labels = mapOf("model" to "TV model", "android" to "Android version and firmware build", "stage" to "How far did you get?", "details" to "What happened"),
+                rest = if (more > 0) "More apps the TV came with:\n" + listed.drop(keep).joinToString("\n") else null,
+            )
+        }
+    }
+
+    /** `android` and `com.android.*`: on every TV, and never what a debloat list is about. */
+    private fun isCore(pkg: String) = pkg == "android" || pkg.startsWith("com.android.")
+
+    /**
+     * The report keeping the most of [n] lines whose link fits. Past that, what the user wrote is cut
+     * too, and the cut part leads [Report.rest].
+     */
+    private fun fit(n: Int, build: (keep: Int) -> Report): Report {
+        build(n).let { if (it.link.length <= Report.MAX_URL) return it }
+        // More lines, longer link: the most that fit is found by halving, not by a build per line.
+        var (lo, hi) = 0 to n - 1
+        while (lo < hi) {
+            val mid = (lo + hi + 1) / 2
+            if (build(mid).link.length <= Report.MAX_URL) lo = mid else hi = mid - 1
+        }
+        build(lo).let { if (it.link.length <= Report.MAX_URL) return it }
+        val bare = build(0)
+        val details = bare.fields.getValue("details")
+        var chars = details.length
+        while (chars > 0 && bare.copy(fields = bare.fields + ("details" to details.take(chars) + CUT)).link.length > Report.MAX_URL) chars -= 200
+        return bare.copy(
+            fields = bare.fields + ("details" to details.take(chars) + CUT),
+            rest = listOfNotNull(details.drop(chars), bare.rest).joinToString("\n\n"),
         )
     }
 
-    /** "Help add this TV": cleanyourtv's tv-list.yml, with the apps the TV came with. */
-    fun newTv(app: AppFacts, tv: TvFacts, stage: Stage, details: String): Report {
-        val body = buildString {
-            Redact.text(details.trim(), tv.identifiers).takeIf { it.isNotEmpty() }?.let { append(it).append("\n\n") }
-            append("Apps the TV came with (${tv.stockPackages.size}):\n")
-            tv.stockPackages.forEach { append(it).append("\n") }
-            append("\nUser-installed apps: ${tv.userApps} (not listed)\n")
-            append("Sent from Tellyscope ${app.version}")
-        }
-        return Report(
-            repo = CLEANYOURTV,
-            template = "tv-list.yml",
-            title = "[TV] ${listOfNotNull(tv.manufacturer, tv.model).joinToString(" ").ifEmpty { "Unknown TV" }}" +
-                (tv.androidVersion?.let { " (Android $it)" } ?: ""),
-            fields = linkedMapOf(
-                "model" to tv.name,
-                "android" to tv.android,
-                "stage" to stage.option,
-                "details" to body,
-            ),
-            labels = mapOf("model" to "TV model", "android" to "Android version and firmware build", "stage" to "How far did you get?", "details" to "What happened"),
-            overflowField = "details",
-        )
-    }
+    private const val CUT = "\n… (the rest added as a comment)"
 }
 
 /**

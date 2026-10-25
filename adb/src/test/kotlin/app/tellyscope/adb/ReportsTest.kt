@@ -35,8 +35,7 @@ class ReportsTest {
         assertEquals("0.8.0", q["app-version"])
         assertEquals("Connected, but something misbehaved", q["outcome"])
         assertEquals("Remote keys lag\n\nTellyscope 0.8.0 on Pixel 7, Android 14\n\nLog:\n```\nline 1\n```", q["details"])
-        assertTrue(r.fits)
-        assertNull(r.clipboard)
+        assertNull(r.rest)
     }
 
     @Test fun problemBeforeAnyTvConnected() {
@@ -56,7 +55,7 @@ class ReportsTest {
         assertEquals("Android 11 (API 30), build RTT1.230922.001", q["android"])
         assertEquals("Could not connect over ADB", q["stage"])
         val details = q.getValue("details")
-        assertTrue(details.startsWith("Stuck at Allow\n\nApps the TV came with (2):\ncom.google.android.tvlauncher\ncom.xgimi.filemanager\n"), details)
+        assertTrue(details.startsWith("Stuck at Allow\n\nApps the TV came with (2, plus 0 Android core):\ncom.google.android.tvlauncher\ncom.xgimi.filemanager\n"), details)
         assertTrue("User-installed apps: 7 (not listed)" in details)
     }
 
@@ -66,16 +65,51 @@ class ReportsTest {
         assertFalse(' ' in link)
     }
 
-    @Test fun longReportLeavesDetailsForTheClipboard() {
-        val big = tv.copy(stockPackages = (1..400).map { "com.vendor.app$it" })
+    @Test fun longAppListFitsTheLinkAndTheRestWaitsForAComment() {
+        val big = tv.copy(stockPackages = (1..400).map { "com.vendor.app%03d".format(it) } + listOf("android", "com.android.providers.tv"))
         val r = Reports.newTv(app, big, Reports.Stage.HERE_IS_MY_LIST, "")
-        assertFalse(r.fits)
         assertTrue(r.link.length <= Report.MAX_URL, "${r.link.length}")
-        val q = query(r.link)
-        assertNull(q["details"])
-        assertEquals("XGIMI XK03H (galileo)", q["model"])
-        assertEquals(r.fields["details"], r.clipboard)
-        assertTrue("com.vendor.app400" in r.clipboard!!)
+        val details = query(r.link).getValue("details")
+        assertTrue(details.startsWith("Apps the TV came with (400, plus 2 Android core):\ncom.vendor.app001\n"), details)
+        val shown = details.lines().count { it.startsWith("com.vendor.") }
+        assertTrue(shown in 100..399, "$shown")
+        assertTrue("+${400 - shown} more, added as a comment" in details, details)
+        // Every app is either in the issue or in the comment, once.
+        val rest = r.rest!!.lines().drop(1)
+        assertEquals((1..400).map { "com.vendor.app%03d".format(it) }, details.lines().filter { it.startsWith("com.vendor.") } + rest)
+        assertFalse("com.android.providers.tv" in details + r.rest)
+    }
+
+    @Test fun androidCoreIsOnlyCounted() {
+        val details = Reports.newTv(app, tv.copy(stockPackages = listOf("android", "com.android.systemui", "com.google.android.katniss")), Reports.Stage.HERE_IS_MY_LIST, "").fields.getValue("details")
+        assertTrue("Apps the TV came with (1, plus 2 Android core):\ncom.google.android.katniss\n" in details, details)
+        assertFalse("systemui" in details)
+    }
+
+    @Test fun longLogKeepsItsNewestLines() {
+        val log = (1..2000).joinToString("\n") { "10-25 12:00:00.000 line $it from 192.0.2.10" }
+        val r = Reports.problem(app, tv, Reports.Connection.PORT_5555, Reports.Outcome.MISBEHAVED, "lag", log)
+        assertTrue(r.link.length <= Report.MAX_URL, "${r.link.length}")
+        val details = query(r.link).getValue("details")
+        assertTrue(details.trimEnd().endsWith("line 2000 from <ip>\n```"), details.takeLast(200))
+        val kept = details.lines().count { " line " in it }
+        assertTrue("(earlier ${2000 - kept} lines cut, added as a comment)" in details, details)
+        val rest = r.rest!!
+        assertTrue(rest.startsWith("Earlier log lines:\n```\n10-25 12:00:00.000 line 1 from <ip>\n"), rest.take(200))
+        assertTrue("line ${2000 - kept} from" in rest && "line ${2001 - kept} from" !in rest)
+        assertFalse("192.0.2" in rest)
+    }
+
+    @Test fun overlongWritingIsCutLast() {
+        val r = Reports.problem(app, tv, Reports.Connection.PORT_5555, Reports.Outcome.MISBEHAVED, "word ".repeat(3000), log = "only line")
+        assertTrue(r.link.length <= Report.MAX_URL, "${r.link.length}")
+        assertTrue(query(r.link).getValue("details").endsWith("… (the rest added as a comment)"))
+        assertTrue(r.rest!!.contains("only line"))
+    }
+
+    @Test fun myIssuesLinkFindsTheNewestOnTheTargetRepo() {
+        val r = Reports.newTv(app, tv, Reports.Stage.HERE_IS_MY_LIST, "")
+        assertEquals("https://github.com/Gathin23/cleanyourtv/issues?q=is%3Aissue%20author%3A%40me%20sort%3Acreated-desc", r.myIssues)
     }
 
     @Test fun previewShowsEveryFieldUnderItsLabel() {
