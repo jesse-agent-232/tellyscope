@@ -12,6 +12,8 @@ until this file has a section for its version.
 
 ## Unreleased
 
+## 0.8.0 — 2026-10-25
+
 - **New:** Dock up to four apps on the Remote, one tap to open. [#120](../../pull/120)
 - **Improved:** Restart TV sits in the Remote's top bar and waits with you. [#120](../../pull/120)
 - **Improved:** Sleep and Menu leave the Remote, making room for the dock. [#120](../../pull/120)
