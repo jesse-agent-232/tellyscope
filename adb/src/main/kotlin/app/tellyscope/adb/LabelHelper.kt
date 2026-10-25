@@ -8,8 +8,18 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Base64
 import kotlin.time.Duration.Companion.seconds
 
-/** One app as the TV's PackageManager describes it. */
-class AppLabel(val packageName: String, val label: String, val versionCode: Long, val iconPng: ByteArray?)
+/**
+ * One app as the TV's PackageManager describes it. A banner-only app has no [iconPng] but a letter
+ * tile: [tileColor] behind, [tileAccent] for the letter, both ARGB.
+ */
+class AppLabel(
+    val packageName: String,
+    val label: String,
+    val versionCode: Long,
+    val iconPng: ByteArray?,
+    val tileColor: Long? = null,
+    val tileAccent: Long? = null,
+)
 
 /**
  * Real app names and icons, read on the TV by the helper dex (`app/src/helper`): push it, run it
@@ -59,7 +69,9 @@ class LabelHelper(private val session: AdbSession, private val dex: ByteArray) {
             val label = (o["l"] as? String)?.trim()?.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
             val version = (o["v"] as? Long) ?: return@mapNotNull null
             val icon = (o["i"] as? String)?.let { runCatching { Base64.getDecoder().decode(it) }.getOrNull() }
-            AppLabel(pkg, label, version, icon)
+            // Both or neither: a tile needs its letter colour.
+            val tile = (o["b"] as? Long)?.let { b -> (o["a"] as? Long)?.let { a -> b to a } }
+            AppLabel(pkg, label, version, icon, tile?.first, tile?.second)
         }.toList()
     }
 }

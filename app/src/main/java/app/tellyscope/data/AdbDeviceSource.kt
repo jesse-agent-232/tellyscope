@@ -351,7 +351,8 @@ class AdbDeviceSource(context: Context) : DeviceSource {
             AppInfo(
                 packageName = p.name,
                 label = name.label,
-                iconColor = null,
+                iconColor = name.tileColor,
+                iconAccent = name.tileAccent,
                 system = p.name in system,
                 enabled = p.name !in disabled,
                 // Same rule as Actions.run: no known launcher, nothing can be stopped or disabled.

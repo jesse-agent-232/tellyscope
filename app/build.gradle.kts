@@ -72,6 +72,9 @@ android {
         compose = true
     }
 
+    // The helpers' pure parts (BannerColors) are unit-tested like app code.
+    sourceSets["test"].java.srcDir("src/helper/java")
+
     testOptions {
         // Robolectric renders the screenshot tests (see ScreenshotTest).
         unitTests.isIncludeAndroidResources = true

@@ -115,6 +115,8 @@ data class AppInfo(
     val version: String,
     /** The app's own icon as a PNG, from the TV; null shows the letter avatar. */
     val icon: ByteArray? = null,
+    /** ARGB of the letter on an [iconColor] avatar; null = white. A banner-only app's accent colour. */
+    val iconAccent: Long? = null,
     /** Installed by the user (`pm list packages -3`), so Uninstall is offered. Never for apps that came with the TV. */
     val removable: Boolean = false,
     /** Another launcher that can replace the current home screen, [homeInstead]: "Set as default launcher" is offered. */

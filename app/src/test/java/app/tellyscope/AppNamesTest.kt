@@ -102,10 +102,29 @@ class AppNamesTest {
     }
 
     @Test fun damagedCacheLinesCostOnlyThatApp() = runBlocking {
-        File(tmp.root, "SN1.tsv").writeText("com.netflix.ninja\t10\tNetflix\tAQID\ngarbage line\ncom.example.weatherbox\tx\tW\t\n")
+        File(tmp.root, "SN1.tsv").writeText("com.netflix.ninja\t10\tNetflix\tAQID\t\t\ngarbage line\ncom.example.weatherbox\tx\tW\t\t\t\n")
         val helper = Helper()
         val names = AppNames(tmp.root).names("SN1", listOf(netflix, odd), helper::describe)
         assertEquals("Netflix", names.getValue("com.netflix.ninja").label)
+        assertEquals(listOf("com.example.weatherbox"), helper.runs.single())
+    }
+
+    @Test fun aBannerAppsTileColoursAreCached() = runBlocking {
+        val tile = AppLabel(odd.name, "Weather", 3, null, 0xFF101010, 0xFF1ED760)
+        val helper = Helper()
+        AppNames(tmp.root).names("SN1", listOf(odd), { listOf(tile) })
+        // A new launch reads the cache, and a tile counts as having its icon: no second run.
+        val names = AppNames(tmp.root).names("SN1", listOf(odd), helper::describe)
+        assertEquals(0xFF101010, names.getValue(odd.name).tileColor)
+        assertEquals(0xFF1ED760, names.getValue(odd.name).tileAccent)
+        assertEquals(0, helper.runs.size)
+    }
+
+    @Test fun cacheFromBeforeTilesIsReadAgain() = runBlocking {
+        // The old four-column line held a squashed banner; it must not survive the update.
+        File(tmp.root, "SN1.tsv").writeText("com.example.weatherbox\t3\tWeather\tAQID\n")
+        val helper = Helper()
+        AppNames(tmp.root).names("SN1", listOf(odd), helper::describe)
         assertEquals(listOf("com.example.weatherbox"), helper.runs.single())
     }
 }

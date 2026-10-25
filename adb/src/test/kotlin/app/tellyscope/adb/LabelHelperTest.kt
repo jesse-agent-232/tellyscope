@@ -30,7 +30,21 @@ class LabelHelperTest {
         assertNull(apps[1].iconPng)
     }
 
-    @Test fun skipsLinesThatDontParse() {
+    @Test fun aBannerAppSendsTileColoursInsteadOfAnIcon() {
+        val out = """
+            {"p":"com.spotify.tv.android","l":"Spotify","v":1,"b":4279308561,"a":4280211296}
+            {"p":"com.example.half","l":"Half","v":1,"b":4279308561}
+        """.trimIndent()
+        val (spotify, half) = LabelHelper.parse(out)
+        assertNull(spotify.iconPng)
+        assertEquals(0xFF111111, spotify.tileColor)
+        assertEquals(0xFF1ED760, spotify.tileAccent)
+        // A colour without its letter colour isn't a tile.
+        assertNull(half.tileColor)
+        assertNull(half.tileAccent)
+    }
+
+        @Test fun skipsLinesThatDontParse() {
         val out = """
             Exception in thread "main" java.lang.SecurityException
             {"p":"com.a","l":"A","v":1}

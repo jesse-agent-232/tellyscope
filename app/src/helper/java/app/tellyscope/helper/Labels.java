@@ -21,12 +21,15 @@ import java.util.List;
 
 /**
  * Runs on the TV as the shell user, through {@code app_process}, and prints one JSON object per
- * app: {@code {"p":package,"l":label,"v":versionCode,"i":base64 PNG}}. Arguments are the packages
- * to describe, or {@code --all}. It only reads through PackageManager: no writes, no permissions,
- * no network. The app pushes it, runs it once and deletes it.
+ * app: {@code {"p":package,"l":label,"v":versionCode,"i":base64 PNG}}. An app with only a TV
+ * banner gets {@code "b"} and {@code "a"} in place of {@code "i"}: its letter tile's colours as
+ * ARGB. Arguments are the packages to describe, or {@code --all}. It only reads through
+ * PackageManager: no writes, no permissions, no network. The app pushes it, runs it once and deletes it.
  */
 public final class Labels {
-    private static final int ICON_PX = 96;
+    private static final int ICON_PX = 192;
+    /** Enough of a banner to find its colours; a 16:9 banner is drawn at this width. */
+    private static final int BANNER_PX = 160;
 
     public static void main(String[] args) throws Exception {
         Looper.prepareMainLooper();
@@ -51,8 +54,13 @@ public final class Labels {
                 line.append(",\"l\":");
                 string(line, ai.loadLabel(pm).toString());
                 line.append(",\"v\":").append(versionCode(p));
-                String icon = icon(pm, ai);
-                if (icon != null) line.append(",\"i\":\"").append(icon).append('"');
+                int[] tile = ai.icon == 0 && ai.banner != 0 ? tile(pm, ai) : null;
+                String icon = tile == null ? icon(pm, ai) : null;
+                if (tile != null) {
+                    line.append(",\"b\":").append(tile[0] & 0xffffffffL).append(",\"a\":").append(tile[1] & 0xffffffffL);
+                } else if (icon != null) {
+                    line.append(",\"i\":\"").append(icon).append('"');
+                }
                 line.append("}\n");
                 out.print(line);
             } catch (Throwable t) {
@@ -100,6 +108,31 @@ public final class Labels {
     }
 
     private static final int ICON = 0, BANNER = 1, APPLICATION_ICON = 2;
+
+    /**
+     * A banner shrunk into a square icon is a thin strip of logo, so a banner-only app gets a letter
+     * tile in the banner's colours instead. Null when the banner doesn't draw: then [icon] tries.
+     */
+    private static int[] tile(PackageManager pm, ApplicationInfo ai) {
+        try {
+            Drawable d = ai.loadBanner(pm);
+            if (d == null) return null;
+            int w = d.getIntrinsicWidth(), h = d.getIntrinsicHeight();
+            int bh = w > 0 && h > 0 ? Math.max(1, BANNER_PX * h / w) : BANNER_PX * 9 / 16;
+            Bitmap b = Bitmap.createBitmap(BANNER_PX, Math.min(bh, BANNER_PX), Bitmap.Config.ARGB_8888);
+            try {
+                d.setBounds(0, 0, b.getWidth(), b.getHeight());
+                d.draw(new Canvas(b));
+                int[] pixels = new int[b.getWidth() * b.getHeight()];
+                b.getPixels(pixels, 0, b.getWidth(), 0, 0, b.getWidth(), b.getHeight());
+                return BannerColors.pick(pixels);
+            } finally {
+                b.recycle();
+            }
+        } catch (Throwable t) {
+            return null;
+        }
+    }
 
     private static Drawable art(PackageManager pm, ApplicationInfo ai, int kind) {
         switch (kind) {

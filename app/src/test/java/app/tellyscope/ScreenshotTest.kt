@@ -955,6 +955,34 @@ class ScreenshotTest {
         compose.onNodeWithText(Copy.ADD_TO_DOCK).assertDoesNotExist()
     }
 
+    /**
+     * Banner-only apps as letter tiles, in the colours the helper picks from their banners, beside
+     * a real square icon and an app with no icon at all: the Apps list and the dock.
+     */
+    private fun tilesState(): UiState {
+        val projectivy = "com.spocky.projengmenu"
+        val spotify = AppInfo("com.spotify.tv.android", "Spotify", 0xFF121212, false, true, null, "", removable = true, launchable = true, iconAccent = 0xFF1ED760)
+        val mine = AppInfo("com.example.myapp", "My App", null, false, true, null, "1.0", removable = true, launchable = true)
+        val s = md3State()
+        val apps = s.device.apps.map { a ->
+            when (a.packageName) {
+                projectivy -> a.copy(iconColor = 0xFF1C120D, iconAccent = 0xFFFF6A13)
+                "com.google.android.youtube.tv" -> a.copy(icon = realIcon(a.packageName))
+                else -> a
+            }
+        } + spotify + mine
+        val dock = listOf(Docked(projectivy, "Projectivy"), Docked(spotify.packageName, "Spotify"), Docked("com.google.android.youtube.tv", "YouTube"), Docked(mine.packageName, "My App"))
+        return s.copy(device = s.device.copy(apps = apps, dock = dock))
+    }
+
+    @Test fun tiles_apps() = shot("13_tiles_apps") { DeviceTabsScreen(tilesState(), DeviceActions(), startTab = TvTab.Apps) }
+
+    @Test fun tiles_apps_dark() = shot("13_tiles_apps", dark = true) { DeviceTabsScreen(tilesState(), DeviceActions(), startTab = TvTab.Apps) }
+
+    @Test fun tiles_dock() = shot("13_tiles_dock") { RemoteScreen(tilesState(), RemoteActions()) }
+
+    @Test fun tiles_dock_dark() = shot("13_tiles_dock", dark = true) { RemoteScreen(tilesState(), RemoteActions()) }
+
     @Test fun remote_dockPicker() = shot("12_remote_dock_picker", screen = true, before = { compose.onNodeWithText(Copy.ADD_TO_DOCK).performClick() }) {
         RemoteScreen(remoteState(), RemoteActions())
     }

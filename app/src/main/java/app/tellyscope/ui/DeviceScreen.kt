@@ -334,15 +334,15 @@ internal fun EmptyLine(q: String) {
 @Composable
 fun AppIcon(app: AppInfo, modifier: Modifier = Modifier) {
     val image = remember(app.icon) {
-        // A 96 px icon is a few KB; anything far bigger is a TV sending something odd.
-        app.icon?.takeIf { it.size <= 64 * 1024 }?.let { BitmapFactory.decodeByteArray(it, 0, it.size)?.asImageBitmap() }
+        // A 192 px icon is tens of KB; anything far bigger is a TV sending something odd.
+        app.icon?.takeIf { it.size <= 256 * 1024 }?.let { BitmapFactory.decodeByteArray(it, 0, it.size)?.asImageBitmap() }
     }
     if (image != null) {
         Image(image, contentDescription = null, modifier.size(40.dp).clip(MaterialTheme.shapes.medium))
         return
     }
     val bg = app.iconColor?.let { Color(it) } ?: MaterialTheme.colorScheme.secondaryContainer
-    val fg = if (app.iconColor != null) Color.White else MaterialTheme.colorScheme.onSecondaryContainer
+    val fg = app.iconAccent?.let { Color(it) } ?: if (app.iconColor != null) Color.White else MaterialTheme.colorScheme.onSecondaryContainer
     Box(modifier.size(40.dp).clip(MaterialTheme.shapes.medium).background(bg), contentAlignment = Alignment.Center) {
         Text(app.label.take(1).uppercase(), color = fg, style = MaterialTheme.typography.titleMedium)
     }
