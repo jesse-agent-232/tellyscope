@@ -49,6 +49,20 @@ class ParsersTest {
         )
     }
 
+    @Test fun packageListedTwiceComesOnce() {
+        // A TCL Android TV 11 prints play.games twice; the Apps list crashed on the repeated key (#107).
+        val out = "package:com.google.android.play.games versionCode:7 uid:10090\n" +
+            "package:com.android.vending versionCode:9 uid:10040\n" +
+            "package:com.google.android.play.games versionCode:7 uid:10090\n"
+        assertEquals(
+            listOf(
+                Parsers.Package("com.google.android.play.games", 10090, 7),
+                Parsers.Package("com.android.vending", 10040, 9),
+            ),
+            Parsers.packages(out),
+        )
+    }
+
     @Test fun processesSkipHeaders() {
         val top = """
             Tasks: 210 total,   1 running, 209 sleeping

@@ -73,7 +73,8 @@ object Parsers {
 
     /**
      * `pm list packages [--show-versioncode] [-U]`: `package:com.foo versionCode:42 uid:10023`
-     * (uid list may be comma-separated).
+     * (uid list may be comma-separated). Each package once: some TVs print one twice, and the
+     * app list is keyed on the name.
      */
     fun packages(pmList: String): List<Package> = pmList.lineSequence().mapNotNull { line ->
         val l = line.trim()
@@ -82,7 +83,7 @@ object Parsers {
         val uid = l.substringAfter(" uid:", "").substringBefore(',').toIntOrNull()
         val version = l.substringAfter(" versionCode:", "").substringBefore(' ').toLongOrNull()
         Package(name, uid, version).takeIf { name.isNotEmpty() }
-    }.toList()
+    }.distinctBy { it.name }.toList()
 
     /** [cpuPercent] is null from [psProcesses], which reads memory only. */
     data class Process(val pid: Int, val user: String, val rssKb: Long, val cpuPercent: Double?, val name: String)
