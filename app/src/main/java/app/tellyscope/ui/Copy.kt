@@ -337,6 +337,7 @@ object Copy {
     const val RESTARTING_TITLE = "Restarting…"
     const val RESTARTING_TEXT = "The TV is restarting. Tellyscope will reconnect by itself."
     const val RESTART_LATE_TITLE = "The TV hasn't come back yet"
+    const val RESTART_LATE_STATUS = "Not back yet"
     const val RESTART_LATE_TEXT = "It's been a minute. Some TVs take longer to start; Retry waits another minute."
     const val RESTART_LOST_TEXT = "Use the TV's own remote to turn it on, then tap Retry."
 

@@ -184,7 +184,7 @@ fun RemoteScreen(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = { if (restart != null && hidden == stage) RestartStatus(onClick = { hidden = null }) else Text("Remote") },
+                title = { if (restart != null && hidden == stage) RestartStatus(late = restart.phase(state.now) != Restart.Phase.Waiting, onClick = { hidden = null }) else Text("Remote") },
                 navigationIcon = {
                     IconButton(onClick = actions.back) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to the TV's page") }
                 },
@@ -438,17 +438,21 @@ private fun StatusShape(icon: ImageVector, container: Color, content: Color) {
     }
 }
 
-/** The top bar's title while a hidden restart runs; a tap brings its dialog back. */
+/** The top bar's title while a hidden restart runs, overdue once [late]; a tap brings its dialog back. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun RestartStatus(onClick: () -> Unit) {
+private fun RestartStatus(late: Boolean, onClick: () -> Unit) {
     Row(
         Modifier.clip(MaterialTheme.shapes.small).clickable(onClickLabel = "Show the restart", onClick = onClick).padding(4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        LoadingIndicator(Modifier.size(28.dp))
-        Text(Copy.RESTARTING_TITLE)
+        if (late) {
+            Icon(RemoteIcons.HourglassTop, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(28.dp))
+        } else {
+            LoadingIndicator(Modifier.size(28.dp))
+        }
+        Text(if (late) Copy.RESTART_LATE_STATUS else Copy.RESTARTING_TITLE)
         Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
