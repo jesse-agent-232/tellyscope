@@ -44,7 +44,7 @@ class LabelHelperTest {
         assertNull(half.tileAccent)
     }
 
-        @Test fun skipsLinesThatDontParse() {
+    @Test fun skipsLinesThatDontParse() {
         val out = """
             Exception in thread "main" java.lang.SecurityException
             {"p":"com.a","l":"A","v":1}
