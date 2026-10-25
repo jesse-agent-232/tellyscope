@@ -12,8 +12,8 @@
 })();
 </script>
 <style>
-:root { --bg: #F4FBFA; --ink: #0F2B2C; --sub: #557070; --pri: #00696B; --onpri: #FFFFFF; --tint: rgba(0,105,107,.09); --bar: #F4FBFA; --sbink: #161D1D; --grad: radial-gradient(1200px 900px at 85% 110%,#cfe2ff 0%,transparent 60%),radial-gradient(1100px 800px at 5% -10%,#c9f3f1 0%,transparent 60%),linear-gradient(120deg,#e3f6f4 0%,#e6eefb 100%); --frame: #C9CED1; --frame2: #9AA1A5; --shadow: 0 40px 80px rgba(0,40,50,.25),0 12px 24px rgba(0,40,50,.15); --dot: rgba(0,105,107,.25); color-scheme: light; }
-:root[data-theme="dark"] { --bg: #0B1517; --ink: #E6F6F5; --sub: #93ACAB; --pri: #80D4D5; --onpri: #003737; --tint: rgba(128,212,213,.10); --bar: #0E1415; --sbink: #DDE4E3; --grad: radial-gradient(1200px 900px at 90% 110%,#1d3550 0%,transparent 60%),radial-gradient(1000px 800px at 0% -10%,#0f3a3b 0%,transparent 60%),linear-gradient(120deg,#0b1a1c 0%,#0f1b2b 100%); --frame: #3A4044; --frame2: #5E666B; --shadow: 0 40px 90px rgba(0,0,0,.6); --dot: rgba(128,212,213,.25); color-scheme: dark; }
+:root { --bg: #F4FBFA; --ink: #0F2B2C; --sub: #557070; --pri: #00696B; --onpri: #FFFFFF; --tint: rgba(0,105,107,.09); --grad: radial-gradient(1200px 900px at 85% 110%,#cfe2ff 0%,transparent 60%),radial-gradient(1100px 800px at 5% -10%,#c9f3f1 0%,transparent 60%),linear-gradient(120deg,#e3f6f4 0%,#e6eefb 100%); --shadow: 0 40px 80px rgba(0,40,50,.25),0 12px 24px rgba(0,40,50,.15); color-scheme: light; }
+:root[data-theme="dark"] { --bg: #0B1517; --ink: #E6F6F5; --sub: #93ACAB; --pri: #80D4D5; --onpri: #003737; --tint: rgba(128,212,213,.10); --grad: radial-gradient(1200px 900px at 90% 110%,#1d3550 0%,transparent 60%),radial-gradient(1000px 800px at 0% -10%,#0f3a3b 0%,transparent 60%),linear-gradient(120deg,#0b1a1c 0%,#0f1b2b 100%); --shadow: 0 40px 90px rgba(0,0,0,.6); color-scheme: dark; }
 * { box-sizing: border-box; }
 html, body { margin: 0; min-height: 100%; }
 body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--ink); background: var(--grad), var(--bg); min-height: 100vh; }
@@ -25,10 +25,10 @@ nav { display: flex; align-items: center; justify-content: space-between; paddin
 .icon { width: 44px; height: 44px; border: 0; border-radius: 50%; display: grid; place-items: center; background: var(--tint); color: var(--pri); cursor: pointer; }
 .icon svg { width: 22px; height: 22px; fill: currentColor; }
 :root[data-theme="dark"] .sun, :root:not([data-theme="dark"]) .moon { display: none; }
-.hero { display: grid; grid-template-columns: 1.15fr .85fr; align-items: center; gap: 48px; min-height: calc(100vh - 84px); padding: 24px 0 48px; }
+.hero { display: grid; grid-template-columns: 1fr 1.1fr; align-items: center; gap: 48px; min-height: calc(100vh - 84px); padding: 24px 0 48px; }
 .eyebrow { font-size: 22px; font-weight: 560; color: var(--pri); }
-h1 { margin: 12px 0 0; font-size: 80px; line-height: 1.02; font-weight: 640; letter-spacing: -.03em; }
-.lead { margin: 24px 0 0; font-size: 24px; line-height: 1.4; color: var(--sub); max-width: 26em; }
+h1 { margin: 12px 0 0; font-size: 72px; line-height: 1.02; font-weight: 640; letter-spacing: -.03em; }
+.lead { margin: 24px 0 0; font-size: 22px; line-height: 1.4; color: var(--sub); max-width: 26em; }
 .cta { margin-top: 36px; display: flex; gap: 12px; flex-wrap: wrap; }
 .btn { display: inline-flex; align-items: center; gap: 10px; height: 56px; padding: 0 28px; border-radius: 999px; font-size: 18px; font-weight: 560; text-decoration: none; }
 .btn.pri { background: var(--pri); color: var(--onpri); }
@@ -37,37 +37,15 @@ h1 { margin: 12px 0 0; font-size: 80px; line-height: 1.02; font-weight: 640; let
 .alt { margin-top: 14px; font-size: 15px; color: var(--sub); } .alt a { color: var(--pri); font-weight: 560; }
 .note { margin-top: 10px; font-size: 15px; color: var(--sub); }
 /* The demo is our own thumbnail until tapped; only then does the YouTube player (no-cookie) load. */
-.video { position: relative; display: block; margin-top: 28px; max-width: 520px; aspect-ratio: 16 / 9; border-radius: 20px; overflow: hidden; background: var(--tint); box-shadow: 0 0 0 1px var(--tint); }
+.video { position: relative; display: block; aspect-ratio: 16 / 9; border-radius: 24px; overflow: hidden; background: var(--tint); box-shadow: var(--shadow); }
 .video img, .video iframe { display: block; width: 100%; height: 100%; border: 0; object-fit: cover; }
 .video:focus-visible { outline: 3px solid var(--pri); outline-offset: 3px; }
-/* Pixel 10, drawn: flat aluminium band, even bezel, centred punch-hole, power and volume on the right. */
-.dev { display: flex; flex-direction: column; align-items: center; gap: 22px; }
-.pixel { --w: 300px; position: relative; width: calc(var(--w) + 24px); padding: 10px; border-radius: 52px;
-  background: #0b0c0d; box-shadow: 0 0 0 3px var(--frame), 0 0 0 4px var(--frame2), var(--shadow); }
-.pixel::before, .pixel::after { content: ""; position: absolute; right: -7px; width: 4px; border-radius: 0 3px 3px 0; background: var(--frame2); }
-.pixel::before { top: 120px; height: 52px; } .pixel::after { top: 196px; height: 92px; }
-/* The renders are 411x891 dp; the status bar takes the rest of the Pixel's taller 1080x2424 screen, so nothing is cropped. */
-.screen { position: relative; width: calc(var(--w) + 4px); aspect-ratio: 1080 / 2424; --sb: calc((var(--w) + 4px) * (2424 / 1080 - 891 / 411)); border-radius: 42px; overflow: hidden; background: var(--bar); }
-.cam { position: absolute; z-index: 2; left: 50%; top: 5px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: #050607; box-shadow: inset 0 0 0 2px #1a1d1f; }
-.sb { position: absolute; z-index: 1; inset: 0 0 auto 0; height: var(--sb); display: flex; align-items: center; justify-content: space-between; padding: 0 24px 0 28px; font: 500 12px Roboto, sans-serif; color: var(--sbink); background: var(--bar); }
-.sb svg { fill: currentColor; }
-.track { position: absolute; inset: var(--sb) 0 0 0; display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
-.track::-webkit-scrollbar { display: none; }
-.slide { flex: 0 0 100%; scroll-snap-align: start; }
-.slide img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; }
-.dots { display: flex; }
-/* A 24 px tap target around each 8 px dot. */
-.dot { display: grid; place-items: center; min-width: 24px; height: 24px; padding: 0; border: 0; background: none; cursor: pointer; }
-.dot::before { content: ""; width: 8px; height: 8px; border-radius: 4px; background: var(--dot); transition: width .3s; }
-.dot.on::before { width: 24px; background: var(--pri); }
-.cap { font-size: 15px; font-weight: 560; color: var(--sub); min-height: 20px; }
 @media (max-width: 760px) {
   .wrap { padding: 0 20px; }
   .btn.sm { display: none; }
   .hero { grid-template-columns: 1fr; gap: 40px; min-height: 0; padding: 8px 0 48px; }
   .eyebrow { font-size: 18px; } h1 { font-size: 46px; } .lead { font-size: 19px; margin-top: 16px; }
   .cta { margin-top: 26px; } .btn { height: 52px; padding: 0 24px; font-size: 17px; }
-  .pixel { --w: 264px; border-radius: 46px; } .screen { border-radius: 37px; }
 }
 </style></head><body>
 <div class="wrap">
@@ -82,25 +60,13 @@ h1 { margin: 12px 0 0; font-size: 80px; line-height: 1.02; font-weight: 640; let
 <div class="cta"><a class="btn pri" id="apk" href="https://github.com/man15h/tellyscope/releases/latest"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M11 4h2v9.2l3.6-3.6 1.4 1.4-6 6-6-6 1.4-1.4 3.6 3.6zM5 18h14v2H5z"/></svg><span>Download APK</span></a><a class="btn ton" href="obtainium://add/https://github.com/man15h/tellyscope"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm0 2a7 7 0 0 1 6.9 6H15a3 3 0 0 0-6 0H5.1A7 7 0 0 1 12 5zm0 14a7 7 0 0 1-6.9-6H9a3 3 0 0 0 6 0h3.9A7 7 0 0 1 12 19z"/></svg>Get it on Obtainium</a></div>
 <div class="alt">From GitHub Releases. Don't have Obtainium? <a href="https://github.com/ImranR98/Obtainium/releases/latest">Get it here</a>.</div>
 <div class="note">Free and open source · Under 3 MB · No root · No tracking</div>
-<a class="video" id="demo" href="https://youtu.be/N_PeDw5GiCc" aria-label="Play the demo video"><img src="site/demo-thumb.webp" alt="" width="960" height="540" loading="lazy"></a>
 </div>
-<div class="dev">
-<div class="pixel"><div class="screen"><div class="cam"></div>
-<div class="sb"><span>9:30</span><svg width="44" height="14" viewBox="0 0 74 26"><path d="M14 22L2 9a17 17 0 0 1 24 0z"/><rect x="36" y="5" width="30" height="16" rx="4" fill="none" stroke="currentColor" stroke-width="2.4"/><rect x="39" y="8" width="20" height="10" rx="2"/></svg></div>
-<div class="track"><div class="slide"><img data-name="tv" alt="Your TV at a glance" width="540" height="1171"></div><div class="slide"><img data-name="debloat" alt="Debloat, safely" width="540" height="1171" loading="lazy"></div><div class="slide"><img data-name="install" alt="Install apps" width="540" height="1171" loading="lazy"></div><div class="slide"><img data-name="launcher" alt="Set a new launcher" width="540" height="1171" loading="lazy"></div><div class="slide"><img data-name="adblock" alt="Block ads with Private DNS" width="540" height="1171" loading="lazy"></div><div class="slide"><img data-name="send" alt="Send files to the TV" width="540" height="1171" loading="lazy"></div><div class="slide"><img data-name="remote" alt="A remote in your pocket" width="540" height="1171" loading="lazy"></div><div class="slide"><img data-name="advanced" alt="Everything, in detail" width="540" height="1171" loading="lazy"></div></div></div></div>
-<div class="cap" aria-live="polite"></div><div class="dots"><button class="dot" aria-label="Your TV at a glance"></button><button class="dot" aria-label="Debloat, safely"></button><button class="dot" aria-label="Install apps"></button><button class="dot" aria-label="Set a new launcher"></button><button class="dot" aria-label="Block ads with Private DNS"></button><button class="dot" aria-label="Send files to the TV"></button><button class="dot" aria-label="A remote in your pocket"></button><button class="dot" aria-label="Everything, in detail"></button></div>
-</div>
+<a class="video" id="demo" href="https://youtu.be/N_PeDw5GiCc" aria-label="Play the demo video"><img src="site/demo-thumb.webp" alt="" width="1280" height="720" fetchpriority="high"></a>
 </main>
 </div>
 <script>
 const root = document.documentElement, btn = document.getElementById('theme');
-const imgs = [...document.querySelectorAll('.track img')];
-// The phone shows the light or dark renders to match the page.
-const paint = () => {
-  const dark = root.dataset.theme === 'dark';
-  imgs.forEach(i => i.src = 'site/' + i.dataset.name + (dark ? '-dark' : '') + '.webp');
-  btn.setAttribute('aria-label', dark ? 'Switch to light theme' : 'Switch to dark theme');
-};
+const paint = () => btn.setAttribute('aria-label', root.dataset.theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme');
 btn.onclick = () => {
   root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
   try { localStorage.setItem('theme', root.dataset.theme); } catch (e) {}
@@ -133,19 +99,5 @@ demo.onclick = e => {
   box.append(f);
   demo.replaceWith(box);
 };
-
-// Swipe between screens; the dots follow and jump; it advances by itself every 4 s until touched.
-const track = document.querySelector('.track'), dots = [...document.querySelectorAll('.dot')], cap = document.querySelector('.cap');
-const q = new URLSearchParams(location.search);
-let at = +(q.get('at') || 0), timer;
-const show = (i, smooth) => track.scrollTo({ left: i * track.clientWidth, behavior: smooth ? 'smooth' : 'instant' });
-const mark = i => { dots.forEach((d, j) => d.classList.toggle('on', j === i)); cap.textContent = imgs[i].alt; };
-const stop = () => clearInterval(timer);
-track.addEventListener('scroll', () => { at = Math.round(track.scrollLeft / track.clientWidth); mark(at); });
-track.addEventListener('pointerdown', stop, { once: true });
-dots.forEach((d, i) => d.onclick = () => { stop(); show(i, true); });
-if (!q.has('still') && !matchMedia('(prefers-reduced-motion: reduce)').matches)
-  timer = setInterval(() => show((at + 1) % dots.length, true), 4000);
-show(at, false); mark(at);
 </script>
 </body></html>
