@@ -31,6 +31,16 @@ restart, waiting, can't-reach and dock menu icons those of "restart_alt",
 "hourglass_top", "link_off", "swap_horiz" and "remove_circle_outline".
 
 --------------------------------------------------------------------------------
+Store badges in docs/badges/ (README only, not in the app)
+- "Get it on GitHub": https://github.com/Kunzisoft/Github-badge, after the
+  F-Droid badge by @flocke; License: CC BY-SA 3.0.
+- "Get it on Obtainium": https://github.com/ImranR98/Obtainium; License: GNU
+  General Public License v3.0.
+- "Get on Orion Store": https://github.com/RookieEnough/Orion-Store; License:
+  GNU General Public License v3.0.
+Each is trimmed to its edges and scaled to the same height.
+
+--------------------------------------------------------------------------------
 cleanyourtv — https://github.com/Gathin23/cleanyourtv
 License: MIT, Copyright (c) 2026 Gathin
 Debloat package lists are adapted from this project.
