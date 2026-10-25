@@ -1,15 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package app.tellyscope.adb
 
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import java.io.IOException
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class DeviceMonitorTest {
     private val sep = "\n@@tellyscope@@\n"
 
@@ -85,5 +93,68 @@ class DeviceMonitorTest {
         )
         assertEquals(false, s.screenOn)
         assertEquals(mapOf(10087 to listOf("com.google.android.youtube.tv")), s.packages)
+    }
+
+    /** Answers the fast read and `echo`, logs every command, and hangs on `top` until cancelled. */
+    private class SlowTop(val onTop: () -> Unit = {}) : AdbShell {
+        val ran = mutableListOf<String>()
+
+        override suspend fun shell(command: String): ShellResult {
+            ran += command
+            if (command.startsWith("top")) { onTop(); awaitCancellation() }
+            return if (command.startsWith("cat /proc/stat")) ok("cpu  25 0 0 75 0 0 0 0\n@@tellyscope@@\nMemTotal: 2000 kB\n") else ok("")
+        }
+    }
+
+    @Test fun aSlowReadOnlySkipsItsSample() = runTest {
+        // A TV busy changing Home: `top` runs past the timeout, but the TV still answers, so it isn't lost.
+        val tv = SlowTop()
+        val readings = DeviceMonitor(tv).stats().take(2).toList()
+        assertEquals(2, readings.size)
+        assertEquals(emptyList<AppProcess>(), readings.last().processes)
+        assertTrue("echo" in tv.ran)
+    }
+
+    @Test fun statsWaitWhileAChangeRuns() = runTest {
+        val gate = StatsGate()
+        val topStarted = CompletableDeferred<Unit>()
+        val tv = SlowTop { topStarted.complete(Unit) }
+        val readings = mutableListOf<Stats>()
+        val collecting = backgroundScope.launch { DeviceMonitor(tv, gate = gate).stats().collect { readings += it } }
+        topStarted.await()
+
+        // A change starts while the process read is still out, as in the reported capture.
+        val done = CompletableDeferred<Unit>()
+        launch { gate.during { done.await() } }
+        runCurrent()
+        val before = tv.ran.size
+        advanceTimeBy(60_000)
+        val during = tv.ran.drop(before)
+        assertTrue(during.isNotEmpty() && during.all { it == "echo" }, "ran during the change: $during")
+        assertTrue(collecting.isActive)
+        assertEquals(emptyList<Stats>(), readings)
+
+        done.complete(Unit)
+        advanceTimeBy(5_000)
+        assertTrue(readings.isNotEmpty())
+    }
+
+    @Test fun aTvThatDiesMidChangeIsStillLost() = runTest {
+        val gate = StatsGate()
+        val ran = mutableListOf<String>()
+        val dead = AdbShell { cmd -> ran += cmd; awaitCancellation() }
+        backgroundScope.launch { gate.during { awaitCancellation() } }
+        runCurrent()
+        assertFailsWith<IOException> { DeviceMonitor(dead, gate = gate).stats().first() }
+        assertEquals(listOf("echo"), ran)
+    }
+
+    @Test fun processesOffSkipsTheHeavyRead() = runTest {
+        val gate = StatsGate().apply { processes.value = false }
+        val tv = SlowTop()
+        val s = DeviceMonitor(tv, gate = gate).stats().first()
+        assertEquals(emptyList<AppProcess>(), s.processes)
+        assertTrue(tv.ran.none { it.startsWith("top") }, "ran: ${tv.ran}")
+        assertTrue("echo" !in tv.ran)
     }
 }

@@ -51,6 +51,9 @@ interface DeviceSource {
     /** Fast-tier stats. Completes when the device goes offline. */
     fun live(deviceId: String): Flow<Snapshot>
 
+    /** Reads the process list only for [deviceId], while a screen shows it; null for none. */
+    fun showProcesses(deviceId: String?) {}
+
     suspend fun apps(deviceId: String): List<AppInfo>
 
     suspend fun network(deviceId: String): NetworkInfo

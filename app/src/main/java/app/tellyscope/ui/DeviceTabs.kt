@@ -65,6 +65,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -173,6 +174,11 @@ fun DeviceTabsScreen(
     // "See changes" lands on Tweaks scrolled to Recent changes, the list's third item, after the hero.
     var toChanges by remember { mutableStateOf(false) }
     var shown by rememberSaveable { mutableStateOf(tab) }
+    // Overview and Apps (Running, RAM per app) show processes; Files and Tweaks don't need the read.
+    DisposableEffect(tab, device.id) {
+        actions.showProcesses(tab == TvTab.Overview || tab == TvTab.Apps)
+        onDispose { actions.showProcesses(false) }
+    }
     LaunchedEffect(tab) {
         if (tab == shown) return@LaunchedEffect
         shown = tab

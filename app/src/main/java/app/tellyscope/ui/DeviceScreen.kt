@@ -109,6 +109,8 @@ data class DeviceActions(
     val dismissRequest: () -> Unit = {},
     /** Folds an Apps tab's System section away, or opens it; remembered across restarts. */
     val foldSystem: (AppsTab, Boolean) -> Unit = { _, _ -> },
+    /** Whether the open tab shows the process list; only then does the TV's process read run. */
+    val showProcesses: (Boolean) -> Unit = {},
 )
 
 /** Off while the remote is made faster: the device page hides its Remote button. */

@@ -333,6 +333,9 @@ class TellyscopeViewModel(
         if (transferJobs[_state.value.selectedId]?.isActive != true) select(device.id)
     }
 
+    /** Only the TV on screen reads its process list, and only while the screen shows it. */
+    fun showProcesses(on: Boolean) = source.showProcesses(if (on) _state.value.selectedId else null)
+
     fun select(id: String?) {
         liveJob?.cancel()
         mediumJob?.cancel()
