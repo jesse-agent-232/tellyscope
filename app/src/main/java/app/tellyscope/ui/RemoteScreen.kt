@@ -142,7 +142,7 @@ data class RemoteActions(
     val press: suspend (RemoteKey) -> Boolean = { true },
     /** Returns why the text can't be typed, or null once it's sent. */
     val type: (String) -> String? = { null },
-    /** Empties the text box on the TV, whatever is in the phone's field. */
+    /** Empties the text box on the TV; the Remote empties the phone's field with it. */
     val clearText: () -> Unit = {},
     val reboot: () -> Unit = {},
     val back: () -> Unit = {},
@@ -397,7 +397,7 @@ private fun Keyboard(enabled: Boolean, type: (String) -> String?, clearText: () 
                     tooltip = { PlainTooltip { Text(Copy.CLEAR_TV_TEXT) } },
                     state = rememberTooltipState(),
                 ) {
-                    IconButton(onClick = clearText, enabled = enabled) {
+                    IconButton(onClick = { text = ""; error = null; clearText() }, enabled = enabled) {
                         Icon(RemoteIcons.Backspace, contentDescription = Copy.CLEAR_TV_TEXT)
                     }
                 }
