@@ -2,6 +2,8 @@
 
 package app.tellyscope.ui
 
+import android.view.WindowManager
+import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -22,6 +24,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -81,6 +84,7 @@ import androidx.compose.material3.ripple
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -185,6 +189,14 @@ fun RemoteScreen(
     val screenOff = device.id in state.screenOff
     // Android 14 moved the call that turns the picture off out of the shell's reach.
     val screenControl = (device.android?.substringBefore('.')?.toIntOrNull() ?: 0) < 14 || screenOff
+    // The keyboard shrinks this screen instead of panning the window, which jumped on every keystroke.
+    val window = LocalActivity.current?.window
+    DisposableEffect(window) {
+        if (window == null) return@DisposableEffect onDispose {}
+        val before = window.attributes.softInputMode
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+        onDispose { window.setSoftInputMode(before) }
+    }
     var confirmReboot by rememberSaveable { mutableStateOf(false) }
     if (confirmReboot) RebootDialog(onRestart = { confirmReboot = false; actions.reboot() }, onDismiss = { confirmReboot = false })
     // Hide keeps a restart in the top bar; the dialog comes back when the wait moves on, or on a tap there.
@@ -223,7 +235,7 @@ fun RemoteScreen(
         },
     ) { pad ->
         Column(
-            Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
+            Modifier.fillMaxSize().padding(pad).imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
