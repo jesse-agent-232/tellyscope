@@ -371,6 +371,12 @@ class AdbDeviceSource(context: Context) : DeviceSource {
         // On a launcher the user added, offer the way back to the one it replaced.
         val back = homeOptions?.current?.takeIf { it !in system }
             ?.let { homeBackTarget(it, book.entries(key(deviceId)), builtIns(system, disabled, homeOptions)) }
+        // Its service off, the TV's own launcher may still answer Home: the row offers Turn on.
+        val serviceOff = back != null && homeOptions?.current?.takeIf { it in serviceLaunchers }
+            ?.let { Actions(shell).homeService(it) }?.let { !Actions(shell).serviceOn(it) } == true
+        // The card stays until Got it, which notes it on the switch; the next switch shows it again.
+        val note = serviceOff && back?.reverses?.let { id -> book.entries(key(deviceId)).firstOrNull { it.id == id } }
+            ?.let { it.previous?.get("note") != "dismissed" } == true
         return listed.map { p ->
             val name = names.getValue(p.name)
             labels[p.name] = name.label
@@ -395,6 +401,8 @@ class AdbDeviceSource(context: Context) : DeviceSource {
                 homeInstead = homeOptions?.takeIf { p.name in it.others }?.current,
                 homeBack = back?.takeIf { p.name == homeOptions?.current }?.let { names[it.pkg]?.label ?: AppNames.fallback(it.pkg) },
                 homeService = p.name in serviceLaunchers,
+                homeServiceOff = serviceOff && p.name == homeOptions?.current,
+                homeServiceNote = note && p.name == homeOptions?.current,
                 listKeep = p.name in keep,
                 launchable = p.name in launchable,
                 tvHome = p.name in tvHome,
@@ -440,13 +448,39 @@ class AdbDeviceSource(context: Context) : DeviceSource {
     override suspend fun act(deviceId: String, action: Action, packageName: String, undoing: Long?): HistoryEntry =
         busy(deviceId) { actNow(deviceId, action, packageName, undoing) }
 
-    private suspend fun actNow(deviceId: String, action: Action, packageName: String, undoing: Long?): HistoryEntry {
+    override suspend fun makeHome(deviceId: String, packageName: String, service: Boolean): HistoryEntry =
+        busy(deviceId) { actNow(deviceId, Action.Home, packageName, null, service) }
+
+    override suspend fun homeServiceOn(deviceId: String, packageName: String): Unit = busy(deviceId) {
+        val actions = Actions(session(deviceId))
+        val label = labels[packageName] ?: AppNames.fallback(packageName)
+        val service = packageName.takeIf { it in serviceLaunchers }?.let { actions.homeService(it) }
+            ?: throw IllegalStateException("$label has no accessibility service")
+        if (!actions.setService(service, true)) throw IllegalStateException(serviceNotOn(label))
+        // Undo of the switch to it turns it off again, as if the switch had turned it on.
+        openSwitch(deviceId, packageName)?.let { book.amend(it, mapOf("service" to service)) }
+        Unit
+    }
+
+    override suspend fun dismissServiceNote(deviceId: String, packageName: String) {
+        openSwitch(deviceId, packageName)?.let { book.amend(it, mapOf("note" to "dismissed")) }
+    }
+
+    /** The newest switch to [pkg] that nothing has undone: the change a later step belongs to. */
+    private suspend fun openSwitch(deviceId: String, pkg: String): Long? = book.entries(key(deviceId))
+        .firstOrNull { it.action == Action.Home && it.undoneAt == null && it.previous?.get("to")?.substringBefore('/') == pkg }?.id
+
+    private suspend fun actNow(deviceId: String, action: Action, packageName: String, undoing: Long?, service: Boolean = true): HistoryEntry {
         val shell = session(deviceId)
         // Before the first change on a TV, note what was already off: Restore must leave those alone.
         val key = key(deviceId)
         if (!book.hasBaseline(key)) book.setBaseline(key, disabledPackages(deviceId))
         // The list's keep entries only warn, in the confirm; Actions.run holds the hard locks.
-        if (action == Action.Home) return makeHome(deviceId, packageName, undoing)
+        if (action == Action.Home) {
+            // Undoing a switch back turns the service on again only if that switch turned it off.
+            val again = undoing?.let { id -> book.entries(key).firstOrNull { it.id == id } }?.let { it.previous?.get("service") != null }
+            return switchHome(deviceId, packageName, undoing, again ?: service)
+        }
         if (action == Action.HomeBack) return homeBack(deviceId, packageName, undoing)
         val r = Actions(shell).run(AdbAction.valueOf(action.name.uppercase()), packageName)
         return when (r) {
@@ -472,13 +506,14 @@ class AdbDeviceSource(context: Context) : DeviceSource {
         }
     }
 
-    private suspend fun makeHome(deviceId: String, packageName: String, undoing: Long?): HistoryEntry {
+    /** [withService] false leaves the new launcher's accessibility service as it is: the user said no. */
+    private suspend fun switchHome(deviceId: String, packageName: String, undoing: Long?, withService: Boolean): HistoryEntry {
         val key = key(deviceId)
         val actions = Actions(session(deviceId))
         return when (val r = actions.makeHome(packageName)) {
             is HomeResult.Switched -> {
                 // Where the TV sends Home to its own launcher, the new one holds it with this service.
-                val service = packageName.takeIf { it in serviceLaunchers }?.let { actions.homeService(it) }?.takeUnless { actions.serviceOn(it) }
+                val service = packageName.takeIf { withService && it in serviceLaunchers }?.let { actions.homeService(it) }?.takeUnless { actions.serviceOn(it) }
                 val on = service?.let { actions.setService(it, true) }
                 val label = labels[packageName] ?: AppNames.fallback(packageName)
                 book.record(
@@ -525,7 +560,7 @@ class AdbDeviceSource(context: Context) : DeviceSource {
                     undo = Action.Home,
                     // The switch away from it is reversed now, so Restore leaves it alone.
                     undoing = undoing ?: target.reverses,
-                    previous = mapOf("from" to r.from, "to" to r.to),
+                    previous = mapOf("from" to r.from, "to" to r.to) + listOfNotNull(service?.takeIf { off == true }?.let { "service" to it }),
                 ).also { if (off == false) throw IllegalStateException(serviceNotOff(labels[added] ?: AppNames.fallback(added))) }
             }
             is HomeResult.Refused -> throw IllegalStateException(reasonText(r.reason))

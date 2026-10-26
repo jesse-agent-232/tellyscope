@@ -99,12 +99,31 @@ object Copy {
     fun explainHome(app: String, pkg: String, current: String, currentPkg: String, service: Boolean = false) = buildString {
         append("Makes $app ($pkg) open when you press Home, then disables $current ($currentPkg) so the TV can't switch back by itself. ")
         append("Undo in History turns $current back on and makes it Home again.")
-        if (service) {
-            append("\n\nIt also turns on $app's accessibility service, so the Home button opens $app on TVs that would open their own launcher. ")
-            append("An accessibility service can see what's on screen. Undo and Switch home back turn it off.")
-        }
         if (currentPkg in GOOGLE_HOMES) append("\n\nSome Google TV features, like the Apps row and the Live tab, are part of $current and go away with it.")
+        if (service) append("\n\nNext, you choose whether to turn on its accessibility service.")
     }
+
+    /** The separate yes for a launcher's accessibility service: what it does, what it can see, how it goes. */
+    fun serviceTitle(app: String) = "Turn on $app's accessibility service?"
+
+    fun explainService(app: String, other: String) =
+        "It keeps the Home button opening $app. Without it, this TV's Home button may still open $other.\n\n" +
+            "An accessibility service can see what's on screen. Turn it on only if you trust $app.\n\n" +
+            "Undo in History or Switch home back turns it off."
+
+    const val TURN_IT_ON = "Turn it on"
+    const val SWITCH_WITHOUT = "Switch without it"
+    const val NOT_NOW = "Not now"
+    const val TURN_ON = "Turn on"
+    const val GOT_IT = "Got it"
+    const val SERVICE_OFF = "Accessibility service off"
+
+    /** The TV page's card while the launcher on Home has its service off; [other] is the launcher Home may still open. */
+    fun serviceOffTitle(other: String?) = "Home may open ${other ?: TV_OWN_LAUNCHER}"
+
+    const val TV_OWN_LAUNCHER = "the TV's own launcher"
+
+    fun serviceOffText(app: String) = "$app's accessibility service is off, so the TV can take Home back."
 
     private val GOOGLE_HOMES = setOf("com.google.android.tvlauncher", "com.google.android.apps.tv.launcherx")
 

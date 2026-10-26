@@ -29,6 +29,17 @@ class HistoryBookTest {
         assertEquals(listOf(change), HistoryBook(file).entries(tv))
     }
 
+    @Test fun aLaterStepOfASwitchIsKeptOnItsEntry() {
+        val file = tmp.root.resolve("history.tsv")
+        val switch = HistoryBook(file).record(tv, 1_000, Action.Home, "com.google.android.tvlauncher", "Projectivy", Action.Enable,
+            previous = mapOf("from" to "com.google.android.tvlauncher/.Main", "to" to "com.spocky.projengmenu/.Home"))
+        HistoryBook(file).apply { amend(switch.id, mapOf("service" to "com.spocky.projengmenu/.Service")); amend(switch.id, mapOf("note" to "dismissed")) }
+        val previous = HistoryBook(file).entries(tv).single().previous
+        assertEquals("com.spocky.projengmenu/.Service", previous?.get("service"))
+        assertEquals("dismissed", previous?.get("note"))
+        assertEquals("com.google.android.tvlauncher/.Main", previous?.get("from"))
+    }
+
     @Test fun historyAndUndoSurviveARestart() {
         val file = tmp.root.resolve("history.tsv")
         val before = HistoryBook(file)

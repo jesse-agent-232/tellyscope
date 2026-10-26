@@ -266,6 +266,10 @@ fun DeviceTabsScreen(
                         } else if (offline) {
                             item { OfflineCard(device, state.now, actions.reconnect) }
                         }
+                        // A switch that left the launcher's service off: Home may go back to the TV's own.
+                        ui.apps.firstOrNull { it.homeServiceNote }?.takeIf { !offline }?.let { a ->
+                            item(key = "serviceOff") { ServiceOffCard(a, onTurnOn = { actions.homeServiceOn(a.packageName) }, onDismiss = { actions.dismissServiceNote(a.packageName) }) }
+                        }
                         // Another computer connected needs acting on now, so it sits with the cards above the stats.
                         ui.access?.takeIf { it.warning && !offline }?.let { a -> item(key = "accessWarning") { AccessWarning(a, actions.access, onWho = actions.whoHasAccess) } }
                         // Away, storage is the last one seen, this session's or the saved one after a restart.

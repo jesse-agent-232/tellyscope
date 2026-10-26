@@ -30,7 +30,7 @@ You don't have to trust ours. Fork tellyscope-devices, edit the lists in your fo
 
 ## Launchers
 
-[`app/src/main/assets/launchers.json`](app/src/main/assets/launchers.json) lists the third-party launchers Tellyscope knows. Set `"accessibility": true` only for a launcher that keeps Home with its own accessibility service: Set as default turns that service on, and an accessibility service can read the screen. Check the APK's manifest for a service with `BIND_ACCESSIBILITY_SERVICE`, and put the version you checked in `"checked"`. The list ships with the app and is never fetched, so a custom list source can't add to it.
+[`app/src/main/assets/launchers.json`](app/src/main/assets/launchers.json) lists the third-party launchers Tellyscope knows. Set `"accessibility": true` only for a launcher that keeps Home with its own accessibility service: Set as default offers to turn that service on, and an accessibility service can read the screen. Check the APK's manifest for a service with `BIND_ACCESSIBILITY_SERVICE`, and put the version you checked in `"checked"`. The list ships with the app and is never fetched, so a custom list source can't add to it.
 
 ## README screenshots
 

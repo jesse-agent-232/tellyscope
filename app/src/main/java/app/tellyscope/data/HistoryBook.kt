@@ -60,6 +60,14 @@ class HistoryBook(private val file: File? = null) {
         return entry
     }
 
+    /** Adds [extra] to entry [id]'s saved state, for a later step of the same change. */
+    @Synchronized
+    fun amend(id: Long, extra: Map<String, String?>) {
+        val i = entries.indexOfFirst { it.id == id }.takeIf { it >= 0 } ?: return
+        entries[i] = entries[i].copy(previous = entries[i].previous.orEmpty() + extra)
+        save()
+    }
+
     /**
      * Apps Tellyscope left disabled on this TV: the last disable/enable it ran was a disable, and
      * the app wasn't already off before Tellyscope's first change. Restore turns on only these.

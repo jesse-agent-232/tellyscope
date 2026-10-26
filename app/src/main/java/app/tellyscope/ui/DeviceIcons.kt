@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Tv, Stick, WifiOff and Logout are the Material Icons "tv", "settings_input_hdmi", "wifi_off" and "logout" (Apache-2.0), see NOTICE.
+// Tv, Stick, WifiOff, Logout and Accessibility are the Material Icons "tv", "settings_input_hdmi", "wifi_off", "logout" and
+// "accessibility_new" (Apache-2.0), see NOTICE.
 
 package app.tellyscope.ui
 
@@ -41,12 +42,16 @@ object DeviceIcons {
     private const val LOGOUT =
         "M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"
 
+    private const val ACCESSIBILITY =
+        "M20.5 6c-2.61.7-5.67 1-8.5 1s-5.89-.3-8.5-1L3 8c1.86.5 4 .83 6 1v13h2v-6h2v6h2V9c2-.17 4.14-.5 6-1l-.5-2zM12 6c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"
+
     val Tv = icon("Tv", TV)
     val FireTv = icon("FireTv", FIRE_TV)
     val Stick = icon("Stick", STICK)
     val Projector = icon("Projector", PROJECTOR)
     val WifiOff = icon("WifiOff", WIFI_OFF)
     val Logout = icon("Logout", LOGOUT)
+    val Accessibility = icon("Accessibility", ACCESSIBILITY)
 
     fun of(kind: DeviceKind) = when (kind) {
         DeviceKind.Tv -> Tv

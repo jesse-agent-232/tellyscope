@@ -130,6 +130,10 @@ data class AppInfo(
     val homeBack: String? = null,
     /** A launcher that keeps Home with its accessibility service: the switch turns it on, the way back off. */
     val homeService: Boolean = false,
+    /** The launcher on Home, with its accessibility service off: Home may still open the TV's own. The row offers Turn on. */
+    val homeServiceOff: Boolean = false,
+    /** [homeServiceOff], and the TV page's card about it hasn't been put away with Got it since the switch. */
+    val homeServiceNote: Boolean = false,
     /** This TV's list says to keep it: Stop, Disable and Uninstall still run, after a warning. */
     val listKeep: Boolean = false,
     /** Has an icon on a launcher, so the Remote's dock can open it. */

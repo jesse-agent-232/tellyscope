@@ -560,6 +560,47 @@ class TellyscopeViewModel(
         run(pkg, action)
     }
 
+    /** A pending switch to a launcher with an accessibility service, answered in the dialog that asks about it. */
+    fun confirmHome(service: Boolean) {
+        val (pkg, action) = _state.value.device.pending?.takeIf { it.second == Action.Home } ?: return
+        run(pkg, action) { id -> source.makeHome(id, pkg, service) }
+    }
+
+    /** Turns on the accessibility service of [pkg], the launcher on Home, after a switch left it off. */
+    fun homeServiceOn(pkg: String) {
+        val id = _state.value.selectedId ?: return
+        updateDevice(id) { it.copy(busy = pkg) }
+        viewModelScope.launch {
+            val apps = try {
+                source.homeServiceOn(id, pkg)
+                source.apps(id)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                updateDevice(id) { it.copy(busy = null) }
+                _notice.value = e.message?.replaceFirstChar(Char::uppercase) ?: "That didn't work."
+                return@launch
+            }
+            val history = source.history(id)
+            updateDevice(id) { it.copy(apps = apps, busy = null, history = history) }
+        }
+    }
+
+    /** Got it on the TV page's card about [pkg]'s service being off: it stays away until the next switch. */
+    fun dismissServiceNote(pkg: String) {
+        val id = _state.value.selectedId ?: return
+        updateDevice(id) { d -> d.copy(apps = d.apps.map { if (it.packageName == pkg) it.copy(homeServiceNote = false) else it }) }
+        viewModelScope.launch {
+            try {
+                source.dismissServiceNote(id, pkg)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // Only the card's memory: at worst it shows again next time.
+            }
+        }
+    }
+
     /**
      * Undoes [entry] on the TV it happened on. The snackbar passes [deviceId] because the user may
      * have switched TVs since; History only lists the selected TV's entries.
@@ -653,13 +694,19 @@ class TellyscopeViewModel(
     private fun updateDevice(id: String, f: (DeviceUi) -> DeviceUi) =
         _state.update { s -> if (s.selectedId == id) s.copy(device = f(s.device)) else s }
 
-    private fun run(pkg: String, action: Action, undoing: Long? = null, id: String? = _state.value.selectedId) {
+    private fun run(
+        pkg: String,
+        action: Action,
+        undoing: Long? = null,
+        id: String? = _state.value.selectedId,
+        act: suspend (String) -> HistoryEntry = { source.act(it, action, pkg, undoing) },
+    ) {
         if (id == null) return
         updateDevice(id) { it.copy(pending = null, busy = pkg) }
         viewModelScope.launch {
             // The source throws with the user-facing reason when the TV refuses.
             val (entry, apps) = try {
-                source.act(id, action, pkg, undoing) to source.apps(id)
+                act(id) to source.apps(id)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

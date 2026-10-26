@@ -36,7 +36,8 @@ of "shield", "gpp_good", "gpp_maybe", "lock_reset", "smartphone", "lan",
 "laptop", "desktop_windows" and "help_outline"; the Connected devices card
 those of "bluetooth", "headphones", "keyboard", "mouse", "sports_esports",
 "usb", "speaker" and "settings_input_hdmi". The logged-out page and the
-logged-out badge on a TV's chip use that of "logout".
+logged-out badge on a TV's chip use that of "logout"; the dialog that asks
+about a launcher's accessibility service that of "accessibility_new".
 
 --------------------------------------------------------------------------------
 Store badges in docs/badges/ (README only, not in the app)

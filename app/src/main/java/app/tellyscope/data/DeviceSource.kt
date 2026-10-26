@@ -73,6 +73,15 @@ interface DeviceSource {
      */
     suspend fun act(deviceId: String, action: Action, packageName: String, undoing: Long? = null): HistoryEntry
 
+    /** [Action.Home], leaving the launcher's accessibility service off when [service] is false. */
+    suspend fun makeHome(deviceId: String, packageName: String, service: Boolean): HistoryEntry = act(deviceId, Action.Home, packageName)
+
+    /** Turns on the accessibility service of [packageName], the launcher on Home; Undo of the switch turns it off again. */
+    suspend fun homeServiceOn(deviceId: String, packageName: String) {}
+
+    /** Puts away the TV page's card about [packageName]'s service being off, until the next switch. */
+    suspend fun dismissServiceNote(deviceId: String, packageName: String) {}
+
     /** Everything Tellyscope changed on this TV, newest first. Survives app restarts. */
     suspend fun history(deviceId: String): List<HistoryEntry>
 
