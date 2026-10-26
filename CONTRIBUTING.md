@@ -19,7 +19,7 @@ Thanks for helping! Tellyscope is young, so the code and its structure are still
 
 ## Debloat lists
 
-The per-TV lists behind **Suggested for this TV** live in the [tellyscope-devices](../../../tellyscope-devices) repository, not here; add or fix a list there. When you add a package to a list:
+The per-TV lists behind **Debloat** and the Overview's list card live in the [tellyscope-devices](../../../tellyscope-devices) repository, not here; add or fix a list there. When you add a package to a list:
 
 - Say which TV models you tested on, and what changed after disabling it.
 - If disabling it broke anything (launcher, updates, remote, input, HDMI-CEC), put it in the list's keep entries, or propose it for the built-in protected list (`adb/src/main/kotlin/app/tellyscope/adb/Protected.kt`) here.

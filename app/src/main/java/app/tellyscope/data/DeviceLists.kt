@@ -115,7 +115,7 @@ data class Suggested(val pkg: String, val label: String, val note: String?, val 
 
 data class SuggestedGroup(val title: String, val packages: List<Suggested>)
 
-/** What the "Suggested for this TV" card shows. */
+/** What the Overview's list card shows. */
 sealed interface Suggestions {
     /** No index (offline and nothing cached), or the chosen list failed its checksum. */
     data object Unavailable : Suggestions
