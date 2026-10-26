@@ -289,10 +289,9 @@ fun DeviceTabsScreen(
                                 )
                             }
                         }
-                        item { SectionTitle("Suggested for this TV") }
-                        item { SuggestedCard(ui.lists, debloat, offline, onChanges = { toChanges = true; tab = TvTab.Tweaks }) }
-                        // The warning first, then what's plugged in, then Android.
+                        // The warning right under the tiles, so it shows without scrolling; then the list, what's plugged in, and Android.
                         ui.access?.takeIf { it.warning && !offline }?.let { a -> item(key = "accessWarning") { AccessWarning(a, actions.access, onWho = actions.whoHasAccess) } }
+                        item { SuggestedCard(ui.lists, debloat, offline, onChanges = { toChanges = true; tab = TvTab.Tweaks }) }
                         ui.peripherals?.takeIf { !offline }?.let { p -> item(key = "connectedDevices") { ConnectedDevicesCard(p) } }
                         item { AndroidCard(state, snap, offline, onUpdates = actions.checkUpdates) }
                     }
@@ -530,11 +529,6 @@ internal fun debloatState(ui: DeviceUi): DebloatState {
     val on = candidates.filter { it.enabled }.map { it.packageName }.toSet()
     val count = (on + back).size
     return DebloatState(candidates.size, on.size, back.size, count, count > 0 || ui.lists is Suggestions.NoList)
-}
-
-@Composable
-private fun SectionTitle(text: String) {
-    Text(text, Modifier.padding(start = 4.dp, top = 4.dp), style = MaterialTheme.typography.titleMedium)
 }
 
 /**

@@ -629,7 +629,9 @@ class ScreenshotTest {
         compose.onNodeWithText("Running · ", substring = true).assertDoesNotExist()
         // The three main actions sit under the system widget, Debloat among them.
         for (t in listOf("Install app", "Debloat", "Send file")) compose.onNodeWithText(t).assertIsEnabled()
-        for (t in listOf("Internal storage", "Network", "Suggested for this TV", "Check for updates")) compose.onNodeWithText(t).assertExists()
+        for (t in listOf("Internal storage", "Network", "Check for updates")) compose.onNodeWithText(t).assertExists()
+        // The list's card stands on its own, with no heading over it.
+        compose.onNodeWithText("Suggested for this TV").assertDoesNotExist()
         compose.onNodeWithText("Updated ", substring = true).assertExists()
         // The Remote is the page's FAB, no longer a button in the top bar.
         compose.onNodeWithText("Remote", useUnmergedTree = true).assertExists()
@@ -1469,7 +1471,7 @@ class ScreenshotTest {
     @Test fun devices_card_open() = card("93_connected_devices_open", false) { ConnectedDevicesCard(accessState().device.peripherals!!, startOpen = true) }
     @Test fun devices_card_open_dark() = card("93_connected_devices_open", true) { ConnectedDevicesCard(accessState().device.peripherals!!, startOpen = true) }
 
-    /** The Overview with both cards, scrolled to them: warning first, then devices, then Android. */
+    /** The Overview scrolled to the warning: under the tiles, then the list, devices and Android. */
     private fun accessOverview(dark: Boolean) {
         // By key: scrolling to a node by tag never stops with the clock held.
         val scroll = { compose.onNode(hasScrollAction()).performScrollToKey("accessWarning"); Unit }
