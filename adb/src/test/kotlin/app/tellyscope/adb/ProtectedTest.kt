@@ -6,6 +6,14 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 class ProtectedTest {
+    @Test fun aLauncherTheUserInstalledIsProtectedOnlyWhileItIsHome() {
+        val projectivyHome = setOf("com.spocky.projengmenu")
+        assertNull(Protected.reason("me.efesser.flauncher", projectivyHome, userApp = true))
+        assertEquals(ProtectedReason.HOME_SCREEN, Protected.reason("me.efesser.flauncher", setOf("me.efesser.flauncher"), userApp = true))
+        // A built-in one keeps the name guard, Home or not.
+        assertEquals(ProtectedReason.HOME_SCREEN, Protected.reason("com.google.android.tvlauncher", projectivyHome))
+    }
+
     @Test fun coreRuleWithSpareProviders() {
         assertEquals(ProtectedReason.SYSTEM, Protected.reason("com.google.android.permissioncontroller"))
         assertEquals(ProtectedReason.SYSTEM, Protected.reason("com.android.providers.tv"))

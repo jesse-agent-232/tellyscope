@@ -50,7 +50,7 @@ object Protected {
 
     /** Name fragments, checked in order; manufacturer names vary, so these match loosely. */
     private val PATTERNS: List<Pair<String, ProtectedReason>> = listOf(
-        "launcher" to ProtectedReason.HOME_SCREEN, // second guard behind the live home lookup
+        "launcher" to ProtectedReason.HOME_SCREEN, // second guard behind the live home lookup; built-in apps only
         "networkstack" to ProtectedReason.SYSTEM, // Wi-Fi and Ethernet setup; we'd cut our own link
         // Wi-Fi config, connectivity resources and their OEM overlays: same reason, and once Wi-Fi is
         // gone so is the ADB link an undo would need.
@@ -77,13 +77,17 @@ object Protected {
         "provision" to ProtectedReason.SETUP_WIZARD,
     )
 
-    /** [homePackages] are the device's launchers, read live; they are protected whatever their name. */
-    fun reason(pkg: String, homePackages: Set<String> = emptySet()): ProtectedReason? {
+    /**
+     * [homePackages] are the device's launchers, read live; they are protected whatever their name.
+     * A [userApp] (one the user installed) named like a launcher isn't: only the live lookup
+     * protects it, so FLauncher can go while another launcher is Home.
+     */
+    fun reason(pkg: String, homePackages: Set<String> = emptySet(), userApp: Boolean = false): ProtectedReason? {
         if (pkg in homePackages) return ProtectedReason.HOME_SCREEN
         EXACT[pkg]?.let { return it }
         if (CORE.matches(pkg) && !CORE_OK.matches(pkg)) return ProtectedReason.SYSTEM
         val lower = pkg.lowercase()
-        PATTERNS.firstOrNull { (fragment, _) -> fragment in lower }?.let { return it.second }
+        PATTERNS.firstOrNull { (fragment, why) -> fragment in lower && !(userApp && why == ProtectedReason.HOME_SCREEN) }?.let { return it.second }
         return if (UPDATER.containsMatchIn(lower)) ProtectedReason.UPDATES else null
     }
 }

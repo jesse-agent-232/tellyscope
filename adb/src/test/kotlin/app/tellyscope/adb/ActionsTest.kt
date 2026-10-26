@@ -86,6 +86,13 @@ class ActionsTest {
         assertTrue(sh.ran.contains("pm uninstall com.netflix.ninja 2>&1"))
     }
 
+    @Test fun uninstallsAnAddedLauncherThatIsNotHome() = runTest {
+        val projectivy = "cmd package resolve-activity" to ok("priority=0\ncom.spocky.projengmenu/.ui.home.MainActivity\n")
+        val sh = FakeShell(mapOf(projectivy, "pm list packages -3" to ok("package:com.spocky.projengmenu\npackage:me.efesser.flauncher\n"), "pm uninstall" to ok("Success\n")))
+        assertEquals(ActionResult.Done(null), Actions(sh).run(Action.UNINSTALL, "me.efesser.flauncher"))
+        assertEquals(ActionResult.Refused(ProtectedReason.HOME_SCREEN), Actions(sh).run(Action.UNINSTALL, "com.spocky.projengmenu"))
+    }
+
     @Test fun refusesToUninstallWhatCameWithTheTv() = runTest {
         val sh = FakeShell(mapOf(home, "pm list packages -3" to ok("package:com.netflix.ninja\n")))
         assertEquals(ActionResult.Refused(ProtectedReason.CAME_WITH_TV), Actions(sh).run(Action.UNINSTALL, "com.google.android.youtube.tv"))

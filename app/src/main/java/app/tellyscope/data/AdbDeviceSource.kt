@@ -397,7 +397,7 @@ class AdbDeviceSource(context: Context) : DeviceSource {
                 // for a built-in launcher that is off.
                 protectedReason = when {
                     p.name in disabled -> null
-                    home.isNotEmpty() -> Protected.reason(p.name, home)
+                    home.isNotEmpty() -> Protected.reason(p.name, home, userApp = p.name in userInstalled)
                     else -> ProtectedReason.UNKNOWN_HOME
                 }?.let(::reasonText),
                 version = "",
@@ -490,6 +490,7 @@ class AdbDeviceSource(context: Context) : DeviceSource {
             return switchHome(deviceId, packageName, undoing, again ?: service)
         }
         if (action == Action.HomeBack) return homeBack(deviceId, packageName, undoing)
+        if (action == Action.Uninstall && Actions(shell).homeOptions()?.current == packageName) return uninstallHome(deviceId, packageName)
         val r = Actions(shell).run(AdbAction.valueOf(action.name.uppercase()), packageName)
         return when (r) {
             is ActionResult.Done -> {
@@ -541,6 +542,13 @@ class AdbDeviceSource(context: Context) : DeviceSource {
             is HomeResult.Failed -> throw IllegalStateException(r.output.ifEmpty { "the TV refused" })
         }
     }
+
+    /**
+     * Uninstall of the launcher on Home: Home goes back to the TV's own first, its accessibility
+     * service off with it, as Switch home back does. Any step that fails stops it before the uninstall.
+     */
+    private suspend fun uninstallHome(deviceId: String, pkg: String): HistoryEntry =
+        uninstallAfterHomeBack({ homeBack(deviceId, pkg, null) }, { actNow(deviceId, Action.Uninstall, pkg, null) })
 
     /**
      * Makes Home again the launcher that [added], now Home, replaced: the one the last switch saved,
@@ -936,4 +944,21 @@ internal suspend fun applyTweak(
         throw IllegalStateException(TvSettings.dnsStuck(values["private_dns_specifier"]))
     }
     return record(TvSettings.label(tweak, t.read(tweak)), before)
+}
+
+/**
+ * Runs [switchBack] (Home to the TV's own, the launcher's service off), and [uninstall] only once
+ * it worked. A failure says which step stopped it.
+ */
+internal suspend fun uninstallAfterHomeBack(switchBack: suspend () -> Unit, uninstall: suspend () -> HistoryEntry): HistoryEntry {
+    try {
+        switchBack()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        val why = e.message ?: "the TV refused"
+        // "switched back, but …": Home moved, its service didn't turn off.
+        throw IllegalStateException(if (why.startsWith("switched back")) "$why. Nothing was uninstalled" else "Home didn't switch back: $why. Nothing was uninstalled")
+    }
+    return uninstall()
 }

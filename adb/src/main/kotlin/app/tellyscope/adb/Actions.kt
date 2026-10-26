@@ -30,7 +30,7 @@ class Actions(private val shell: AdbShell) {
         if (action != Action.ENABLE && action != Action.OPEN) {
             // No launcher answer (no `cmd` before Android 7, or an error): we can't tell what's safe.
             val home = homePackages().ifEmpty { return ActionResult.Refused(ProtectedReason.UNKNOWN_HOME) }
-            Protected.reason(pkg, home)?.let { return ActionResult.Refused(it) }
+            Protected.reason(pkg, home, userApp = pkg in userPackages())?.let { return ActionResult.Refused(it) }
         }
         return when (action) {
             Action.STOP -> exec("am force-stop $pkg", Action.OPEN)
@@ -47,10 +47,11 @@ class Actions(private val shell: AdbShell) {
      * never does that.
      */
     private suspend fun uninstall(pkg: String): ActionResult {
-        val userApps = Parsers.packages(shell.shell(Commands.USER_PACKAGES).output).map { it.name }
-        if (pkg !in userApps) return ActionResult.Refused(ProtectedReason.CAME_WITH_TV)
+        if (pkg !in userPackages()) return ActionResult.Refused(ProtectedReason.CAME_WITH_TV)
         return exec("pm uninstall $pkg", undo = null) { "Success" in it }
     }
+
+    private suspend fun userPackages() = Parsers.packages(shell.shell(Commands.USER_PACKAGES).output).map { it.name }.toSet()
 
     /**
      * Launchers to protect: the default one, or every installed launcher when there's no default
