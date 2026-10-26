@@ -39,7 +39,7 @@ Debloat your Android TV, install apps, and browse and transfer files on it, all 
     <td align="center"><sub>Send files to the TV</sub></td>
     <td align="center"><sub>Block ads and tweak the TV</sub></td>
     <td align="center"><sub>Set default launcher</sub></td>
-    <td align="center"><sub>Move your setup to a new TV (coming in 0.9)</sub></td>
+    <td align="center"><sub>Move your setup to a new TV (coming soon)</sub></td>
   </tr>
   <tr>
     <td><img src="docs/screenshots/access-warning.png" alt="The TV's page warns that another computer is connected, above Connected devices: the remote, headphones and keyboard"></td>
