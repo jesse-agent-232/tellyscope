@@ -12,6 +12,7 @@ until this file has a section for its version.
 
 ## Unreleased
 
+- **Improved:** The warning about another computer shows without scrolling. [#143](../../pull/143)
 - **Fixed:** Remove all other access waits for this phone to be allowed again. [#141](../../pull/141)
 - **Fixed:** The Remote no longer jumps while you type. [#141](../../pull/141)
 
