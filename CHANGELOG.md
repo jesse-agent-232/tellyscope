@@ -14,6 +14,7 @@ until this file has a section for its version.
 
 - **Fixed:** Remove all other access waits for this phone to be allowed again. [#141](../../pull/141)
 - **Fixed:** The Remote no longer jumps while you type. [#141](../../pull/141)
+- **New:** A button on the Remote empties the TV's text box. [#144](../../pull/144)
 
 ## 0.9.0 — 2026-10-26
 
