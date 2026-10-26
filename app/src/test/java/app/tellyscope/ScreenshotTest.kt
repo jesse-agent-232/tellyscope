@@ -101,6 +101,9 @@ import app.tellyscope.data.RELEASES
 import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import app.tellyscope.ui.UiState
 import app.tellyscope.ui.theme.TellyscopeTheme
 import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
@@ -948,6 +951,27 @@ class ScreenshotTest {
         // Play/Pause went: the D-pad's centre pauses a video.
         compose.onNodeWithContentDescription("Play or pause").assertDoesNotExist()
         compose.onNodeWithText("OK").assertDoesNotExist()
+    }
+
+    // Screen off (0.9): the button fills in and the title says how to wake it, so nothing below moves.
+    private fun screenOffState() = remoteState().let { it.copy(screenOff = setOf(it.selectedId!!)) }
+    @Test fun remote_screenOff() = shot("13_remote_screen_off") { RemoteScreen(screenOffState(), RemoteActions()) }
+    @Test fun remote_screenOff_dark() = shot("13_remote_screen_off", dark = true) { RemoteScreen(screenOffState(), RemoteActions()) }
+    @Test fun remote_screenOffTip() = shot("13_remote_screen_off_tip", screen = true) { RemoteScreen(remoteState().copy(screenOffTip = true), RemoteActions()) }
+
+    @Test fun screenOffSaysWhatATapDoes() {
+        var off by mutableStateOf(false)
+        compose.setContent { TellyscopeTheme(dynamic = false) { RemoteScreen(if (off) screenOffState() else remoteState(), RemoteActions()) } }
+        compose.onNodeWithContentDescription(Copy.SCREEN_OFF).assertExists()
+        off = true
+        compose.onNodeWithContentDescription(Copy.SCREEN_ON).assertExists()
+        compose.onNodeWithText(Copy.SCREEN_OFF_WAKE, substring = true).assertExists()
+    }
+
+    @Test fun android14HasNoScreenOff() {
+        val s = remoteState().let { st -> st.copy(devices = st.devices.map { if (it.id == st.selectedId) it.copy(android = "14") else it }) }
+        compose.setContent { TellyscopeTheme(dynamic = false) { RemoteScreen(s, RemoteActions()) } }
+        compose.onNodeWithContentDescription(Copy.SCREEN_OFF).assertDoesNotExist()
     }
 
     /**

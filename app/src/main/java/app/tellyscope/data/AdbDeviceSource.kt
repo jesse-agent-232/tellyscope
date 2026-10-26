@@ -600,6 +600,8 @@ class AdbDeviceSource(context: Context) : DeviceSource {
 
     override suspend fun type(deviceId: String, text: String) = busy(deviceId) { remote(deviceId).type(text) }
 
+    override suspend fun screen(deviceId: String, on: Boolean) = busy(deviceId) { remote(deviceId).screen(on) }
+
     override suspend fun reboot(deviceId: String) = Remote(session(deviceId)).reboot()
 
     override suspend fun openUpdates(deviceId: String) = Remote(session(deviceId)).openUpdates()

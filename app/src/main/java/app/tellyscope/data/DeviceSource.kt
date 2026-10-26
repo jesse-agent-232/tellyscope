@@ -120,6 +120,12 @@ interface DeviceSource {
     /** Types into the focused box on the TV. The caller checks [app.tellyscope.adb.Remote.typeable] first. */
     suspend fun type(deviceId: String, text: String): Boolean
 
+    /**
+     * Turns the TV's picture off or back on; the TV stays awake and connected. False when this TV
+     * can't (no key helper, or the TV refused). Throws when it's gone.
+     */
+    suspend fun screen(deviceId: String, on: Boolean): Boolean
+
     /** Restarts the TV. The link drops and reconnects on its own once the TV is back. False if the TV refused. */
     suspend fun reboot(deviceId: String): Boolean
 

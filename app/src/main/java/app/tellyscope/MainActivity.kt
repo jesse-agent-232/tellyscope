@@ -223,6 +223,8 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
                 stopWaiting = vm::stopWaiting,
                 launch = vm::launch,
                 setDock = vm::setDock,
+                screenOff = vm::setScreenOff,
+                screenOffTipSeen = vm::screenOffTipSeen,
             ),
         )
     } else if (advanced) {

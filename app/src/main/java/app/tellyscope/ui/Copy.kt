@@ -320,6 +320,12 @@ object Copy {
     const val REBOOT_IGNORED = "The TV didn't restart. Use its own remote or power button instead."
     const val REMOTE_OFFLINE = "The TV is offline. The remote works again once it reconnects."
     const val TYPE_HINT = "Select a text box on the TV, like a search box, then type here."
+    const val SCREEN_OFF = "Screen off"
+    const val SCREEN_ON = "Turn the screen back on"
+    const val SCREEN_OFF_WAKE = "tap any key to wake"
+    const val SCREEN_OFF_TIP = "Turns off the TV's picture. The app stays connected; any key wakes it."
+    const val SCREEN_OFF_REFUSED = "This TV can't turn its picture off from Tellyscope."
+    const val SCREEN_ON_REFUSED = "The TV's picture didn't come back on. Try again, or restart the TV."
 
     fun cantType(text: String): String {
         val odd = text.firstOrNull { it !in ' '..'~' }

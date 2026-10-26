@@ -310,6 +310,11 @@ class FakeDeviceSource(
         return true
     }
 
+    override suspend fun screen(deviceId: String, on: Boolean): Boolean {
+        delay(100)
+        return true
+    }
+
     override suspend fun openUpdates(deviceId: String): Boolean {
         delay(300)
         return true

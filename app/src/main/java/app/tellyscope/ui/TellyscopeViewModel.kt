@@ -172,6 +172,10 @@ data class UiState(
     val update: Update? = null,
     /** A Remote key press vibrates. */
     val keyHaptics: Boolean = true,
+    /** The TVs whose picture the Remote turned off. */
+    val screenOff: Set<String> = emptySet(),
+    /** The Remote's Screen off button explains itself, the first time only. */
+    val screenOffTip: Boolean = false,
     /** The Apps tabs whose System section the user folded away. */
     val foldedSystem: Set<AppsTab> = emptySet(),
     /** The report screen; null when it's closed. */
@@ -288,7 +292,7 @@ class TellyscopeViewModel(
             viewModelScope.launch(Dispatchers.IO) { _state.update { it.copy(checkUpdates = u.enabled, alphaBuild = u.alpha) } }
         }
         keyHaptics?.let { k ->
-            viewModelScope.launch(Dispatchers.IO) { _state.update { it.copy(keyHaptics = k.on) } }
+            viewModelScope.launch(Dispatchers.IO) { _state.update { it.copy(keyHaptics = k.on, screenOffTip = !k.screenOffTipSeen) } }
         }
         folds?.let { f ->
             viewModelScope.launch(Dispatchers.IO) {
@@ -1014,6 +1018,8 @@ class TellyscopeViewModel(
         val id = _state.value.selectedId ?: return false
         return keys.withLock {
             try {
+                // With the picture off, any key wakes it, the way a TV's own remote does, and does nothing else.
+                if (id in _state.value.screenOff) return@withLock wake(id)
                 source.press(id, key).also { if (!it) _notice.value = Copy.KEY_REFUSED }
             } catch (e: CancellationException) {
                 throw e
@@ -1024,7 +1030,59 @@ class TellyscopeViewModel(
         }
     }
 
-    fun closeRemote() = source.closeRemote()
+    /** Turns the TV's picture off, or back on. The TV stays connected either way. */
+    fun setScreenOff(off: Boolean) {
+        val id = _state.value.selectedId ?: return
+        viewModelScope.launch {
+            keys.withLock {
+                try {
+                    if (!off) wake(id)
+                    else if (source.screen(id, on = false)) _state.update { it.copy(screenOff = it.screenOff + id) }
+                    else _notice.value = Copy.SCREEN_OFF_REFUSED
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    _notice.value = Copy.REMOTE_LOST
+                }
+            }
+        }
+    }
+
+    /** Under [keys]. True once the picture is back on. Throws when the TV is gone. */
+    private suspend fun wake(id: String): Boolean {
+        val ok = source.screen(id, on = true)
+        if (ok) _state.update { it.copy(screenOff = it.screenOff - id) } else _notice.value = Copy.SCREEN_ON_REFUSED
+        return ok
+    }
+
+    fun screenOffTipSeen() {
+        _state.update { it.copy(screenOffTip = false) }
+        viewModelScope.launch(Dispatchers.IO) { keyHaptics?.screenOffTipSeen = true }
+    }
+
+    /**
+     * The Remote closed. A picture it turned off stays off without it, and only the Remote can turn
+     * it back on, so that happens first.
+     */
+    fun closeRemote() {
+        val off = _state.value.screenOff
+        if (off.isEmpty()) return source.closeRemote()
+        _state.update { it.copy(screenOff = emptySet()) }
+        viewModelScope.launch {
+            keys.withLock {
+                for (id in off) {
+                    try {
+                        source.screen(id, on = true)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                        // Gone: a restart or power cycle brings the picture back on its own.
+                    }
+                }
+            }
+            source.closeRemote()
+        }
+    }
 
     /** Types on the TV. Returns why it can't, or null once it's on its way. */
     fun type(text: String): String? {
@@ -1071,7 +1129,8 @@ class TellyscopeViewModel(
                 _notice.value = Copy.REMOTE_LOST
                 return@launch
             }
-            if (ok) _state.update { it.copy(restarting = it.restarting + (id to Restart(clock()))) }
+            // A restart brings the picture back on by itself.
+            if (ok) _state.update { it.copy(restarting = it.restarting + (id to Restart(clock())), screenOff = it.screenOff - id) }
             else _notice.value = Copy.REBOOT_REFUSED
         }
     }

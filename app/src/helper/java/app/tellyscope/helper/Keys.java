@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package app.tellyscope.helper;
 
+import android.os.IBinder;
 import android.os.SystemClock;
 import android.view.InputDevice;
 import android.view.InputEvent;
@@ -21,7 +22,9 @@ import java.lang.reflect.Method;
  * {@code 0} when it didn't. Prints {@code ready} first. Only key codes are read, so nothing typed
  * reaches a shell. The argument is the jar's own path, deleted once the helper is up; it exits at
  * the end of stdin. A line starting with {@code t} is text instead: the rest is typed the way
- * {@code input text} types it, one key press per character.
+ * {@code input text} types it, one key press per character. {@code p0} turns the TV's picture off
+ * and {@code p2} back on, through SurfaceFlinger: the TV stays awake, so ADB stays connected, and
+ * the picture stays off after the helper exits.
  */
 public final class Keys {
     /** InputManager's INJECT_INPUT_EVENT_MODE_WAIT_FOR_FINISH: answers once the focused app is done with it. */
@@ -50,6 +53,11 @@ public final class Keys {
         for (String line; (line = in.readLine()) != null; ) {
             boolean ok;
             try {
+                if (line.startsWith("p")) {
+                    out.print(power(Integer.parseInt(line.substring(1).trim())) ? "1\n" : "0\n");
+                    out.flush();
+                    continue;
+                }
                 if (line.startsWith("t")) {
                     out.print(type(manager, inject, keymap, line.substring(1)) ? "1\n" : "0\n");
                     out.flush();
@@ -64,6 +72,28 @@ public final class Keys {
             }
             out.print(ok ? "1\n" : "0\n");
             out.flush();
+        }
+    }
+
+    /**
+     * SurfaceControl's display power mode: 0 is off, 2 is on. Android 10 to 13 name the display by
+     * getInternalDisplayToken, older builds by getBuiltInDisplay(0). Android 14 moved both to a
+     * class the shell's VM can't load, so there it answers 0.
+     */
+    private static boolean power(int mode) {
+        try {
+            Class<?> sc = Class.forName("android.view.SurfaceControl");
+            Object display;
+            try {
+                display = sc.getMethod("getInternalDisplayToken").invoke(null);
+            } catch (NoSuchMethodException e) {
+                display = sc.getMethod("getBuiltInDisplay", int.class).invoke(null, 0);
+            }
+            if (display == null) return false;
+            sc.getMethod("setDisplayPowerMode", IBinder.class, int.class).invoke(null, display, mode);
+            return true;
+        } catch (Throwable t) {
+            return false;
         }
     }
 
