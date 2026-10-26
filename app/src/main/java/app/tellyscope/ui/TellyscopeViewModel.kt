@@ -271,6 +271,9 @@ const val ANSWERING = "request"
 /** How often Install a home screen asks the TV whether the launcher is in yet. */
 const val STORE_POLL_MS = 3_000L
 
+/** How long it keeps asking before it says the launcher didn't arrive. */
+const val STORE_WAIT_MS = 10 * 60_000L
+
 /** Where a removal ends, from the re-read after it: never Done on a guess. */
 fun outcome(access: TvAccess?): Removal = when {
     access?.connected == null || access.allowed == null -> Removal(Removal.Step.Unconfirmed)
@@ -675,7 +678,11 @@ class TellyscopeViewModel(
     /**
      * Opens the Play Store on the TV at [pkg]'s page, then checks every few seconds whether it's
      * installed, or the Store has closed without it. Where the Store didn't open, it keeps
-     * checking while the user searches by hand.
+     * checking while the user searches by hand. After [STORE_WAIT_MS] without it, it stops at [LauncherFlow.Step.Left].
+     *
+     * Known: a Google sign-in or consent screen inside the Store runs as another app
+     * (com.google.android.gms), so it can read as leaving the Store and end the wait early.
+     * Open Store again recovers.
      */
     fun installLauncher(pkg: String) {
         val id = _state.value.selectedId ?: return
@@ -692,14 +699,14 @@ class TellyscopeViewModel(
             }
             if (!opened) step(LauncherFlow.Step.NoStore)
             var seen = opened
-            while (true) {
+            repeat((STORE_WAIT_MS / STORE_POLL_MS).toInt()) {
                 delay(STORE_POLL_MS)
                 val now = try {
                     source.storeState(id, pkg)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (_: Exception) {
-                    continue // a dropped read: the next one tells
+                    return@repeat // a dropped read: the next one tells
                 }
                 when (now) {
                     StoreState.Installed -> {
@@ -727,6 +734,7 @@ class TellyscopeViewModel(
                     }
                 }
             }
+            step(LauncherFlow.Step.Left)
         }
     }
 

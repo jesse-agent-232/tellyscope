@@ -25,6 +25,7 @@ import app.tellyscope.ui.LauncherFlow
 import app.tellyscope.ui.LauncherScreen
 import app.tellyscope.ui.PLAY_STORE
 import app.tellyscope.ui.STORE_POLL_MS
+import app.tellyscope.ui.STORE_WAIT_MS
 import app.tellyscope.ui.TellyscopeViewModel
 import app.tellyscope.ui.offerLauncher
 import kotlinx.coroutines.Dispatchers
@@ -158,6 +159,19 @@ class LauncherFlowTest {
         assertEquals(LauncherFlow.Step.NoStore, step) // never on screen, so not "closed"
         advanceTimeBy(STORE_POLL_MS)
         assertEquals(LauncherFlow.Step.Installed, step)
+    }
+
+    @Test fun aStoreNeverOpenedStopsWaitingAfterTenMinutes() = with(test) {
+        source.opens = false
+        source.states = ArrayDeque(List(1_000) { StoreState.Elsewhere })
+        started().installLauncher(PROJECTIVY)
+        advanceTimeBy(STORE_WAIT_MS - STORE_POLL_MS)
+        assertEquals(LauncherFlow.Step.NoStore, step)
+        advanceTimeBy(STORE_POLL_MS + 1)
+        assertEquals(LauncherFlow.Step.Left, step)
+        val left = source.states.size
+        advanceTimeBy(10 * STORE_POLL_MS)
+        assertEquals(left, source.states.size) // stopped asking
     }
 
     @Test fun notNowAfterTheInstallSaysWhereToSwitchLater() = with(test) {
