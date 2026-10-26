@@ -465,8 +465,6 @@ private fun StatusShape(icon: ImageVector, container: Color, content: Color) {
     }
 }
 
-/** The top bar's title while a hidden restart runs, overdue once [late]; a tap brings its dialog back. */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 /** Filled while the picture is off; a tap turns it back on. Explains itself on the first visit. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -514,6 +512,8 @@ private fun ScreenOffStatus() {
     }
 }
 
+/** The top bar's title while a hidden restart runs, overdue once [late]; a tap brings its dialog back. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun RestartStatus(late: Boolean, onClick: () -> Unit) {
     Row(
