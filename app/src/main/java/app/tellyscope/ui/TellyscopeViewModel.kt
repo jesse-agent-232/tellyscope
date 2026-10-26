@@ -957,14 +957,15 @@ class TellyscopeViewModel(
     }
 
     /**
-     * Who has access every 10 s while the TV's page is open, and what's plugged in every 30 s.
+     * Who has access every 10 s while the TV's page is open. What's plugged in only when it opens
+     * and every 2 minutes after: that read is five `dumpsys` calls, too heavy for every tick.
      * A failed read keeps the last answer; a removal in progress does its own reads.
      */
     private suspend fun watchAccess(id: String) {
         var tick = 0
         while (true) {
             if (_state.value.device.removal == null) readAccess(id)
-            if (tick++ % 3 == 0) {
+            if (tick++ % 12 == 0) {
                 val found = try { source.peripherals(id) } catch (e: CancellationException) { throw e } catch (_: Exception) { null }
                 found?.let { p -> updateDevice(id) { it.copy(peripherals = p) } }
             }
