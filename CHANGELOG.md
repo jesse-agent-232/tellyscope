@@ -12,6 +12,7 @@ until this file has a section for its version.
 
 ## Unreleased
 
+- **New:** Screen off turns off the TV's picture from the Remote; any key wakes it. [#139](../../pull/139)
 - **Fixed:** Apps show their real icon, not a banner strip or letter. [#136](../../pull/136)
 - **Improved:** The dock picker leaves out built-in phone-style apps like Camera. [#138](../../pull/138)
 
