@@ -58,6 +58,11 @@ public final class Keys {
                     out.flush();
                     continue;
                 }
+                if (line.equals("c")) {
+                    out.print(clear(manager, inject) ? "1\n" : "0\n");
+                    out.flush();
+                    continue;
+                }
                 if (line.startsWith("t")) {
                     out.print(type(manager, inject, keymap, line.substring(1)) ? "1\n" : "0\n");
                     out.flush();
@@ -65,8 +70,8 @@ public final class Keys {
                 }
                 int code = Integer.parseInt(line.trim());
                 long now = SystemClock.uptimeMillis();
-                ok = send(manager, inject, now, KeyEvent.ACTION_DOWN, code)
-                    && send(manager, inject, now, KeyEvent.ACTION_UP, code);
+                ok = send(manager, inject, now, KeyEvent.ACTION_DOWN, code, 0)
+                    && send(manager, inject, now, KeyEvent.ACTION_UP, code, 0);
             } catch (Throwable t) {
                 ok = false;
             }
@@ -113,8 +118,27 @@ public final class Keys {
         }
     }
 
-    private static boolean send(Object manager, Method inject, long downTime, int action, int code) throws Exception {
-        KeyEvent e = new KeyEvent(downTime, SystemClock.uptimeMillis(), action, code, 0, 0,
+    /** Ctrl+A, then Delete: everything in the focused text box is selected and deleted. */
+    private static boolean clear(Object manager, Method inject) {
+        try {
+            int ctrl = KeyEvent.META_CTRL_ON | KeyEvent.META_CTRL_LEFT_ON;
+            long now = SystemClock.uptimeMillis();
+            boolean ok = send(manager, inject, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_CTRL_LEFT, ctrl)
+                && send(manager, inject, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_A, ctrl)
+                && send(manager, inject, now, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_A, ctrl);
+            // Ctrl comes back up even when A wasn't taken, so the TV isn't left holding it.
+            ok = send(manager, inject, now, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_CTRL_LEFT, 0) && ok;
+            long del = SystemClock.uptimeMillis();
+            return ok
+                && send(manager, inject, del, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL, 0)
+                && send(manager, inject, del, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL, 0);
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    private static boolean send(Object manager, Method inject, long downTime, int action, int code, int meta) throws Exception {
+        KeyEvent e = new KeyEvent(downTime, SystemClock.uptimeMillis(), action, code, 0, meta,
             KeyCharacterMap.VIRTUAL_KEYBOARD, 0, 0, InputDevice.SOURCE_KEYBOARD);
         return (Boolean) inject.invoke(manager, e, WAIT_FOR_FINISH);
     }

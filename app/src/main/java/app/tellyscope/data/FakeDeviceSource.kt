@@ -313,6 +313,11 @@ class FakeDeviceSource(
         return true
     }
 
+    override suspend fun clearText(deviceId: String): Boolean {
+        delay(100)
+        return true
+    }
+
     override suspend fun screen(deviceId: String, on: Boolean): Boolean {
         delay(100)
         return true

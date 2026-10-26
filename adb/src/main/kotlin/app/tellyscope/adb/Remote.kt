@@ -44,6 +44,12 @@ class Remote(private val session: AdbSession, private val keys: KeyHelper? = nul
     suspend fun type(text: String): Boolean = keys?.type(text) ?: (session.shell(typeCommand(text)).exitCode == 0)
 
     /**
+     * Empties the focused text box on the TV. Only the key helper can (`input` has no Ctrl+A on
+     * older Android): false when it isn't running or the TV refused. Throws if the link is gone.
+     */
+    suspend fun clearText(): Boolean = keys?.clear() ?: false
+
+    /**
      * Turns the TV's picture off or back on, leaving the TV awake so the link stays up. Only the
      * key helper can: false when it isn't running or the TV refused. Throws if the link is gone.
      */

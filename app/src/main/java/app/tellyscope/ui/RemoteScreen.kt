@@ -142,6 +142,8 @@ data class RemoteActions(
     val press: suspend (RemoteKey) -> Boolean = { true },
     /** Returns why the text can't be typed, or null once it's sent. */
     val type: (String) -> String? = { null },
+    /** Empties the text box on the TV, whatever is in the phone's field. */
+    val clearText: () -> Unit = {},
     val reboot: () -> Unit = {},
     val back: () -> Unit = {},
     /** A restart running late: try the TV again and wait another minute. */
@@ -272,7 +274,7 @@ fun RemoteScreen(
                 }
                 // Clear space above and below, so a thumb aiming at a volume key doesn't open an app.
                 DockSection(state.device.dock, state.device.apps, name(device), live, actions, Modifier.padding(vertical = 4.dp))
-                Keyboard(live, actions.type)
+                Keyboard(live, actions.type, actions.clearText)
             } }
         }
     }
@@ -370,7 +372,8 @@ private fun KeySurface(
 }
 
 @Composable
-private fun Keyboard(enabled: Boolean, type: (String) -> String?) {
+@OptIn(ExperimentalMaterial3Api::class)
+private fun Keyboard(enabled: Boolean, type: (String) -> String?, clearText: () -> Unit) {
     var text by rememberSaveable { mutableStateOf("") }
     var error by rememberSaveable { mutableStateOf<String?>(null) }
     fun send() {
@@ -388,8 +391,19 @@ private fun Keyboard(enabled: Boolean, type: (String) -> String?) {
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
         keyboardActions = KeyboardActions(onSend = { send() }),
         trailingIcon = {
-            IconButton(onClick = ::send, enabled = enabled && text.isNotEmpty()) {
-                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send to the TV")
+            Row {
+                TooltipBox(
+                    positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+                    tooltip = { PlainTooltip { Text(Copy.CLEAR_TV_TEXT) } },
+                    state = rememberTooltipState(),
+                ) {
+                    IconButton(onClick = clearText, enabled = enabled) {
+                        Icon(RemoteIcons.Backspace, contentDescription = Copy.CLEAR_TV_TEXT)
+                    }
+                }
+                IconButton(onClick = ::send, enabled = enabled && text.isNotEmpty()) {
+                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send to the TV")
+                }
             }
         },
         modifier = Modifier.fillMaxWidth(),
@@ -770,6 +784,11 @@ private object RemoteIcons {
         "M1 3.54L2.53 5.07C1.65 5.28 1 6.06 1 7L1 19C1 20.1 1.9 21 3 21L18.46 21L20.46 23L21.72 21.73L2.27 2.27L1 3.54Z" +
             "M3 19L3 7L4.46 7L16.46 19L3 19Z" +
             "M21 5L13.42 5L16.71 1.7L16 1L12 5L8 1L7.3 1.7L10.58 5L7.52 5L9.52 7L21 7L21 18.48L22.65 20.13C22.87 19.81 23 19.42 23 19L23 7C23 5.89 22.11 5 21 5Z",
+    )
+    val Backspace = icon(
+        "Backspace",
+        "M22 3L7 3C6.31 3 5.77 3.35 5.41 3.88L0 12L5.41 20.11C5.77 20.64 6.31 21 7 21L22 21C23.1 21 24 20.1 24 19L24 5C24 3.9 23.1 3 22 3Z" +
+            "M19 15.59L17.59 17L14 13.41L10.41 17L9 15.59L12.59 12L9 8.41L10.41 7L14 10.59L17.59 7L19 8.41L15.41 12L19 15.59Z",
     )
     val RestartAlt = icon(
         "RestartAlt",
