@@ -239,6 +239,15 @@ object Copy {
 
     fun uninstallTitle(app: String) = "Uninstall $app?"
 
+    /** The confirm for the launcher on Home: Home goes back first, and a failed step stops it. */
+    fun uninstallHome(app: String, back: String, service: Boolean) = listOfNotNull(
+        "$app is your home screen. Before removing it, Tellyscope:",
+        "1. Makes $back the home screen again, turning it back on if it's off.",
+        "2. Turns off $app's accessibility service.".takeIf { service },
+        "${if (service) 3 else 2}. Uninstalls it, with everything saved in it. This can't be undone.",
+        "If a step fails, Tellyscope stops there, says which one, and doesn't uninstall.",
+    ).joinToString("\n\n")
+
     /** The Apps tabs' header over the apps the TV needs, and why they're apart. */
     const val SYSTEM = "System"
     const val SYSTEM_WHY = "Needed by the TV · can't be changed"

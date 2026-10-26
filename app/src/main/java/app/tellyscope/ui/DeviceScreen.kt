@@ -372,7 +372,11 @@ fun UninstallDialog(app: AppInfo, onUninstall: () -> Unit, onDismiss: () -> Unit
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(Copy.uninstallTitle(app.label)) },
-        text = { Text(Copy.explain(Action.Uninstall, app.label, app.packageName) + if (app.listKeep) "\n\n${Copy.KEEP_WARNING}" else "") },
+        text = {
+            // The launcher on Home: what happens before it goes, in order.
+            val what = app.homeBack?.let { Copy.uninstallHome(app.label, it, app.homeService) } ?: Copy.explain(Action.Uninstall, app.label, app.packageName)
+            Text(what + if (app.listKeep) "\n\n${Copy.KEEP_WARNING}" else "")
+        },
         confirmButton = {
             Button(
                 onClick = onUninstall,
@@ -459,6 +463,7 @@ internal fun AppRow(
                     if (home != null) OutlinedButton(onClick = { actions.propose(app.packageName, Action.Home) }, enabled = !locked) { Text(Copy.MAKE_HOME) }
                     if (back != null && app.homeServiceOff) FilledTonalButton(onClick = { turningOn = true }, enabled = !locked) { Text(Copy.TURN_ON) }
                     if (back != null) OutlinedButton(onClick = { actions.propose(app.packageName, Action.HomeBack) }, enabled = !locked) { Text(Copy.homeBack(back)) }
+                    if (back != null && app.removable) OutlinedButton(onClick = { actions.propose(app.packageName, Action.Uninstall) }, enabled = !locked) { Text(Copy.button(Action.Uninstall)) }
                 } else if (proposed == Action.Uninstall) {
                     UninstallDialog(app, onUninstall = actions.confirm, onDismiss = actions.cancel, enabled = !locked)
                 } else {

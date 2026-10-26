@@ -11,6 +11,7 @@ import app.tellyscope.ui.AppRow
 import app.tellyscope.ui.Copy
 import app.tellyscope.ui.DeviceActions
 import app.tellyscope.ui.ServiceOffCard
+import app.tellyscope.ui.UninstallDialog
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -61,6 +62,27 @@ class HomeServiceTest {
     }
 
     private val onHome = projectivy.copy(homeInstead = null, homeBack = "Google TV Home", homeServiceOff = true, homeServiceNote = true, protectedReason = "this is your home screen")
+
+    @Test fun theLauncherOnHomeOffersUninstallAndItsConfirmListsTheSteps() {
+        var proposed: Pair<String, Action>? = null
+        compose.setContent { AppRow(onHome.copy(removable = true), emptyList(), null, busy = false, actions = DeviceActions(propose = { p, a -> proposed = p to a })) }
+        compose.onNodeWithText("Projectivy Launcher").performClick()
+        compose.onNodeWithText(Copy.button(Action.Uninstall)).performClick()
+        assertEquals(pkg to Action.Uninstall, proposed)
+    }
+
+    @Test fun theHomeUninstallConfirmSaysWhatHappensFirst() {
+        compose.setContent { UninstallDialog(onHome.copy(removable = true), onUninstall = {}, onDismiss = {}) }
+        compose.onNodeWithText(Copy.uninstallHome("Projectivy Launcher", "Google TV Home", service = true)).assertExists()
+        assertTrue("Turns off Projectivy Launcher's accessibility service" in Copy.uninstallHome("Projectivy Launcher", "Google TV Home", service = true))
+        assertFalse("accessibility" in Copy.uninstallHome("FLauncher", "Google TV Home", service = false))
+    }
+
+    @Test fun aLauncherOnHomeTheTvCameWithOffersNoUninstall() {
+        compose.setContent { AppRow(onHome, emptyList(), null, busy = false, actions = DeviceActions()) }
+        compose.onNodeWithText("Projectivy Launcher").performClick()
+        compose.onNodeWithText(Copy.button(Action.Uninstall)).assertDoesNotExist()
+    }
 
     @Test fun theRowSaysTheServiceIsOffAndOffersTurnOn() {
         var on: String? = null
