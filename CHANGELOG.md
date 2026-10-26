@@ -12,6 +12,9 @@ until this file has a section for its version.
 
 ## Unreleased
 
+- **Fixed:** Remove all other access waits for this phone to be allowed again. [#141](../../pull/141)
+- **Fixed:** The Remote no longer jumps while you type. [#141](../../pull/141)
+
 ## 0.9.0 — 2026-10-26
 
 - **New:** Screen off turns off the TV's picture from the Remote; any key wakes it. [#139](../../pull/139)
