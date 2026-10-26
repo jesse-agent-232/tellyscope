@@ -416,6 +416,7 @@ object Copy {
     const val REMOVE_ACCESS = "Remove all other access…"
     const val CONNECTED_NOW = "Connected now"
     const val WHO_HAS_ACCESS = "Who has access"
+    fun othersConnected(n: Int) = if (n == 1) "1 other computer connected now" else "$n other computers connected now"
     fun connections(n: Int) = if (n == 1) "1 connection" else "$n connections"
     fun connectedFrom(address: String, n: Int) = "From $address · ${connections(n)}"
     const val ON_TV = "An app on this TV"

@@ -412,7 +412,11 @@ private fun AppMenu(state: UiState, actions: DeviceActions) {
     if (forgetting) ForgetDialog(name(device), onForget = { forgetting = false; actions.forget(device.id) }, onDismiss = { forgetting = false })
     if (renaming) RenameDialog(device.nickname.orEmpty(), device.model ?: networkName(device), onSave = { renaming = false; actions.rename(device.id, it) }, onDismiss = { renaming = false })
     Box {
-        IconButton(onClick = { open = true }) { Icon(Icons.Default.MoreVert, contentDescription = "More options") }
+        val others = state.device.access?.others.orEmpty().size
+        IconButton(onClick = { open = true }) {
+            // The access warning shows on ⋮ too, so it's there from every tab.
+            BadgedBox(badge = { if (others > 0) Badge() }) { Icon(Icons.Default.MoreVert, contentDescription = "More options") }
+        }
         DropdownMenu(open, onDismissRequest = { open = false }, shape = MaterialTheme.shapes.large) {
             Row(Modifier.padding(start = 12.dp, end = 16.dp, top = 4.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Cookie(device, 40.dp)
@@ -427,7 +431,12 @@ private fun AppMenu(state: UiState, actions: DeviceActions) {
                 DropdownMenuItem(text = { Text("Rename this TV") }, leadingIcon = { Icon(Icons.Default.Edit, null) }, onClick = { open = false; renaming = true })
                 DropdownMenuItem(text = { Text("Forget this TV") }, leadingIcon = { Icon(Icons.Default.Delete, null) }, onClick = { open = false; forgetting = true })
                 DropdownMenuItem(
-                    text = { Text(Copy.WHO_HAS_ACCESS) },
+                    text = {
+                        Column {
+                            Text(Copy.WHO_HAS_ACCESS)
+                            if (others > 0) Text(Copy.othersConnected(others), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                        }
+                    },
                     leadingIcon = {
                         BadgedBox(badge = { if (state.device.access?.warning == true) Badge() }) { Icon(AccessIcons.Shield, null) }
                     },
