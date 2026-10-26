@@ -403,7 +403,7 @@ class AdbDeviceSource(context: Context) : DeviceSource {
                 version = "",
                 icon = name.icon,
                 removable = p.name in userInstalled,
-                home = p.name == homeOptions?.current,
+                home = p.name == homeOptions?.takeIf { it.default }?.current,
                 listedLauncher = launchers.any { it.pkg == p.name },
                 homeInstead = homeOptions?.takeIf { p.name in it.others }?.current,
                 homeBack = back?.takeIf { p.name == homeOptions?.current }?.let { names[it.pkg]?.label ?: AppNames.fallback(it.pkg) },

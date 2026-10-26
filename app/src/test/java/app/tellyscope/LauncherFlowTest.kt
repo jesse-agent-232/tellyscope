@@ -234,6 +234,21 @@ class LauncherScreenTest {
         assertTrue(offerChoose(listOf(store, stock)))
     }
 
+    @Test fun anAddedLauncherThatIsNotHomeStillHidesTheCardAndTheTweaksRow() {
+        // Installing a second launcher clears the default: nothing is Home, and both are on.
+        val noDefault = stock.copy(home = false, protectedReason = "this is your home screen")
+        val projectivy = AppInfo(PROJECTIVY, "Projectivy Launcher", null, false, true, null, "1.0", removable = true, listedLauncher = true, homeInstead = TV_HOME)
+        val flauncher = AppInfo("me.efesser.flauncher", "FLauncher", null, false, true, null, "1.0", removable = true, listedLauncher = true, homeInstead = TV_HOME)
+        assertFalse(offerChoose(listOf(store, noDefault, projectivy, flauncher)))
+        assertFalse(offerLauncher(listOf(store, noDefault, projectivy, flauncher), hidden = false))
+        // One the user installed that isn't on launchers.json counts once it answers Home.
+        val other = AppInfo("com.example.home", "Home", null, false, true, null, "1.0", removable = true, homeInstead = TV_HOME)
+        assertFalse(offerChoose(listOf(store, stock, other)))
+        // An app that doesn't answer Home is no launcher.
+        val app = AppInfo("org.mine.jellyfin", "Jellyfin", null, false, true, null, "1.0", removable = true)
+        assertTrue(offerChoose(listOf(store, stock, app)))
+    }
+
     @Test fun theCardsTwoButtons() {
         var notNow = false
         var chose = false

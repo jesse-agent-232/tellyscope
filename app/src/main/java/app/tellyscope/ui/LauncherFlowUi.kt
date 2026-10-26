@@ -66,16 +66,16 @@ import app.tellyscope.data.Device
 const val PLAY_STORE = "com.android.vending"
 
 /**
- * Install a home screen is offered on the Apps tab while the TV has the Play Store, Home is still
- * a stock launcher and there's no second launcher, until Not now; Tweaks offers it whenever the
- * Store is there and Home is stock.
+ * Install a home screen is offered on the Apps tab while the TV has the Play Store and no launcher
+ * was added, Home or not, and there's no second launcher, until Not now; Tweaks offers it whenever
+ * the Store is there and no launcher was added.
  */
 internal fun hasPlayStore(apps: List<AppInfo>) = apps.any { it.packageName == PLAY_STORE && it.enabled }
 
-/** Home opens a launcher someone added: one they installed, or one on `launchers.json`. With the stock one off, there's no [AppInfo.homeBack] to tell. */
-internal fun homeIsAdded(apps: List<AppInfo>) = apps.any { it.home && (it.removable || it.listedLauncher) }
+/** A launcher someone added is on the TV, Home or not: one on `launchers.json`, or one they installed that answers Home. */
+internal fun hasAddedLauncher(apps: List<AppInfo>) = apps.any { it.listedLauncher || (it.removable && (it.home || it.homeInstead != null)) }
 
-internal fun offerChoose(apps: List<AppInfo>) = hasPlayStore(apps) && !homeIsAdded(apps)
+internal fun offerChoose(apps: List<AppInfo>) = hasPlayStore(apps) && !hasAddedLauncher(apps)
 
 internal fun offerLauncher(apps: List<AppInfo>, hidden: Boolean) =
     !hidden && offerChoose(apps) && apps.none { it.homeInstead != null || it.homeBack != null }

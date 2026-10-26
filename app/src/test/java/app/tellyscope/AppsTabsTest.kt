@@ -48,6 +48,14 @@ class AppsTabsTest {
         assertEquals(emptyList<String>(), names(split.system))
     }
 
+    @Test fun `running never puts a launcher the user installed under System, even a locked one`() {
+        // No default home and the TV's own launcher off: a launcher the user installed stays protected.
+        val projectivy = app("com.spocky.projengmenu", system = false, locked = "this is your home screen").copy(removable = true)
+        val split = splitApps(listOf(projectivy, launcher), listOf(proc(projectivy.packageName), proc(launcher.packageName)), AppsTab.Running)
+        assertEquals(listOf("projengmenu"), names(split.apps))
+        assertEquals(listOf("launcher"), names(split.system))
+    }
+
     @Test fun `built-in puts the maker's extras first, then what the TV needs`() {
         val split = splitApps(apps, procs, AppsTab.BuiltIn)
         assertEquals(listOf("assistant", "ota"), names(split.apps))
