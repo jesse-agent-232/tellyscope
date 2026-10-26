@@ -12,7 +12,7 @@ until this file has a section for its version.
 
 ## Unreleased
 
-- **New:** Install a recommended home screen from the TV's Play Store, then switch to it.
+- **New:** Install a recommended home screen from the TV's Play Store, then switch to it. [#152](../../pull/152)
 - **Improved:** Setting a launcher as default asks separately before turning on its accessibility service, and the TV's page offers to turn it on later.
 - **Fixed:** A TV that removes this phone's access logs you out instead of re-asking. [#149](../../pull/149)
 - **New:** A connection left open after Remove offers Check again and Restart the TV. [#148](../../pull/148)
