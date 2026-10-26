@@ -103,6 +103,12 @@ object Copy {
         if (service) append("\n\nNext, you choose whether to turn on its accessibility service.")
     }
 
+    /** No default home and no launcher of the TV's own on: nothing is turned off, so there's no Undo either. */
+    fun explainFirstHome(app: String, pkg: String, service: Boolean = false) = buildString {
+        append("Makes $app ($pkg) open when you press Home. The TV has no default home screen now, and nothing else is turned off.")
+        if (service) append("\n\nNext, you choose whether to turn on its accessibility service.")
+    }
+
     /** The separate yes for a launcher's accessibility service: what it does, what it can see, how it goes. */
     fun serviceTitle(app: String) = "Turn on $app's accessibility service?"
 

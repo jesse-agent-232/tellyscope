@@ -30,7 +30,7 @@ data class AppsSplit(val apps: List<AppInfo>, val system: List<AppInfo>)
 /** Locked, as [AppRow] shows it: protected, and not offered as the new home screen or the way back. */
 private fun locked(app: AppInfo, all: List<AppInfo>) =
     app.protectedReason != null && (app.homeInstead == null || !app.enabled || homeLabel(all, app) == null) &&
-        (app.homeBack == null || !app.enabled)
+        (app.homeBack == null || !app.enabled) && !(app.homeFirst && app.enabled)
 
 /**
  * Splits the TV's apps for [tab]. Running: apps using RAM now. Installed: the user's own apps,

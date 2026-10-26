@@ -73,7 +73,7 @@ const val PLAY_STORE = "com.android.vending"
 internal fun hasPlayStore(apps: List<AppInfo>) = apps.any { it.packageName == PLAY_STORE && it.enabled }
 
 /** A launcher someone added is on the TV, Home or not: one on `launchers.json`, or one they installed that answers Home. */
-internal fun hasAddedLauncher(apps: List<AppInfo>) = apps.any { it.listedLauncher || (it.removable && (it.home || it.homeInstead != null)) }
+internal fun hasAddedLauncher(apps: List<AppInfo>) = apps.any { it.listedLauncher || (it.removable && it.answersHome) }
 
 internal fun offerChoose(apps: List<AppInfo>) = hasPlayStore(apps) && !hasAddedLauncher(apps)
 

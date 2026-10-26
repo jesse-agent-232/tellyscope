@@ -13,19 +13,22 @@ sealed interface ActionResult {
     data class Failed(val output: String) : ActionResult
 }
 
-/** What [Actions.makeHome] did. [from] and [to] are the old and new home activities, for Undo. */
+/**
+ * What [Actions.makeHome] did. [from] and [to] are the old and new home activities, for Undo;
+ * [from] is null when the TV had no default home and no launcher of its own to replace.
+ */
 sealed interface HomeResult {
-    data class Switched(val from: String, val to: String) : HomeResult
+    data class Switched(val from: String?, val to: String) : HomeResult
     data class Refused(val reason: ProtectedReason) : HomeResult
     data class Failed(val output: String) : HomeResult
 }
 
-/** The launcher Home opens now, and the other launchers that could take its place. */
 /**
  * [current] is Home; [others] are the launchers that can take over. With no default home, [current]
- * is the TV's own launcher, the one the others would replace, and [default] is false.
+ * is the TV's own launcher, the one the others would replace, or null when none is on; [default]
+ * is false then.
  */
-data class HomeOptions(val current: String, val others: Set<String>, val default: Boolean = true)
+data class HomeOptions(val current: String?, val others: Set<String>, val default: Boolean = true)
 
 class Actions(private val shell: AdbShell) {
 
@@ -33,7 +36,7 @@ class Actions(private val shell: AdbShell) {
         require(PACKAGE.matches(pkg)) { "not a package name: $pkg" } // it goes into a shell line
         if (action != Action.ENABLE && action != Action.OPEN) {
             // No launcher answer (no `cmd` before Android 7, or an error): we can't tell what's safe.
-            val home = homePackages().ifEmpty { return ActionResult.Refused(ProtectedReason.UNKNOWN_HOME) }
+            val home = homePackages() ?: return ActionResult.Refused(ProtectedReason.UNKNOWN_HOME)
             // Only the name guard asks whether the user installed it; the live Home is refused unasked.
             val why = Protected.reason(pkg, home)
                 ?.let { if (it == ProtectedReason.HOME_SCREEN && pkg !in home) Protected.reason(pkg, home, userApp = pkg in userPackages()) else it }
@@ -62,23 +65,30 @@ class Actions(private val shell: AdbShell) {
 
     /**
      * Launchers to protect: the default one, or with no default (then resolve-activity answers
-     * with the system chooser, package `android`) every built-in launcher. One the user installed
-     * isn't locked then: without it, Home still has the TV's own. Every launcher when the user's
-     * are all there is.
+     * with the system chooser, package `android`) every built-in one. A launcher the user installed
+     * isn't locked then, unless it's the only launcher left: the TV must keep one. Null when the
+     * TV didn't answer, so nothing is known to be safe.
      */
-    suspend fun homePackages(): Set<String> {
+    suspend fun homePackages(): Set<String>? {
         val current = packagesIn(shell.shell(Commands.HOME_ACTIVITY).output) - "android"
         if (current.isNotEmpty()) return current
-        val all = packagesIn(shell.shell(Commands.HOME_ACTIVITIES).output) - "android"
-        if (all.isEmpty()) return all
-        return (all - userPackages()).ifEmpty { all }
+        val homes = shell.shell(Commands.HOME_ACTIVITIES).output
+        val all = packagesIn(homes) - "android"
+        if (all.isEmpty()) return null
+        val user = userPackages()
+        val last = launchersIn(homes).keys.takeIf { it.size == 1 && it.single() in user }.orEmpty()
+        return all - user + last
     }
 
-    /** Null when the TV didn't answer, or has no default home and no launcher of its own that is on. */
+    /**
+     * Null when the TV didn't answer or has no launcher. With no default home, the TV's own
+     * launcher stands as [HomeOptions.current]; with none of its own on, every launcher is offered.
+     */
     suspend fun homeOptions(): HomeOptions? {
         currentHome()?.substringBefore('/')?.let { return HomeOptions(it, launchers().keys - it) }
-        val stock = stockHome()?.substringBefore('/') ?: return null
-        return HomeOptions(stock, launchers().keys - stock, default = false)
+        val launchers = launchers().keys.ifEmpty { return null }
+        val stock = stockHome()?.substringBefore('/')
+        return HomeOptions(stock, launchers - setOfNotNull(stock), default = false)
     }
 
     /**
@@ -91,8 +101,8 @@ class Actions(private val shell: AdbShell) {
      */
     suspend fun makeHome(pkg: String): HomeResult {
         require(PACKAGE.matches(pkg)) { "not a package name: $pkg" }
-        // With no default home, the TV's own launcher is the one being replaced.
-        val from = currentHome() ?: stockHome() ?: return HomeResult.Refused(ProtectedReason.UNKNOWN_HOME)
+        // With no default home, the TV's own launcher is the one being replaced; with none on, nothing is.
+        val from = currentHome() ?: stockHome() ?: return firstHome(pkg)
         val old = from.substringBefore('/')
         if (old == pkg) return HomeResult.Failed("it's already the home screen")
         val homes = shell.shell(Commands.HOME_ACTIVITIES).output
@@ -197,6 +207,13 @@ class Actions(private val shell: AdbShell) {
     /** The activity Home opens, or null when Android would ask (its chooser lives in `android`). */
     suspend fun currentHome(): String? =
         activitiesIn(shell.shell(Commands.HOME_ACTIVITY).output).singleOrNull()?.takeUnless { it.startsWith("android/") }
+
+    /** No default home and no launcher of the TV's own on: sets [pkg] as Home, with nothing to turn off. */
+    private suspend fun firstHome(pkg: String): HomeResult {
+        val to = launchers()[pkg] ?: return HomeResult.Refused(ProtectedReason.UNKNOWN_HOME)
+        if (!setHome(to)) return HomeResult.Failed("the TV still asks which home screen to use")
+        return HomeResult.Switched(null, to)
+    }
 
     /** With no default home, the TV's own launcher that is on: the built-in one Home ranks highest. */
     private suspend fun stockHome(): String? {

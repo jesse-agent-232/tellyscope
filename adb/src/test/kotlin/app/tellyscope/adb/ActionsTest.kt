@@ -59,15 +59,48 @@ class ActionsTest {
         assertEquals(ActionResult.Done(Action.ENABLE), Actions(sh).run(Action.DISABLE, "me.efesser.flauncher"))
     }
 
-    @Test fun noDefaultAndOnlyTheUsersLaunchersProtectsThemAll() = runTest {
-        // The TV's own launcher is off: one of the user's is all Home has left.
-        val sh = FakeShell(mapOf(
-            "cmd package resolve-activity" to ok("priority=0\nandroid/com.android.internal.app.ResolverActivity\n"),
-            "cmd package query-activities" to ok("com.spocky.projengmenu/.Main\nme.efesser.flauncher/.MainActivity\n"),
-            "pm list packages -3" to ok("package:com.spocky.projengmenu\npackage:me.efesser.flauncher\n"),
-        ))
-        assertEquals(setOf("com.spocky.projengmenu", "me.efesser.flauncher"), Actions(sh).homePackages())
-        assertEquals(null, Actions(sh).homeOptions())
+    /** The TV's own launcher was turned off by hand, then a second launcher cleared the default. */
+    private fun stockOff(vararg user: String): FakeShell {
+        var home = "android/com.android.internal.app.ResolverActivity"
+        val activities = mapOf("com.spocky.projengmenu" to "com.spocky.projengmenu/.ui.home.MainActivity", "me.efesser.flauncher" to "me.efesser.flauncher/.MainActivity")
+        return FakeShell(mapOf(
+            "cmd package query-activities" to ok(user.joinToString("") { activities.getValue(it) + "\n" }),
+            "pm list packages -3" to ok(user.joinToString("") { "package:$it\n" }),
+            "pm disable-user" to ok("Package me.efesser.flauncher new state: disabled-user\n"),
+        )).apply {
+            answer = { cmd ->
+                when {
+                    cmd.startsWith("cmd package resolve-activity") -> ok("priority=0\n$home\n")
+                    cmd.startsWith("cmd package set-home-activity") -> {
+                        home = cmd.substringAfter("'").substringBefore("'")
+                        ok("Success\n")
+                    }
+                    else -> null
+                }
+            }
+        }
+    }
+
+    @Test fun stockOffAndTwoOfTheUsersLaunchersLocksNeither() = runTest {
+        val sh = stockOff("com.spocky.projengmenu", "me.efesser.flauncher")
+        assertEquals(emptySet(), Actions(sh).homePackages())
+        assertEquals(ActionResult.Done(Action.ENABLE), Actions(sh).run(Action.DISABLE, "me.efesser.flauncher"))
+        assertEquals(HomeOptions(null, setOf("com.spocky.projengmenu", "me.efesser.flauncher"), default = false), Actions(sh).homeOptions())
+    }
+
+    @Test fun stockOffSetAsDefaultSetsHomeAndTurnsNothingOff() = runTest {
+        val sh = stockOff("com.spocky.projengmenu", "me.efesser.flauncher")
+        assertEquals(HomeResult.Switched(null, "com.spocky.projengmenu/.ui.home.MainActivity"), Actions(sh).makeHome("com.spocky.projengmenu"))
+        assertTrue(sh.ran.none { it.startsWith("pm disable") || it.startsWith("pm enable") })
+        assertEquals("com.spocky.projengmenu/.ui.home.MainActivity", Actions(sh).currentHome())
+    }
+
+    @Test fun stockOffAndOneOfTheUsersLaunchersKeepsItLocked() = runTest {
+        // The only launcher left: without it the TV would have no home screen.
+        val sh = stockOff("com.spocky.projengmenu")
+        assertEquals(setOf("com.spocky.projengmenu"), Actions(sh).homePackages())
+        assertEquals(ActionResult.Refused(ProtectedReason.HOME_SCREEN), Actions(sh).run(Action.DISABLE, "com.spocky.projengmenu"))
+        assertEquals(ActionResult.Refused(ProtectedReason.HOME_SCREEN), Actions(sh).run(Action.UNINSTALL, "com.spocky.projengmenu"))
     }
 
     @Test fun unknownHomeRefusesStopAndDisable() = runTest {
@@ -240,16 +273,6 @@ class ActionsTest {
             Actions(sh).makeHome("com.spocky.projengmenu"),
         )
         assertTrue("pm disable-user --user 0 com.google.android.tvlauncher 2>&1" in sh.ran)
-    }
-
-    @Test fun noDefaultHomeAndNoLauncherOfItsOwnRefusesTheSwitch() = runTest {
-        val sh = FakeShell(mapOf(
-            "cmd package resolve-activity" to ok("priority=0\nandroid/com.android.internal.app.ResolverActivity\n"),
-            "cmd package query-activities" to ok("com.spocky.projengmenu/.Main\nme.efesser.flauncher/.MainActivity\n"),
-            "pm list packages -3" to ok("package:com.spocky.projengmenu\npackage:me.efesser.flauncher\n"),
-        ))
-        assertEquals(HomeResult.Refused(ProtectedReason.UNKNOWN_HOME), Actions(sh).makeHome("com.spocky.projengmenu"))
-        assertTrue(sh.ran.none { it.startsWith("pm disable") || it.startsWith("pm enable") || "set-home" in it })
     }
 
     @Test fun makeHomeSwitchesChecksThenDisables() = runTest {

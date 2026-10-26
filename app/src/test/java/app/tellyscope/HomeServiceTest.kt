@@ -72,6 +72,15 @@ class HomeServiceTest {
         assertEquals(pkg to Action.Uninstall, proposed)
     }
 
+    @Test fun withNoLauncherOfTheTvsOwnOnSetAsDefaultSaysNothingIsTurnedOff() {
+        var confirmed = false
+        val first = projectivy.copy(homeInstead = null, homeFirst = true, homeService = false, removable = true)
+        compose.setContent { AppRow(first, emptyList(), pkg to Action.Home, busy = false, actions = DeviceActions(confirm = { confirmed = true })) }
+        compose.onNodeWithText(Copy.explainFirstHome("Projectivy Launcher", pkg)).assertExists()
+        compose.onNodeWithText(Copy.confirm(Action.Home)).performClick()
+        assertTrue(confirmed)
+    }
+
     private val onHome = projectivy.copy(homeInstead = null, homeBack = "Google TV Home", homeServiceOff = true, homeServiceNote = true, protectedReason = "this is your home screen")
 
     @Test fun theLauncherOnHomeOffersUninstallAndItsConfirmListsTheSteps() {

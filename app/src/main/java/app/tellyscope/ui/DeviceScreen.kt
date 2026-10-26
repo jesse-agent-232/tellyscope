@@ -404,8 +404,10 @@ internal fun AppRow(
     var open by rememberSaveable(app.packageName) { mutableStateOf(false) }
     // A launcher can be protected by its name and still be offered as the new home screen.
     val home = app.homeInstead?.takeIf { app.enabled && homeLabel != null }
+    // No default home and no launcher of the TV's own on: Set as default replaces nothing.
+    val first = app.homeFirst && app.enabled
     val back = app.homeBack?.takeIf { app.enabled }
-    val changeable = app.protectedReason == null || home != null || back != null
+    val changeable = app.protectedReason == null || home != null || first || back != null
     val ram = procs.filter { it.packageName == app.packageName }.sumOf { it.ramMb }
     val status = when {
         !app.enabled -> "Disabled"
@@ -429,15 +431,15 @@ internal fun AppRow(
         }
         val asked = pending?.takeIf { it.first == app.packageName }?.second
         // A launcher switch whose target went away meanwhile (turned off in Debloat, say) has nothing left to explain.
-        val orphaned = (asked == Action.Home && home == null) || (asked == Action.HomeBack && back == null)
+        val orphaned = (asked == Action.Home && home == null && !first) || (asked == Action.HomeBack && back == null)
         if (orphaned) LaunchedEffect(app.packageName) { actions.cancel() }
         val proposed = asked.takeUnless { orphaned }
         // The service gets its own yes after the switch's; dismissing it goes back to the switch's.
         var askService by remember(app.packageName, proposed) { mutableStateOf(false) }
         var turningOn by rememberSaveable(app.packageName) { mutableStateOf(false) }
-        if (askService && proposed == Action.Home && home != null) {
+        if (askService && proposed == Action.Home && (home != null || first)) {
             ServiceDialog(
-                app.label, homeLabel!!,
+                app.label, homeLabel ?: Copy.TV_OWN_LAUNCHER,
                 onTurnOn = { actions.confirmHome(true) },
                 dismissLabel = Copy.SWITCH_WITHOUT, onOther = { actions.confirmHome(false) }, onDismiss = { askService = false },
             )
@@ -460,7 +462,7 @@ internal fun AppRow(
                         else FilledTonalButton(onClick = { actions.propose(app.packageName, Action.Enable) }, enabled = !locked) { Text(Copy.button(Action.Enable)) }
                         if (app.removable) OutlinedButton(onClick = { actions.propose(app.packageName, Action.Uninstall) }, enabled = !locked) { Text(Copy.button(Action.Uninstall)) }
                     }
-                    if (home != null) OutlinedButton(onClick = { actions.propose(app.packageName, Action.Home) }, enabled = !locked) { Text(Copy.MAKE_HOME) }
+                    if (home != null || first) OutlinedButton(onClick = { actions.propose(app.packageName, Action.Home) }, enabled = !locked) { Text(Copy.MAKE_HOME) }
                     if (back != null && app.homeServiceOff) FilledTonalButton(onClick = { turningOn = true }, enabled = !locked) { Text(Copy.TURN_ON) }
                     if (back != null) OutlinedButton(onClick = { actions.propose(app.packageName, Action.HomeBack) }, enabled = !locked) { Text(Copy.homeBack(back)) }
                     if (back != null && app.removable) OutlinedButton(onClick = { actions.propose(app.packageName, Action.Uninstall) }, enabled = !locked) { Text(Copy.button(Action.Uninstall)) }
@@ -470,6 +472,7 @@ internal fun AppRow(
                     Text(
                         when {
                             proposed == Action.Home && home != null -> Copy.explainHome(app.label, app.packageName, homeLabel!!, home, app.homeService)
+                            proposed == Action.Home && first -> Copy.explainFirstHome(app.label, app.packageName, app.homeService)
                             proposed == Action.HomeBack && back != null -> Copy.explainHomeBack(app.label, back, app.homeService && !app.homeServiceOff)
                             app.listKeep && proposed != Action.Enable -> Copy.explain(proposed, app.label, app.packageName) + "\n\n" + Copy.KEEP_WARNING
                             else -> Copy.explain(proposed, app.label, app.packageName)
@@ -477,7 +480,7 @@ internal fun AppRow(
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        val asks = proposed == Action.Home && home != null && app.homeService
+                        val asks = proposed == Action.Home && (home != null || first) && app.homeService
                         Button(onClick = if (asks) ({ askService = true }) else actions.confirm, enabled = !locked) { Text(Copy.confirm(proposed)) }
                         TextButton(onClick = actions.cancel) { Text("Cancel") }
                     }

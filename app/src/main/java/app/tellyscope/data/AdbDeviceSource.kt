@@ -397,7 +397,7 @@ class AdbDeviceSource(context: Context) : DeviceSource {
                 // for a built-in launcher that is off.
                 protectedReason = when {
                     p.name in disabled -> null
-                    home.isNotEmpty() -> Protected.reason(p.name, home, userApp = p.name in userInstalled)
+                    home != null -> Protected.reason(p.name, home, userApp = p.name in userInstalled)
                     else -> ProtectedReason.UNKNOWN_HOME
                 }?.let(::reasonText),
                 version = "",
@@ -406,6 +406,8 @@ class AdbDeviceSource(context: Context) : DeviceSource {
                 home = p.name == homeOptions?.takeIf { it.default }?.current,
                 listedLauncher = launchers.any { it.pkg == p.name },
                 homeInstead = homeOptions?.takeIf { p.name in it.others }?.current,
+                homeFirst = homeOptions?.takeIf { it.current == null && p.name in it.others } != null,
+                answersHome = homeOptions?.let { p.name == it.current || p.name in it.others } == true,
                 homeBack = back?.takeIf { p.name == homeOptions?.current }?.let { names[it.pkg]?.label ?: AppNames.fallback(it.pkg) },
                 homeService = p.name in serviceLaunchers,
                 homeServiceOff = serviceOff && p.name == homeOptions?.current,
@@ -530,12 +532,13 @@ class AdbDeviceSource(context: Context) : DeviceSource {
                     deviceId = key,
                     at = System.currentTimeMillis(),
                     action = Action.Home,
-                    packageName = r.from.substringBefore('/'),
+                    // With no launcher of the TV's own to replace, nothing was turned off and there's nothing to undo.
+                    packageName = r.from?.substringBefore('/') ?: packageName,
                     label = label,
-                    undo = Action.Enable,
+                    undo = Action.Enable.takeIf { r.from != null },
                     undoing = undoing,
                     // "service" only when this switch turned it on, so Undo turns off no more than that.
-                    previous = mapOf("from" to r.from, "to" to r.to) + listOfNotNull(service?.takeIf { on == true }?.let { "service" to it }),
+                    previous = listOfNotNull(r.from?.let { "from" to it }, "to" to r.to, service?.takeIf { on == true }?.let { "service" to it }).toMap(),
                 ).also { if (on == false) throw IllegalStateException(serviceNotOn(label)) }
             }
             is HomeResult.Refused -> throw IllegalStateException(reasonText(r.reason))
@@ -578,7 +581,7 @@ class AdbDeviceSource(context: Context) : DeviceSource {
                     undo = Action.Home,
                     // The switch away from it is reversed now, so Restore leaves it alone.
                     undoing = undoing ?: target.reverses,
-                    previous = mapOf("from" to r.from, "to" to r.to) + listOfNotNull(service?.takeIf { off == true }?.let { "service" to it }),
+                    previous = listOfNotNull(r.from?.let { "from" to it }, "to" to r.to, service?.takeIf { off == true }?.let { "service" to it }).toMap(),
                 ).also { if (off == false) throw IllegalStateException(serviceNotOff(labels[added] ?: AppNames.fallback(added))) }
             }
             is HomeResult.Refused -> throw IllegalStateException(reasonText(r.reason))

@@ -133,6 +133,14 @@ class HistoryBookTest {
         assertEquals(emptyList<String>(), source.restoreAll(id).map { it.packageName })
     }
 
+    @Test fun aHomeSwitchThatReplacedNothingLeavesNothingToRestore() {
+        val book = HistoryBook()
+        book.record("tv", 0L, Action.Home, "com.google.android.tvlauncher", "Projectivy Launcher", undo = Action.Enable)
+        book.record("tv", 1L, Action.Home, "me.efesser.flauncher", "FLauncher", undo = null)
+        assertEquals(listOf("com.google.android.tvlauncher"), HistoryBook.leftDisabled(book.entries("tv")))
+        assertNull(book.openDisable("tv", "me.efesser.flauncher"))
+    }
+
     @Test fun restoreAllTurnsOnOnlyWhatTellyscopeDisabled() = runTest {
         // The fake TV starts with TV Recommendations already disabled.
         val source = FakeDeviceSource()
