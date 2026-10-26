@@ -12,6 +12,7 @@ until this file has a section for its version.
 
 ## 0.10.0 — 2026-10-26
 
+- **Fixed:** With no default home screen, only the TV's own launcher is protected; yours offer Set as default and Uninstall, and the home screen card hides once one is installed. [#163](../../pull/163)
 - **Fixed:** A launcher you installed shows as protected only while it is Home. [#158](../../pull/158)
 - **New:** Uninstall the launcher on Home: Home switches back first, then it goes. [#158](../../pull/158)
 - **Fixed:** The Remote's clear button empties the TV's text box in apps that ignored it. [#157](../../pull/157)
