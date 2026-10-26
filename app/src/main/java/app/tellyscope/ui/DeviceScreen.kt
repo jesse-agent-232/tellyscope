@@ -114,6 +114,10 @@ data class DeviceActions(
     val foldSystem: (AppsTab, Boolean) -> Unit = { _, _ -> },
     /** The open tab's refresh rates; the TV's stats reads follow them. */
     val showStats: (StatsProfile) -> Unit = {},
+    /** Opens Who has access. */
+    val whoHasAccess: () -> Unit = {},
+    /** The access warning's buttons, shared with Who has access. */
+    val access: AccessActions = AccessActions(),
 )
 
 /**

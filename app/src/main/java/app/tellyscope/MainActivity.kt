@@ -45,6 +45,8 @@ import app.tellyscope.data.FakeDeviceSource
 import app.tellyscope.data.FoldBook
 import app.tellyscope.data.KeyHaptics
 import app.tellyscope.data.UpdateCheck
+import app.tellyscope.ui.AccessActions
+import app.tellyscope.ui.AccessScreen
 import app.tellyscope.ui.AdvancedScreen
 import app.tellyscope.ui.Copy
 import app.tellyscope.ui.DebloatScreen
@@ -172,6 +174,7 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
     var advanced by rememberSaveable { mutableStateOf(false) }
     var debloat by rememberSaveable { mutableStateOf(false) }
     var settings by rememberSaveable { mutableStateOf(false) }
+    var access by rememberSaveable { mutableStateOf(false) }
 
     // "*/*": file managers label .apks and .xapk bundles inconsistently, so a narrower type would grey them out.
     val pickApp = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { vm.pickedApp(it) }
@@ -189,7 +192,7 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
     Snackbars(snackbar, vm.done, vm.notice, vm::doneShown, vm::noticeShown) { vm.undo(it.entry, it.deviceId) }
 
     // A newly connected TV becomes the selection; leave the add flow then, not on tap.
-    LaunchedEffect(state.selectedId) { adding = false; remote = false; advanced = false; debloat = false; settings = false }
+    LaunchedEffect(state.selectedId) { adding = false; remote = false; advanced = false; debloat = false; settings = false; access = false }
 
     if (state.selected == null || adding) {
         BackHandler(enabled = adding) { adding = false }
@@ -232,6 +235,10 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
             onDispose { vm.showStats(StatsProfile.OTHER) }
         }
         AdvancedScreen(state, back = { advanced = false }, snackbar = snackbar)
+    } else if (access || state.device.removal != null) {
+        // A removal started from the warning opens this screen too, and back steps out of it first.
+        BackHandler { if (state.device.removal != null) vm.closeRemoval() else access = false }
+        AccessScreen(state, accessActions(vm) { access = false }, snackbar = snackbar)
     } else if (settings) {
         BackHandler { settings = false }
         SettingsScreen(
@@ -303,6 +310,8 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
                 dismissRequest = vm::dismissRequest,
                 foldSystem = vm::foldSystem,
                 showStats = vm::showStats,
+                whoHasAccess = { access = true },
+                access = accessActions(vm) { access = false },
             ),
         )
     }
@@ -346,3 +355,15 @@ private fun Context.openWifiSettings() {
     runCatching { startActivity(Intent(panel)) }
         .recoverCatching { startActivity(Intent(Settings.ACTION_WIFI_SETTINGS)) }
 }
+
+private fun accessActions(vm: TellyscopeViewModel, back: () -> Unit) = AccessActions(
+    back = back,
+    markMine = vm::markMine,
+    askRemove = vm::askRemoveAccess,
+    close = vm::closeRemoval,
+    remove = vm::removeAccess,
+    openDeveloperOptions = vm::openDeveloperOptions,
+    revokedByHand = vm::revokedByHand,
+    askAgain = vm::askTvAgain,
+    retry = vm::retryRemoval,
+)

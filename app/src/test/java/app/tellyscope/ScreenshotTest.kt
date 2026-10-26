@@ -63,6 +63,11 @@ import app.tellyscope.data.SuggestedGroup
 import app.tellyscope.data.Proc
 import app.tellyscope.data.Suggestions
 import app.tellyscope.ui.AboutDialog
+import app.tellyscope.ui.Removal
+import app.tellyscope.ui.ConnectedDevicesCard
+import app.tellyscope.ui.AccessWarning
+import app.tellyscope.ui.AccessScreen
+import app.tellyscope.ui.AccessActions
 import app.tellyscope.ui.AdvancedScreen
 import app.tellyscope.ui.AppsTab
 import app.tellyscope.ui.ConnectScreen
@@ -1420,4 +1425,56 @@ class ScreenshotTest {
         val t = TransferUi("family-trip-2025.mp4", toTv = true, folder = TvFolder.MOVIES, progress = Progress(486_000_000, 812_000_000))
         DeviceTabsScreen(deviceState { copy(transfer = t) }, DeviceActions())
     }
+
+    // Connected devices and the access warning (0.9): the cards on their own, then the TV page with
+    // both, then Who has access and each step of Remove all other access.
+    private fun accessState(removal: Removal? = null) = runBlocking {
+        md3State().let { it.copy(device = it.device.copy(access = fake.access(it.selectedId!!), peripherals = fake.peripherals(it.selectedId!!), removal = removal)) }
+    }
+
+    private fun card(name: String, dark: Boolean, content: @Composable () -> Unit) = shot(name, dark) {
+        Surface { Column(Modifier.padding(16.dp)) { content() } }
+    }
+
+    @Test fun access_warning() = card("90_access_warning", false) { AccessWarning(accessState().device.access!!, AccessActions(), onWho = {}) }
+    @Test fun access_warning_dark() = card("90_access_warning", true) { AccessWarning(accessState().device.access!!, AccessActions(), onWho = {}) }
+    @Test fun access_warning_open() = card("91_access_warning_open", false) { AccessWarning(accessState().device.access!!, AccessActions(), onWho = {}, startOpen = true) }
+    @Test fun access_warning_open_dark() = card("91_access_warning_open", true) { AccessWarning(accessState().device.access!!, AccessActions(), onWho = {}, startOpen = true) }
+    @Test fun devices_card() = card("92_connected_devices", false) { ConnectedDevicesCard(accessState().device.peripherals!!) }
+    @Test fun devices_card_dark() = card("92_connected_devices", true) { ConnectedDevicesCard(accessState().device.peripherals!!) }
+    @Test fun devices_card_open() = card("93_connected_devices_open", false) { ConnectedDevicesCard(accessState().device.peripherals!!, startOpen = true) }
+    @Test fun devices_card_open_dark() = card("93_connected_devices_open", true) { ConnectedDevicesCard(accessState().device.peripherals!!, startOpen = true) }
+
+    /** The Overview with both cards, scrolled to them: warning first, then devices, then Android. */
+    private fun accessOverview(dark: Boolean) {
+        // By key: scrolling to a node by tag never stops with the clock held.
+        val scroll = { compose.onNode(hasScrollAction()).performScrollToKey("accessWarning"); Unit }
+        // Built once: a fresh state on every recomposition would never let the page settle.
+        val state = accessState()
+        shot("94_overview_access", dark, before = scroll) { DeviceTabsScreen(state, DeviceActions()) }
+        compose.onNodeWithTag("accessWarning").assertExists()
+    }
+    @Test fun access_overview() = accessOverview(false)
+    @Test fun access_overview_dark() = accessOverview(true)
+
+    private fun accessScreen(name: String, dark: Boolean, removal: Removal?) {
+        val state = accessState(removal)
+        shot(name, dark, screen = removal?.step == Removal.Step.Confirm) { AccessScreen(state, AccessActions()) }
+    }
+    @Test fun access_list() = accessScreen("95_who_has_access", false, null)
+    @Test fun access_list_dark() = accessScreen("95_who_has_access", true, null)
+    @Test fun access_confirm() = accessScreen("96_remove_confirm", false, Removal(Removal.Step.Confirm))
+    @Test fun access_confirm_dark() = accessScreen("96_remove_confirm", true, Removal(Removal.Step.Confirm))
+    private val allow = Removal(Removal.Step.Allow, fingerprint = "3F:9A:1C:5D:E0:42:B7:19:8C:6A:F3:21:0D:94:7E:C2")
+    @Test fun access_allow() = accessScreen("97_remove_allow", false, allow)
+    @Test fun access_allow_dark() = accessScreen("97_remove_allow", true, allow)
+    @Test fun access_done() = accessScreen("98_remove_done", false, Removal(Removal.Step.Done))
+    @Test fun access_done_dark() = accessScreen("98_remove_done", true, Removal(Removal.Step.Done))
+    private val still = Removal(Removal.Step.StillConnected, still = Copy.connectionFrom("192.0.2.47"))
+    @Test fun access_still() = accessScreen("99_remove_still", false, still)
+    @Test fun access_still_dark() = accessScreen("99_remove_still", true, still)
+    @Test fun access_unconfirmed() = accessScreen("99_remove_unconfirmed", false, Removal(Removal.Step.Unconfirmed))
+    @Test fun access_unconfirmed_dark() = accessScreen("99_remove_unconfirmed", true, Removal(Removal.Step.Unconfirmed))
+    @Test fun access_manual() = accessScreen("99_remove_manual", false, Removal(Removal.Step.Manual))
+    @Test fun access_manual_dark() = accessScreen("99_remove_manual", true, Removal(Removal.Step.Manual))
 }

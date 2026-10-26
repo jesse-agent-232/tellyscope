@@ -7,6 +7,7 @@ import android.net.ConnectivityManager
 import android.net.LinkProperties
 import android.net.Network
 import android.net.NetworkCapabilities
+import app.tellyscope.adb.Access
 import app.tellyscope.adb.ActionResult
 import app.tellyscope.adb.ApkInfo
 import app.tellyscope.adb.Files
@@ -28,6 +29,7 @@ import app.tellyscope.adb.LabelHelper
 import app.tellyscope.adb.LanScanner
 import app.tellyscope.adb.NetworkStats
 import app.tellyscope.adb.Parsers
+import app.tellyscope.adb.Peripherals
 import app.tellyscope.adb.Protected
 import app.tellyscope.adb.ProtectedReason
 import app.tellyscope.adb.Remote
@@ -59,6 +61,7 @@ import okio.Sink
 import okio.Source
 import java.io.File
 import java.net.Inet4Address
+import java.net.NetworkInterface
 import java.util.concurrent.ConcurrentHashMap
 import app.tellyscope.adb.Action as AdbAction
 import app.tellyscope.adb.ConnectResult as AdbConnectResult
@@ -93,6 +96,7 @@ class AdbDeviceSource(context: Context) : DeviceSource {
     private val book = HistoryBook(File(appContext.filesDir, "history.tsv"))
     private val names = NameBook(File(appContext.filesDir, "names.tsv"))
     private val docks = DockBook(File(appContext.filesDir, "docks.tsv"))
+    private val mine = MineBook(File(appContext.filesDir, "mine.tsv"))
     /** Last label seen per package, so history entries read like the app list. */
     private val labels = ConcurrentHashMap<String, String>()
     /** The remote's key helper on each TV, while the remote is open. */
@@ -660,6 +664,33 @@ class AdbDeviceSource(context: Context) : DeviceSource {
 
     override suspend fun facts(deviceId: String) = TvFacts.read(session(deviceId))
 
+    override suspend fun access(deviceId: String): TvAccess {
+        val a = Access(session(deviceId))
+        val port = links[deviceId]?.port ?: Access.CLASSIC_PORT
+        return TvAccess.of(a.clients(port), a.keys(), phoneAddresses(), deviceId, mine[key(deviceId)], phoneFingerprint())
+    }
+
+    override suspend fun markMine(deviceId: String, address: String) {
+        restored.await()
+        mine.add(key(deviceId), address)
+    }
+
+    override suspend fun peripherals(deviceId: String) = Peripherals(session(deviceId)).read()
+
+    override suspend fun revokeAll(deviceId: String) = Access(session(deviceId)).revokeAll()
+
+    override suspend fun openDeveloperOptions(deviceId: String) = Access(session(deviceId)).openDeveloperOptions()
+
+    @Volatile private var fingerprint: String? = null
+
+    override fun phoneFingerprint(): String? = fingerprint ?: Connector.fingerprint().also { fingerprint = it }
+
+    /** Every address this phone has now, so its own connection to the TV is recognised. */
+    private fun phoneAddresses(): Set<String> = runCatching {
+        NetworkInterface.getNetworkInterfaces().toList().flatMap { it.inetAddresses.toList() }
+            .mapNotNull { it.hostAddress?.substringBefore('%') }.toSet()
+    }.getOrDefault(emptySet())
+
     /**
      * The history key for a TV, read from it once connected and saved with it. Until it has
      * answered (offline since install) the address stands in, and that history moves over when
@@ -681,6 +712,7 @@ class AdbDeviceSource(context: Context) : DeviceSource {
             book.rekey(deviceId, key)
             names.rekey(deviceId, key)
             docks.rekey(deviceId, key)
+            mine.rekey(deviceId, key)
             remember(deviceId)
         }
         return key

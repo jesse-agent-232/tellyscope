@@ -31,6 +31,11 @@ restart, waiting, can't-reach and dock menu icons those of "restart_alt",
 "hourglass_top", "link_off", "swap_horiz" and "remove_circle_outline".
 Report a problem, Help add this TV and Add the rest use those of
 "bug_report", "add_to_queue" and "content_copy".
+The access warning, Who has access and Remove all other access use those
+of "shield", "gpp_good", "gpp_maybe", "lock_reset", "smartphone", "lan",
+"laptop", "desktop_windows" and "help_outline"; the Connected devices card
+those of "bluetooth", "headphones", "keyboard", "mouse", "sports_esports",
+"usb", "speaker" and "settings_input_hdmi".
 
 --------------------------------------------------------------------------------
 Store badges in docs/badges/ (README only, not in the app)

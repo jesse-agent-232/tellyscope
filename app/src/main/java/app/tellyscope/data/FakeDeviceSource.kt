@@ -2,10 +2,13 @@
 
 package app.tellyscope.data
 
+import app.tellyscope.adb.AdbClient
+import app.tellyscope.adb.AllowedKey
 import app.tellyscope.adb.ApkInfo
 import app.tellyscope.adb.ConnectionRequest
 import app.tellyscope.adb.InstallResult
 import app.tellyscope.adb.InstalledVersion
+import app.tellyscope.adb.Peripheral
 import app.tellyscope.adb.Progress
 import app.tellyscope.adb.RemoteKey
 import app.tellyscope.adb.TvFacts
@@ -366,12 +369,54 @@ class FakeDeviceSource(
 
     override suspend fun answerRequest(deviceId: String, request: ConnectionRequest, allow: Boolean, always: Boolean) = false
 
+    /** Addresses marked "It's mine", and TVs whose access was cleared, so the demo flow ends on Done. */
+    private val mine = mutableSetOf<String>()
+    private val revoked = mutableSetOf<String>()
+
+    override suspend fun access(deviceId: String): TvAccess {
+        val clients = listOf(AdbClient(PHONE, 40112)) +
+            if (deviceId in revoked) emptyList() else listOf(AdbClient(OTHER, 51234), AdbClient(OTHER, 51240))
+        val keys = listOf(AllowedKey(PHONE_FINGERPRINT, "tellyscope@phone", clock() - 60_000)) + if (deviceId in revoked) emptyList() else listOf(
+            AllowedKey("9B:21:6E:F0:3A:7C:11:58:D4:02:BE:93:6F:A1:C8:E5", "alex@laptop", clock() - 2 * 3_600_000),
+            AllowedKey("C4:0E:63:19:B2:7D:45:E8:0A:91:3C:F6:28:D7:A2:5B", "studio-pc", clock() - 3 * 86_400_000),
+            AllowedKey("71:D5:08:AE:42:9F:C3:16:7B:E0:54:2A:D9:83:3C:E9", null, null),
+        )
+        return TvAccess.of(clients, keys, setOf(PHONE), deviceId, mine, PHONE_FINGERPRINT)
+    }
+
+    override suspend fun markMine(deviceId: String, address: String) {
+        mine += address
+    }
+
+    override suspend fun peripherals(deviceId: String) = listOf(
+        Peripheral("XGIMI remote", Peripheral.Group.Bluetooth, Peripheral.Kind.Remote, true, "Connected"),
+        Peripheral("Sony WH-1000XM4", Peripheral.Group.Bluetooth, Peripheral.Kind.Headphones, false, "Paired"),
+        Peripheral("Logitech K400", Peripheral.Group.Input, Peripheral.Kind.Keyboard, true, "USB"),
+        Peripheral("SanDisk 64 GB", Peripheral.Group.Storage, Peripheral.Kind.Usb, true, "Connected", free = 41L shl 30),
+        Peripheral("Sonos Beam", Peripheral.Group.Hdmi, Peripheral.Kind.Speaker, true, "On"),
+        Peripheral("Sound output", Peripheral.Group.Audio, Peripheral.Kind.Sound, true, "HDMI ARC"),
+    )
+
+    override suspend fun revokeAll(deviceId: String): Boolean {
+        delay(600)
+        revoked += deviceId
+        return true
+    }
+
+    override suspend fun openDeveloperOptions(deviceId: String) = true
+
+    override fun phoneFingerprint() = PHONE_FINGERPRINT
+
     override suspend fun facts(deviceId: String) = TvFacts(
         manufacturer = "XGIMI", model = "Horizon Pro", device = "XK03H", androidVersion = "11", sdk = 30,
         build = "RTT1.230922.001", stockPackages = fakeStock, userApps = 7, identifiers = emptySet(),
     )
 
     private companion object {
+        const val PHONE = "192.0.2.10"
+        const val OTHER = "192.0.2.47"
+        const val PHONE_FINGERPRINT = "3F:9A:1C:5D:E0:42:B7:19:8C:6A:F3:21:0D:94:7E:C2"
+
         /** Enough stock apps that a cleanyourtv report spills into "Add the rest". */
         val fakeStock = listOf(
             "com.google.android.youtube.tv", "com.netflix.ninja", "com.amazon.amazonvideo.livingroom", "com.xgimi.ota",

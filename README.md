@@ -41,6 +41,14 @@ Debloat your Android TV, install apps, and browse and transfer files on it, all 
     <td align="center"><sub>Set default launcher</sub></td>
     <td align="center"><sub>Move your setup to a new TV (coming in 0.9)</sub></td>
   </tr>
+  <tr>
+    <td><img src="docs/screenshots/access-warning.png" alt="The TV's page warns that another computer is connected, above Connected devices: the remote, headphones and keyboard"></td>
+    <td><img src="docs/screenshots/who-has-access.png" alt="Who has access: this phone and one other address connected now, then every computer the TV allows, each with its fingerprint and when it was last seen"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Know when another computer connects</sub></td>
+    <td align="center"><sub>See who has access, remove it in one tap</sub></td>
+  </tr>
 </table>
 
 <sub>Rendered from the app's screenshot tests with sample data, except the 0.9 preview.</sub>
@@ -82,6 +90,8 @@ Tellyscope is a phone app that talks to your Android TV, Google TV or Fire TV ov
 - **History.** Every change is listed with an Undo, and **Restore everything** turns back on what Tellyscope turned off. Undoing a **Turn on** asks first, since it disables the app again. History is kept per TV, across restarts.
 - **Install apps.** Pick an APK, several split APKs or an `.apks`/`.xapk`/`.apkm` bundle on your phone. Before installing, Tellyscope shows the app's name, version and size and says whether it's new, an update, a reinstall or an older version. It won't install an older version over a newer one unless you tick the box. If the TV refuses, you get the reason in plain words.
 - **TV tweaks.** **Block ads with Private DNS** sends the TV's address lookups to an ad-blocking DNS provider (AdGuard by default, or any other you type in). Tellyscope then checks the TV can still look addresses up, and puts the old setting back if not. It needs Android 9 or newer. **Faster animations** makes menus move at twice the speed. Both land in History with an Undo. **Clear caches** frees space by clearing every app's temporary files; app data and sign-ins stay. **Take screenshot** saves what the TV shows to your phone.
+- **Who has access.** ADB lets any allowed computer do everything Tellyscope can, so the TV's page warns when a computer other than this phone is connected, with **It's mine** for your own. **Who has access** in the **⋮** menu lists who is connected now and every computer the TV allows, with its key fingerprint and roughly when it was last seen. The TV doesn't say which key is behind which connection, so Tellyscope never pairs them up. **Remove all other access** clears the TV's allowed list in one tap, then reconnects so the TV asks to allow this phone again; on TVs that won't take the request, it opens Developer options and walks you through **Revoke USB debugging authorisations**. It says "Only this phone has access" only after checking the TV again.
+- **Connected devices.** The Overview lists what's paired with or plugged into the TV: Bluetooth remotes and headphones, USB keyboards and drives with their free space, HDMI-CEC devices such as a soundbar, and where the sound goes now.
 - **Connection requests.** When another device asks to debug the TV, Tellyscope shows the TV's "Allow debugging?" prompt on your phone, with the device's key fingerprint, so you can **Allow** or **Deny** it without the remote. **Always allow this device** appears when the TV's own prompt offers it.
 - **Files.** Send a file from your phone into the TV's Download or Movies folder, or save one from there to your phone. Two buttons under the TV pick the folder, and stay pinned under the bar as you scroll. An empty folder says so in the middle of the page. A file with the same name gets a " (1)" instead of being overwritten, and a cancelled copy leaves nothing half-written behind.
 - **Remote.** A D-pad and icon keys for Back, Home, Menu, mute and volume, laid out like Google TV's phone remote, plus typing on the TV. Each key gives a short tick; **Vibrate on key press** in Settings turns it off. The D-pad's centre pauses a playing video. **Add to dock** puts up to four of the TV's apps under the volume keys, each one tap from opening on the TV. Long-press one to change or remove it, or keep holding and move it to reorder. An app uninstalled from the TV leaves the dock by itself, and a snackbar says so. The restart button in the top bar asks first, then waits for the TV to come back: **Hide** keeps the wait in the top bar, and after a minute **Retry** waits another one.

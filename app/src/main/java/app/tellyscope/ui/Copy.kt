@@ -4,6 +4,7 @@ package app.tellyscope.ui
 
 import app.tellyscope.adb.InstallKind
 import app.tellyscope.adb.InstallRefusal
+import app.tellyscope.adb.Peripheral
 import app.tellyscope.adb.TvFolder
 import app.tellyscope.data.Action
 import app.tellyscope.data.AppNames
@@ -407,4 +408,102 @@ object Copy {
     const val REQUEST_ALLOWED = "Allowed. That device can control the TV now."
     const val REQUEST_DENIED = "Denied. That device can't connect."
     const val REQUEST_GONE = "The TV's prompt had closed or changed, so nothing was pressed."
+
+    // Who has access
+    const val WARNING_TITLE = "Another computer is connected to this TV"
+    const val WARNING_TEXT = "It can do everything Tellyscope can: install or remove apps, read files and control the screen."
+    const val ITS_MINE = "It's mine"
+    const val REMOVE_ACCESS = "Remove all other access…"
+    const val CONNECTED_NOW = "Connected now"
+    const val WHO_HAS_ACCESS = "Who has access"
+    fun connections(n: Int) = if (n == 1) "1 connection" else "$n connections"
+    fun connectedFrom(address: String, n: Int) = "From $address · ${connections(n)}"
+    const val ON_TV = "An app on this TV"
+    const val ACCESS_INTRO = "Each computer allowed to use ADB can install or remove apps, read files and control the screen."
+    const val THIS_PHONE = "This phone"
+    const val TELLYSCOPE = "Tellyscope"
+    const val NOT_THIS_PHONE = "Not this phone"
+    const val YOURS = "Yours"
+    const val ALLOWED_COMPUTERS = "Allowed computers"
+    const val UNNAMED_COMPUTER = "Unnamed computer"
+    const val CANT_CHECK_CONNECTED = "This TV doesn't say who is connected."
+    const val CANT_CHECK_ALLOWED = "This TV doesn't list its allowed computers."
+    const val NOBODY_ALLOWED = "No computer is allowed. The next one to connect has to be allowed on the TV."
+    const val ACCESS_FOOT_LINK = "The TV doesn't say which allowed computer is behind a connection. If you don't recognise an address, remove all other access."
+    const val ACCESS_FOOT_ALL = "Android can't remove one computer on its own: this clears every computer, then you allow Tellyscope again."
+    /** Rough on purpose: the TV stamps a key when any connection uses it, not per session. */
+    fun lastSeen(at: Long?, now: Long): String {
+        if (at == null) return "Never seen"
+        val days = ((now - at) / 86_400_000).coerceAtLeast(0)
+        return when {
+            now - at < 5 * 60_000 -> "Last seen just now"
+            days == 0L -> "Last seen today, " + SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(at))
+            days == 1L -> "Last seen yesterday"
+            days < 30 -> "Last seen $days days ago"
+            else -> "Last seen over a month ago"
+        }
+    }
+    /** Enough of a fingerprint to tell keys apart: the first three and last two pairs. */
+    fun shortFingerprint(fp: String): String {
+        val parts = fp.split(':')
+        return if (parts.size <= 5) fp else (parts.take(3) + "…" + parts.takeLast(2)).joinToString(":")
+    }
+
+    // Remove all other access
+    const val REMOVE_TITLE = "Remove all other access"
+    const val CONFIRM_TITLE = "Remove all other access?"
+    const val CONFIRM_TEXT = "Every computer this TV has allowed loses access, your own computers too: they'll need allowing again."
+    const val CONFIRM_REMOTE = "Tellyscope reconnects straight away. Keep the TV remote handy: the TV asks you to allow this phone."
+    const val CONFIRM_BUTTON = "Remove access"
+    const val CANCEL = "Cancel"
+    const val REVOKING = "Removing access…"
+    const val ALLOW_TITLE = "Allow this phone on the TV"
+    const val ALLOW_TEXT_A = "Other access is removed. The TV now asks “Allow USB debugging?”. Tick "
+    const val ALLOW_ALWAYS = "Always allow from this computer"
+    const val ALLOW_TEXT_B = ", then choose "
+    const val ALLOW_BUTTON = "Allow"
+    const val FINGERPRINT_LABEL = "The TV should show this fingerprint"
+    const val FINGERPRINT_HINT = "If it shows a different one, choose Cancel on the TV."
+    const val STOP_WAITING = "Stop waiting"
+    const val REFUSED = "The TV didn't allow this phone. It may have timed out, or Cancel was chosen."
+    const val ASK_AGAIN = "Ask the TV again"
+    const val CHECKING = "Checking the TV…"
+    const val DONE_TITLE = "Only this phone has access"
+    const val DONE_TEXT = "Tellyscope checked the TV again: this phone is the only allowed computer, and nothing else is connected."
+    const val TRUST_WARNING = "Only allow computers and apps you trust. Anything you allow can install apps, read files and control the TV."
+    fun backTo(tv: String) = "Back to $tv"
+    const val STILL_TITLE = "Another computer is still connected"
+    fun stillText(who: String, tv: String) =
+        "Tellyscope still sees $who on $tv. It may have connected again straight away. Turn it off or unplug it from the network, then try again."
+    fun connectionFrom(address: String) = "a connection from $address"
+    const val TRY_AGAIN = "Try again"
+    const val UNCONFIRMED_TITLE = "Revoked on the TV"
+    const val UNCONFIRMED_TEXT = "Tellyscope can't check the list on this TV. Look under Developer options to confirm."
+    const val DONE = "Done"
+    const val MANUAL_INTRO = "This TV didn't take Tellyscope's request, so it's two steps on the TV. Afterwards only this phone can use ADB on it; your own computers will need allowing again."
+    const val MANUAL_STEP_1 = "Open Developer options on the TV"
+    const val MANUAL_STEP_1_TEXT = "Tellyscope opens it for you. If nothing happens on the TV, go to Settings → Device Preferences → Developer options."
+    const val OPEN_ON_TV = "Open on TV"
+    const val MANUAL_STEP_2 = "Choose “Revoke USB debugging authorisations”"
+    const val MANUAL_STEP_2_TEXT = "Then come back here, and Tellyscope asks the TV to allow this phone again."
+    const val MANUAL_DONE = "I've revoked it"
+    const val DEV_OPTIONS_FAILED = "Couldn't open Developer options on the TV. Go to Settings → Device Preferences → Developer options."
+
+    // Connected devices
+    const val DEVICES_TITLE = "Connected devices"
+    fun showAll(n: Int) = "Show all ($n)"
+    const val SHOW_LESS = "Show less"
+    const val NO_DEVICES = "Nothing plugged in or paired."
+    fun group(g: Peripheral.Group) = when (g) {
+        Peripheral.Group.Bluetooth -> "Bluetooth"
+        Peripheral.Group.Input -> "Input"
+        Peripheral.Group.Storage -> "USB storage"
+        Peripheral.Group.Hdmi -> "HDMI-CEC"
+        Peripheral.Group.Audio -> "Audio output"
+    }
+    /** The row's right-hand words. Collapsed rows have no group label, so Bluetooth says so there. */
+    fun peripheralStatus(p: Peripheral, grouped: Boolean): String {
+        val status = p.free?.let { "${bytes(it).replace(".0 ", " ")} free" } ?: p.status
+        return if (!grouped && p.group == Peripheral.Group.Bluetooth) "Bluetooth · ${status.lowercase()}" else status
+    }
 }

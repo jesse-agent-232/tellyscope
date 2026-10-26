@@ -7,6 +7,7 @@ import app.tellyscope.adb.ApkInfo
 import app.tellyscope.adb.ConnectionRequest
 import app.tellyscope.adb.InstallResult
 import app.tellyscope.adb.InstalledVersion
+import app.tellyscope.adb.Peripheral
 import app.tellyscope.adb.Progress
 import app.tellyscope.adb.RemoteKey
 import app.tellyscope.adb.TvFacts
@@ -160,4 +161,25 @@ interface DeviceSource {
 
     /** What a report says about the TV: model, Android, the apps it came with. Throws if it's gone. */
     suspend fun facts(deviceId: String): TvFacts
+
+    /** Who may use ADB on the TV and who is connected now. Throws if it's gone. */
+    suspend fun access(deviceId: String): TvAccess = TvAccess()
+
+    /** "It's mine": connections from [address] stop counting toward the warning on this TV. */
+    suspend fun markMine(deviceId: String, address: String) {}
+
+    /** Bluetooth, input, USB storage, HDMI-CEC and audio, for the Connected devices card. */
+    suspend fun peripherals(deviceId: String): List<Peripheral> = emptyList()
+
+    /**
+     * Clears every allowed key on the TV, this phone's too. False when the TV refused, or its
+     * Android isn't one the call is known for: the manual guide takes over.
+     */
+    suspend fun revokeAll(deviceId: String): Boolean = false
+
+    /** Opens Developer options on the TV, for the manual guide. False when nothing opened. */
+    suspend fun openDeveloperOptions(deviceId: String): Boolean = false
+
+    /** This phone's key as the TV's Allow prompt shows it. */
+    fun phoneFingerprint(): String? = null
 }

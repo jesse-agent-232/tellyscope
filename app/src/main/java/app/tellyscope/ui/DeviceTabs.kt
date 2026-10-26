@@ -37,6 +37,8 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -289,6 +291,9 @@ fun DeviceTabsScreen(
                         }
                         item { SectionTitle("Suggested for this TV") }
                         item { SuggestedCard(ui.lists, debloat, offline, onChanges = { toChanges = true; tab = TvTab.Tweaks }) }
+                        // The warning first, then what's plugged in, then Android.
+                        ui.access?.takeIf { it.warning && !offline }?.let { a -> item(key = "accessWarning") { AccessWarning(a, actions.access, onWho = actions.whoHasAccess) } }
+                        ui.peripherals?.takeIf { !offline }?.let { p -> item(key = "connectedDevices") { ConnectedDevicesCard(p) } }
                         item { AndroidCard(state, snap, offline, onUpdates = actions.checkUpdates) }
                     }
                     TvTab.Apps -> {
@@ -421,6 +426,13 @@ private fun AppMenu(state: UiState, actions: DeviceActions) {
             MenuBlock {
                 DropdownMenuItem(text = { Text("Rename this TV") }, leadingIcon = { Icon(Icons.Default.Edit, null) }, onClick = { open = false; renaming = true })
                 DropdownMenuItem(text = { Text("Forget this TV") }, leadingIcon = { Icon(Icons.Default.Delete, null) }, onClick = { open = false; forgetting = true })
+                DropdownMenuItem(
+                    text = { Text(Copy.WHO_HAS_ACCESS) },
+                    leadingIcon = {
+                        BadgedBox(badge = { if (state.device.access?.warning == true) Badge() }) { Icon(AccessIcons.Shield, null) }
+                    },
+                    onClick = { open = false; actions.whoHasAccess() },
+                )
                 DropdownMenuItem(text = { Text("Advanced") }, leadingIcon = { Icon(Icons.Default.List, null) }, onClick = { open = false; actions.advanced() })
             }
             Spacer(Modifier.height(4.dp))
@@ -594,7 +606,7 @@ private fun StatusRow(icon: ImageVector, title: String, sub: String?, button: St
 }
 
 
-private object TileIcons {
+internal object TileIcons {
     // Absolute commands only: Compose's path parser misplaces a relative move after a close.
     val Upload = icon("Upload", "M9 16H15V10H19L12 3L5 10H9ZM5 18H19V20H5Z")
     // Material's settings_remote: a remote with a ring button and two signal arcs.
