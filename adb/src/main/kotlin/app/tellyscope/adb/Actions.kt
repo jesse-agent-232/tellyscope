@@ -30,7 +30,10 @@ class Actions(private val shell: AdbShell) {
         if (action != Action.ENABLE && action != Action.OPEN) {
             // No launcher answer (no `cmd` before Android 7, or an error): we can't tell what's safe.
             val home = homePackages().ifEmpty { return ActionResult.Refused(ProtectedReason.UNKNOWN_HOME) }
-            Protected.reason(pkg, home, userApp = pkg in userPackages())?.let { return ActionResult.Refused(it) }
+            // Only the name guard asks whether the user installed it; the live Home is refused unasked.
+            val why = Protected.reason(pkg, home)
+                ?.let { if (it == ProtectedReason.HOME_SCREEN && pkg !in home) Protected.reason(pkg, home, userApp = pkg in userPackages()) else it }
+            why?.let { return ActionResult.Refused(it) }
         }
         return when (action) {
             Action.STOP -> exec("am force-stop $pkg", Action.OPEN)
