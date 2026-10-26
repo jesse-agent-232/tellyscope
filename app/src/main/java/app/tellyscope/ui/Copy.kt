@@ -135,6 +135,7 @@ object Copy {
     const val RECOMMENDED = "Recommended"
     const val USES_SERVICE = "Uses an accessibility service"
     const val NO_SERVICE = "Open source · no accessibility service"
+    const val NOT_AFFILIATED = "Tellyscope isn't affiliated with any of these launchers or their developers."
     const val OPEN_IN_STORE = "Open in Play Store"
     const val INSTALL_HOME = "Install a home screen"
     const val INSTALL_IT = "Install it on your TV"

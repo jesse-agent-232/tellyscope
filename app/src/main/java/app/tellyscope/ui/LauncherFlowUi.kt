@@ -165,13 +165,9 @@ fun LauncherScreen(device: Device, flow: LauncherFlow, apps: List<AppInfo>, acti
                     Headed(Copy.INSTALL_IT, bold(Copy.installItText(label), label, "Install"))
                     Surface(shape = MaterialTheme.shapes.large, color = c.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                LetterTile(flow.pkg)
-                                Spacer(Modifier.width(16.dp))
-                                Column {
-                                    Text(label, style = MaterialTheme.typography.bodyLarge)
-                                    Text(Copy.storeOn(name(device)), style = MaterialTheme.typography.bodyMedium, color = c.onSurfaceVariant)
-                                }
+                            Column {
+                                Text(label, style = MaterialTheme.typography.bodyLarge)
+                                Text(Copy.storeOn(name(device)), style = MaterialTheme.typography.bodyMedium, color = c.onSurfaceVariant)
                             }
                             WaitingLine()
                         }
@@ -225,8 +221,6 @@ private fun Picker(chosen: String, onChoose: (String) -> Unit) {
                     modifier = Modifier.fillMaxWidth().selectable(on, role = Role.RadioButton) { onChoose(l.pkg) },
                 ) {
                     Row(Modifier.padding(start = 16.dp, top = 16.dp, bottom = 16.dp, end = 8.dp)) {
-                        LetterTile(l.pkg)
-                        Spacer(Modifier.width(16.dp))
                         Column(Modifier.weight(1f)) {
                             Text(l.name, style = MaterialTheme.typography.bodyLarge)
                             Text(l.about, style = MaterialTheme.typography.bodyMedium, color = c.onSurfaceVariant)
@@ -241,18 +235,7 @@ private fun Picker(chosen: String, onChoose: (String) -> Unit) {
                 }
             }
         }
-    }
-}
-
-/** No launcher icon exists on the phone before it's installed, so each has a letter in its own colour. */
-@Composable
-private fun LetterTile(pkg: String) {
-    val l = RECOMMENDED.firstOrNull { it.pkg == pkg }
-    Box(
-        Modifier.size(40.dp).background(l?.let { Color(it.tile) } ?: MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.shapes.medium),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(launcherName(pkg).take(1), color = Color.White, style = MaterialTheme.typography.titleMedium)
+        Text(Copy.NOT_AFFILIATED, style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant, modifier = Modifier.padding(top = 12.dp))
     }
 }
 
