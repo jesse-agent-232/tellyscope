@@ -94,6 +94,9 @@ data class AccessActions(
     val revokedByHand: () -> Unit = {},
     val askAgain: () -> Unit = {},
     val retry: () -> Unit = {},
+    /** A connection left open: read the TV again, or restart it to end the connection. */
+    val checkAgain: () -> Unit = {},
+    val restart: () -> Unit = {},
 )
 
 internal object AccessIcons {
@@ -307,10 +310,22 @@ fun AccessScreen(state: UiState, actions: AccessActions, snackbar: SnackbarHostS
                 body, Verdict.Done, Copy.DONE_TITLE, Copy.DONE_TEXT,
                 trust = true,
             ) { Button(onClick = { actions.close(); actions.back() }) { Text(Copy.backTo(name(device))) } }
-            Removal.Step.StillConnected -> Outcome(body, Verdict.Still, Copy.STILL_TITLE, Copy.stillText(removal.still ?: Copy.UNNAMED_COMPUTER, name(device))) {
-                OutlinedButton(onClick = actions.close) { Text(Copy.WHO_HAS_ACCESS) }
-                Button(onClick = actions.retry) { Text(Copy.TRY_AGAIN) }
+            Removal.Step.StillConnected -> if (removal.open) {
+                // Only a restart ends an open connection, so it leads; Who has access steps down to a link.
+                Outcome(
+                    body, Verdict.Still, Copy.STILL_TITLE, Copy.stillOpenText(removal.still ?: Copy.UNNAMED_COMPUTER, name(device)),
+                    link = { TextButton(onClick = actions.close) { Text(Copy.WHO_HAS_ACCESS) } },
+                ) {
+                    OutlinedButton(onClick = actions.checkAgain) { Text(Copy.CHECK_AGAIN) }
+                    Button(onClick = actions.restart) { Text(Copy.RESTART_TV) }
+                }
+            } else {
+                Outcome(body, Verdict.Still, Copy.STILL_TITLE, Copy.stillText(removal.still ?: Copy.UNNAMED_COMPUTER, name(device))) {
+                    OutlinedButton(onClick = actions.close) { Text(Copy.WHO_HAS_ACCESS) }
+                    Button(onClick = actions.retry) { Text(Copy.TRY_AGAIN) }
+                }
             }
+            Removal.Step.Restarting -> Waiting(Copy.RESTARTING_TO_CHECK, body)
             Removal.Step.Unconfirmed -> Outcome(body, Verdict.Unknown, Copy.UNCONFIRMED_TITLE, Copy.UNCONFIRMED_TEXT) {
                 Button(onClick = actions.close) { Text(Copy.DONE) }
             }
@@ -559,7 +574,15 @@ private enum class Verdict { Done, Still, Unknown }
 /** C6, C6b and C6c: a cookie badge, what Tellyscope found, and where to go next. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun Outcome(modifier: Modifier, kind: Verdict, title: String, text: String, trust: Boolean = false, buttons: @Composable () -> Unit) {
+private fun Outcome(
+    modifier: Modifier,
+    kind: Verdict,
+    title: String,
+    text: String,
+    trust: Boolean = false,
+    link: (@Composable () -> Unit)? = null,
+    buttons: @Composable () -> Unit,
+) {
     val c = MaterialTheme.colorScheme
     val (bg, fg) = when (kind) {
         Verdict.Done -> c.primaryContainer to c.onPrimaryContainer
@@ -585,5 +608,6 @@ private fun Outcome(modifier: Modifier, kind: Verdict, title: String, text: Stri
             }
         }
         Row(Modifier.padding(top = 24.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) { buttons() }
+        if (link != null) Box(Modifier.padding(top = 8.dp)) { link() }
     }
 }

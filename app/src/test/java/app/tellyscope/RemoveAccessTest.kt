@@ -40,6 +40,7 @@ private class AccessTv : DeviceSource by FakeDeviceSource(FakeDeviceSource.Scena
     var reconnects = 0
     var devOptions = 0
     var after = TvAccess()
+    var reboots = 0
 
     override suspend fun known() = listOf(Device("tv", ScanHit("tv", 5555, ScanKind.Classic, "tv", null), state, null, null, null, 0L))
     override fun live(deviceId: String) = emptyFlow<Snapshot>()
@@ -48,6 +49,7 @@ private class AccessTv : DeviceSource by FakeDeviceSource(FakeDeviceSource.Scena
     override suspend fun revokeAll(deviceId: String): Boolean { revoked++; return revokes }
     override suspend fun reconnect(deviceId: String) { reconnects++; readable = false }
     override suspend fun openDeveloperOptions(deviceId: String): Boolean { devOptions++; return true }
+    override suspend fun reboot(deviceId: String): Boolean { reboots++; return true }
     override fun phoneFingerprint() = "AA:BB"
 }
 
@@ -148,9 +150,48 @@ class RemoveAccessTest {
         tv.readable = true
         advanceTimeBy(1_100)
         assertEquals(Removal.Step.StillConnected, step)
+        assertTrue(vm.state.value.device.removal!!.open)
         vm.closeRemoval()
         runCurrent()
         assertNull(step)
+    }
+
+    private val stillOpen get() = TvAccess(onlyPhone.connected!! + app.tellyscope.data.AccessClient("192.0.2.47", 2, app.tellyscope.data.AccessClient.Who.Other), emptyList())
+
+    @Test fun checkAgainReadsTheTvAndClearsNothing() = with(test) {
+        tv.after = stillOpen
+        start()
+        vm.askRemoveAccess()
+        vm.removeAccess()
+        runCurrent()
+        tv.readable = true
+        advanceTimeBy(1_100)
+        tv.after = onlyPhone
+        vm.checkAgain()
+        runCurrent()
+        assertEquals(Removal.Step.Done, step)
+        assertEquals(1, tv.revoked)
+    }
+
+    @Test fun restartingTheTvWaitsForItThenChecksAgain() = with(test) {
+        tv.after = stillOpen
+        start()
+        vm.askRemoveAccess()
+        vm.removeAccess()
+        runCurrent()
+        tv.readable = true
+        advanceTimeBy(1_100)
+        vm.restartToRemove()
+        runCurrent()
+        assertEquals(1, tv.reboots)
+        assertEquals(Removal.Step.Restarting, step)
+        tv.state = DeviceState.Offline
+        advanceTimeBy(3_100)
+        assertEquals(Removal.Step.Restarting, step)
+        tv.after = onlyPhone
+        tv.state = DeviceState.Online
+        advanceTimeBy(5_000)
+        assertEquals(Removal.Step.Done, step)
     }
 
     @Test fun stopWaitingLeavesTheFlow() = with(test) {

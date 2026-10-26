@@ -369,4 +369,6 @@ private fun accessActions(vm: TellyscopeViewModel, back: () -> Unit) = AccessAct
     revokedByHand = vm::revokedByHand,
     askAgain = vm::askTvAgain,
     retry = vm::retryRemoval,
+    checkAgain = vm::checkAgain,
+    restart = vm::restartToRemove,
 )

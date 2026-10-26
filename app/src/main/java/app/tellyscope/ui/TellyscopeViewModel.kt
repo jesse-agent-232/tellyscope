@@ -120,7 +120,7 @@ data class DeviceUi(
  * by hand in Developer options when the call isn't available: [Step.Manual]); Tellyscope then
  * reconnects and the TV asks to allow this phone ([Step.Allow]). [Step.Done] only after a re-read
  * shows nobody else; [Step.StillConnected] names who is left, [Step.Unconfirmed] means the TV
- * wouldn't say.
+ * wouldn't say. From there, [Step.Restarting] restarts the TV to end the connection, then checks again.
  */
 data class Removal(
     val step: Step,
@@ -130,8 +130,10 @@ data class Removal(
     val refused: Boolean = false,
     /** Who is still there, for [Step.StillConnected]: "a connection from …", or a computer's name. */
     val still: String? = null,
+    /** [still] is a connection left open, which only a restart ends; false when a computer was allowed again. */
+    val open: Boolean = false,
 ) {
-    enum class Step { Confirm, Revoking, Manual, Allow, Checking, Done, StillConnected, Unconfirmed }
+    enum class Step { Confirm, Revoking, Manual, Allow, Checking, Done, StillConnected, Restarting, Unconfirmed }
 }
 
 data class SideloadUi(
@@ -256,11 +258,8 @@ const val ANSWERING = "request"
 fun outcome(access: TvAccess?): Removal = when {
     access?.connected == null || access.allowed == null -> Removal(Removal.Step.Unconfirmed)
     access.onlyThisPhone -> Removal(Removal.Step.Done)
-    else -> Removal(
-        Removal.Step.StillConnected,
-        still = access.others.firstOrNull()?.let { Copy.connectionFrom(it.address) }
-            ?: access.allowed.firstOrNull { !it.phone }?.let { it.name ?: Copy.UNNAMED_COMPUTER },
-    )
+    else -> access.others.firstOrNull()?.let { Removal(Removal.Step.StillConnected, still = Copy.connectionFrom(it.address), open = true) }
+        ?: Removal(Removal.Step.StillConnected, still = access.allowed.firstOrNull { !it.phone }?.let { it.name ?: Copy.UNNAMED_COMPUTER })
 }
 
 class TellyscopeViewModel(
@@ -1054,8 +1053,39 @@ class TellyscopeViewModel(
         }
     }
 
-    /** "Try again" after another computer was still there: clear again, no need to ask twice. */
+    /** "Try again" after a computer was allowed again: clear again, no need to ask twice. */
     fun retryRemoval() = removeAccess()
+
+    /** "Check again" after a connection was left open: reads the TV again, clears nothing. */
+    fun checkAgain() {
+        val id = _state.value.selectedId ?: return
+        removalJob?.cancel()
+        removalJob = viewModelScope.launch {
+            setRemoval(id, Removal(Removal.Step.Checking))
+            setRemoval(id, outcome(readAccess(id)))
+        }
+    }
+
+    /**
+     * "Restart the TV" after a connection was left open: a restart ends every connection.
+     * Waits for the TV to come back, as the Remote does, then checks again. A refused restart
+     * leaves the screen as it was, and the snackbar says why.
+     */
+    fun restartToRemove() {
+        val id = _state.value.selectedId ?: return
+        val before = _state.value.device.removal
+        removalJob?.cancel()
+        removalJob = viewModelScope.launch {
+            setRemoval(id, Removal(Removal.Step.Restarting))
+            if (!restart(id)) {
+                setRemoval(id, before)
+                return@launch
+            }
+            while (id in _state.value.restarting) delay(1_000)
+            setRemoval(id, Removal(Removal.Step.Checking))
+            setRemoval(id, outcome(readAccess(id)))
+        }
+    }
 
     /** "Pick your TV": remember the choice for this TV and show its list. */
     fun pickList(listId: String) {
@@ -1283,19 +1313,23 @@ class TellyscopeViewModel(
 
     fun reboot() {
         val id = _state.value.selectedId ?: return
-        viewModelScope.launch {
-            val ok = try {
-                source.reboot(id)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (_: Exception) {
-                _notice.value = Copy.REMOTE_LOST
-                return@launch
-            }
-            // A restart brings the picture back on by itself.
-            if (ok) _state.update { it.copy(restarting = it.restarting + (id to Restart(clock())), screenOff = it.screenOff - id) }
-            else _notice.value = Copy.REBOOT_REFUSED
+        viewModelScope.launch { restart(id) }
+    }
+
+    /** Asks the TV to restart and starts the wait for it; false, with the snackbar saying why, when it won't. */
+    private suspend fun restart(id: String): Boolean {
+        val ok = try {
+            source.reboot(id)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            _notice.value = Copy.REMOTE_LOST
+            return false
         }
+        // A restart brings the picture back on by itself.
+        if (ok) _state.update { it.copy(restarting = it.restarting + (id to Restart(clock())), screenOff = it.screenOff - id) }
+        else _notice.value = Copy.REBOOT_REFUSED
+        return ok
     }
 
     /** Retry once a restart runs late: the link tries the TV again, and the wait starts over for a minute. */

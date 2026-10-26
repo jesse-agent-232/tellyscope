@@ -1496,7 +1496,7 @@ class ScreenshotTest {
     @Test fun access_allow_dark() = accessScreen("97_remove_allow", true, allow)
     @Test fun access_done() = accessScreen("98_remove_done", false, Removal(Removal.Step.Done))
     @Test fun access_done_dark() = accessScreen("98_remove_done", true, Removal(Removal.Step.Done))
-    private val still = Removal(Removal.Step.StillConnected, still = Copy.connectionFrom("192.0.2.47"))
+    private val still = Removal(Removal.Step.StillConnected, still = Copy.connectionFrom("192.0.2.47"), open = true)
     @Test fun access_still() = accessScreen("99_remove_still", false, still)
     @Test fun access_still_dark() = accessScreen("99_remove_still", true, still)
     @Test fun access_unconfirmed() = accessScreen("99_remove_unconfirmed", false, Removal(Removal.Step.Unconfirmed))

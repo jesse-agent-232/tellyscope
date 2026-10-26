@@ -484,6 +484,11 @@ object Copy {
     const val STILL_TITLE = "Another computer is still connected"
     fun stillText(who: String, tv: String) =
         "Tellyscope still sees $who on $tv. It may have connected again straight away. Turn it off or unplug it from the network, then try again."
+    fun stillOpenText(who: String, tv: String) =
+        "Tellyscope still sees $who on $tv. Its access is gone, but the TV keeps a connection open until it ends. Restart the TV to end it."
+    const val CHECK_AGAIN = "Check again"
+    const val RESTART_TV = "Restart the TV"
+    const val RESTARTING_TO_CHECK = "Restarting the TV…"
     fun connectionFrom(address: String) = "a connection from $address"
     const val TRY_AGAIN = "Try again"
     const val UNCONFIRMED_TITLE = "Revoked on the TV"
