@@ -5,6 +5,7 @@ package app.tellyscope
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.lifecycle.viewModelScope
 import app.tellyscope.data.AppInfo
 import app.tellyscope.data.Device
@@ -218,7 +219,7 @@ class LauncherScreenTest {
     @Test fun thePickedLauncherIsTheOneInstalled() {
         val installs = mutableListOf<String>()
         compose.setContent { LauncherScreen(tv, LauncherFlow(), listOf(store, stock), LauncherActions(install = { installs += it })) }
-        compose.onNodeWithText("FLauncher").performClick()
+        compose.onNodeWithText("FLauncher").performScrollTo().performClick() // under the bottom bar on a small screen
         compose.onNodeWithText(Copy.OPEN_IN_STORE).performClick()
         assertEquals(listOf(FLAUNCHER), installs)
     }
