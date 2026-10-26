@@ -126,6 +126,8 @@ data class AppInfo(
     val removable: Boolean = false,
     /** The launcher Home opens now. */
     val home: Boolean = false,
+    /** On the bundled `launchers.json`: a launcher people add, never a TV's own. */
+    val listedLauncher: Boolean = false,
     /** Another launcher that can replace the current home screen, [homeInstead]: "Set as default launcher" is offered. */
     val homeInstead: String? = null,
     /** On the home screen the user added: the name of the launcher "Switch home back" returns to. */

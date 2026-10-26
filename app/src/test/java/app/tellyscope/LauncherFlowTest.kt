@@ -27,6 +27,7 @@ import app.tellyscope.ui.PLAY_STORE
 import app.tellyscope.ui.STORE_POLL_MS
 import app.tellyscope.ui.STORE_WAIT_MS
 import app.tellyscope.ui.TellyscopeViewModel
+import app.tellyscope.ui.offerChoose
 import app.tellyscope.ui.offerLauncher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -219,6 +220,18 @@ class LauncherScreenTest {
         assertFalse(offerLauncher(listOf(stock), hidden = false)) // Fire TV: no Play Store
         val other = AppInfo(PROJECTIVY, "Projectivy Launcher", null, false, true, null, "1.0", homeInstead = TV_HOME)
         assertFalse(offerLauncher(listOf(store, stock, other), hidden = false))
+    }
+
+    @Test fun anAddedLauncherOnHomeWithTheStockOneOffGetsNoCardAndNoTweaksRow() {
+        // Stock launcher disabled by hand or by Debloat: Projectivy is Home with no homeBack.
+        val off = stock.copy(enabled = false, home = false)
+        val projectivy = AppInfo(PROJECTIVY, "Projectivy Launcher", null, false, true, "this is your home screen", "1.0", home = true, listedLauncher = true)
+        assertFalse(offerLauncher(listOf(store, off, projectivy), hidden = false))
+        assertFalse(offerChoose(listOf(store, off, projectivy)))
+        // Any user-installed launcher counts, listed or not.
+        val other = AppInfo("com.example.home", "Home", null, false, true, null, "1.0", removable = true, home = true)
+        assertFalse(offerChoose(listOf(store, off, other)))
+        assertTrue(offerChoose(listOf(store, stock)))
     }
 
     @Test fun theCardsTwoButtons() {
