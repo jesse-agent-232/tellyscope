@@ -266,6 +266,8 @@ fun DeviceTabsScreen(
                         } else if (offline) {
                             item { OfflineCard(device, state.now, actions.reconnect) }
                         }
+                        // Another computer connected needs acting on now, so it sits with the cards above the stats.
+                        ui.access?.takeIf { it.warning && !offline }?.let { a -> item(key = "accessWarning") { AccessWarning(a, actions.access, onWho = actions.whoHasAccess) } }
                         // Away, storage is the last one seen, this session's or the saved one after a restart.
                         val used = snap?.storageUsedGb ?: device.lastKnown?.storageUsedGb
                         val total = snap?.storageTotalGb ?: device.lastKnown?.storageTotalGb
@@ -289,8 +291,7 @@ fun DeviceTabsScreen(
                                 )
                             }
                         }
-                        // The warning right under the tiles, so it shows without scrolling; then the list, what's plugged in, and Android.
-                        ui.access?.takeIf { it.warning && !offline }?.let { a -> item(key = "accessWarning") { AccessWarning(a, actions.access, onWho = actions.whoHasAccess) } }
+                        // The list, what's plugged in, and Android.
                         item { SuggestedCard(ui.lists, debloat, offline, onChanges = { toChanges = true; tab = TvTab.Tweaks }) }
                         ui.peripherals?.takeIf { !offline }?.let { p -> item(key = "connectedDevices") { ConnectedDevicesCard(p) } }
                         item { AndroidCard(state, snap, offline, onUpdates = actions.checkUpdates) }

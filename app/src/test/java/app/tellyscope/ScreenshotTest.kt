@@ -1471,7 +1471,7 @@ class ScreenshotTest {
     @Test fun devices_card_open() = card("93_connected_devices_open", false) { ConnectedDevicesCard(accessState().device.peripherals!!, startOpen = true) }
     @Test fun devices_card_open_dark() = card("93_connected_devices_open", true) { ConnectedDevicesCard(accessState().device.peripherals!!, startOpen = true) }
 
-    /** The Overview scrolled to the warning: under the tiles, then the list, devices and Android. */
+    /** The Overview scrolled to the warning: above the stats, then the tiles, the list, devices and Android. */
     private fun accessOverview(dark: Boolean) {
         // By key: scrolling to a node by tag never stops with the clock held.
         val scroll = { compose.onNode(hasScrollAction()).performScrollToKey("accessWarning"); Unit }
