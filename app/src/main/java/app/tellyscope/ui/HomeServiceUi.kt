@@ -30,6 +30,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import app.tellyscope.data.AppInfo
@@ -57,7 +58,6 @@ fun ServiceDialog(app: String, other: String, onTurnOn: () -> Unit, dismissLabel
  */
 @Composable
 fun ServiceOffCard(app: AppInfo, onTurnOn: () -> Unit, onDismiss: () -> Unit) {
-    val c = MaterialTheme.colorScheme
     var asking by rememberSaveable { mutableStateOf(false) }
     if (asking) {
         ServiceDialog(
@@ -66,30 +66,45 @@ fun ServiceOffCard(app: AppInfo, onTurnOn: () -> Unit, onDismiss: () -> Unit) {
             dismissLabel = Copy.NOT_NOW, onOther = { asking = false }, onDismiss = { asking = false },
         )
     }
+    HomeNoteCard(
+        Icons.Default.Home, Copy.serviceOffTitle(app.homeBack), Copy.serviceOffText(app.label),
+        Copy.GOT_IT, onDismiss, Copy.TURN_ON, onAction = { asking = true },
+        modifier = Modifier.testTag("serviceOff"),
+    )
+}
+
+/** A note about the home screen in the TV's own pages: neutral card, icon tile, a text button and a tonal one. */
+@Composable
+fun HomeNoteCard(
+    icon: ImageVector,
+    title: String,
+    text: String,
+    dismissLabel: String,
+    onDismiss: () -> Unit,
+    actionLabel: String,
+    onAction: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val c = MaterialTheme.colorScheme
     Card(
         colors = CardDefaults.cardColors(containerColor = c.surfaceContainer),
         shape = MaterialTheme.shapes.large,
-        modifier = Modifier.fillMaxWidth().testTag("serviceOff"),
+        modifier = modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 12.dp)) {
             Row {
                 Box(Modifier.size(40.dp).background(c.tertiaryContainer, CircleShape), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.Home, contentDescription = null, tint = c.onTertiaryContainer, modifier = Modifier.size(24.dp))
+                    Icon(icon, contentDescription = null, tint = c.onTertiaryContainer, modifier = Modifier.size(24.dp))
                 }
                 Spacer(Modifier.width(16.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(Copy.serviceOffTitle(app.homeBack), style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        Copy.serviceOffText(app.label),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = c.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp),
-                    )
+                    Text(title, style = MaterialTheme.typography.titleMedium)
+                    Text(text, style = MaterialTheme.typography.bodyMedium, color = c.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
                 }
             }
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
-                TextButton(onClick = onDismiss) { Text(Copy.GOT_IT) }
-                FilledTonalButton(onClick = { asking = true }) { Text(Copy.TURN_ON) }
+                TextButton(onClick = onDismiss) { Text(dismissLabel) }
+                FilledTonalButton(onClick = onAction) { Text(actionLabel) }
             }
         }
     }

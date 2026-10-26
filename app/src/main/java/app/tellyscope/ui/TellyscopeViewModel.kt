@@ -41,6 +41,7 @@ import app.tellyscope.data.ScanHit
 import app.tellyscope.data.ScanKind
 import app.tellyscope.data.ScanProgress
 import app.tellyscope.data.Snapshot
+import app.tellyscope.data.StoreState
 import app.tellyscope.data.Suggestions
 import app.tellyscope.data.TvAccess
 import app.tellyscope.data.TvSettings
@@ -113,7 +114,20 @@ data class DeviceUi(
     val peripherals: List<Peripheral>? = null,
     /** "Remove all other access", while it runs; null otherwise. */
     val removal: Removal? = null,
+    /** Install a home screen, while it's open; null otherwise. */
+    val launcher: LauncherFlow? = null,
+    /** Not now on the Apps tab's home-screen card, for this TV. True until read, so the card never flashes. */
+    val launcherCardHidden: Boolean = true,
 )
+
+/**
+ * Install a home screen: pick a launcher ([Step.Pick]), install it from the Play Store the TV
+ * opens at its page ([Step.Waiting], or [Step.NoStore] when the Store didn't open and the user
+ * searches by hand), then switch to it ([Step.Installed]). [Step.Left]: the Store closed first.
+ */
+data class LauncherFlow(val step: Step = Step.Pick, val pkg: String = RECOMMENDED.first().pkg) {
+    enum class Step { Pick, Waiting, NoStore, Left, Installed }
+}
 
 /**
  * "Remove all other access", one step at a time. The TV's keys are cleared ([Step.Revoking], or
@@ -254,6 +268,9 @@ const val SCREENSHOT = "screenshot"
 /** [DeviceUi.busy] value while the TV's connection prompt is being answered. */
 const val ANSWERING = "request"
 
+/** How often Install a home screen asks the TV whether the launcher is in yet. */
+const val STORE_POLL_MS = 3_000L
+
 /** Where a removal ends, from the re-read after it: never Done on a guess. */
 fun outcome(access: TvAccess?): Removal = when {
     access?.connected == null || access.allowed == null -> Removal(Removal.Step.Unconfirmed)
@@ -308,6 +325,8 @@ class TellyscopeViewModel(
     private var accessJob: Job? = null
     /** Runs the removal across the reconnect it causes, so [select] doesn't stop it. */
     private var removalJob: Job? = null
+    /** Watches the TV for a launcher's install from the Play Store. */
+    private var launcherJob: Job? = null
     private var updateJob: Job? = null
     /** The fingerprint the user waved away on the phone; its prompt stays hidden while the TV shows it. */
     private var dismissedRequest: String? = null
@@ -451,6 +470,7 @@ class TellyscopeViewModel(
 
     fun select(id: String?) {
         liveJob?.cancel()
+        launcherJob?.cancel()
         mediumJob?.cancel()
         listsJob?.cancel()
         requestJob?.cancel()
@@ -467,7 +487,8 @@ class TellyscopeViewModel(
         viewModelScope.launch {
             val history = source.history(device.id)
             val dock = source.dock(device.id)
-            _state.update { if (it.selectedId == device.id) it.copy(device = it.device.copy(history = history, dock = dock)) else it }
+            val hidden = source.launcherCardHidden(device.id)
+            _state.update { if (it.selectedId == device.id) it.copy(device = it.device.copy(history = history, dock = dock, launcherCardHidden = hidden)) else it }
         }
         if (device.state != DeviceState.Online) return
         liveJob = viewModelScope.launch {
@@ -623,6 +644,105 @@ class TellyscopeViewModel(
                 }
             }
         }
+    }
+
+    /** Opens Install a home screen on its picker. */
+    fun openLauncherFlow() {
+        val id = _state.value.selectedId ?: return
+        updateDevice(id) { it.copy(launcher = LauncherFlow()) }
+    }
+
+    /** Not now on the Apps tab's card: it stays away on this TV, and Tweaks keeps the way in. */
+    fun hideLauncherCard() {
+        val id = _state.value.selectedId ?: return
+        updateDevice(id) { it.copy(launcherCardHidden = true) }
+        viewModelScope.launch { runCatching { source.hideLauncherCard(id) } }
+    }
+
+    /** Back to the picker, [pkg] still chosen; Choose another from a dead end. */
+    fun pickLauncher(pkg: String) {
+        val id = _state.value.selectedId ?: return
+        launcherJob?.cancel()
+        updateDevice(id) { it.copy(launcher = LauncherFlow(LauncherFlow.Step.Pick, pkg)) }
+    }
+
+    fun closeLauncherFlow() {
+        val id = _state.value.selectedId ?: return
+        launcherJob?.cancel()
+        updateDevice(id) { it.copy(launcher = null) }
+    }
+
+    /**
+     * Opens the Play Store on the TV at [pkg]'s page, then checks every few seconds whether it's
+     * installed, or the Store has closed without it. Where the Store didn't open, it keeps
+     * checking while the user searches by hand.
+     */
+    fun installLauncher(pkg: String) {
+        val id = _state.value.selectedId ?: return
+        launcherJob?.cancel()
+        val step = { s: LauncherFlow.Step -> updateDevice(id) { it.copy(launcher = it.launcher?.let { _ -> LauncherFlow(s, pkg) }) } }
+        step(LauncherFlow.Step.Waiting)
+        launcherJob = viewModelScope.launch {
+            val opened = try {
+                source.openStore(id, pkg)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                false
+            }
+            if (!opened) step(LauncherFlow.Step.NoStore)
+            var seen = opened
+            while (true) {
+                delay(STORE_POLL_MS)
+                val now = try {
+                    source.storeState(id, pkg)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    continue // a dropped read: the next one tells
+                }
+                when (now) {
+                    StoreState.Installed -> {
+                        val apps = try {
+                            source.apps(id)
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (_: Exception) {
+                            null
+                        }
+                        apps?.let { a -> updateDevice(id) { it.copy(apps = a) } }
+                        // No way to offer it as Home (the TV asks each time): say where to find it instead.
+                        if (apps?.firstOrNull { it.packageName == pkg }?.homeInstead == null) {
+                            updateDevice(id) { it.copy(launcher = null) }
+                            _notice.value = Copy.launcherInstalled(launcherName(pkg))
+                        } else {
+                            step(LauncherFlow.Step.Installed)
+                        }
+                        return@launch
+                    }
+                    StoreState.InStore -> seen = true
+                    StoreState.Elsewhere -> if (seen) {
+                        step(LauncherFlow.Step.Left)
+                        return@launch
+                    }
+                }
+            }
+        }
+    }
+
+    /** Yes on the installed launcher, with its accessibility service or without; the flow closes and the switch runs. */
+    fun switchToLauncher(service: Boolean) {
+        val id = _state.value.selectedId ?: return
+        val pkg = _state.value.device.launcher?.pkg ?: return
+        updateDevice(id) { it.copy(launcher = null) }
+        run(pkg, Action.Home, id = id) { source.makeHome(it, pkg, service) }
+    }
+
+    /** Not now on the installed launcher: where to switch later. */
+    fun launcherLater() {
+        val pkg = _state.value.device.launcher?.pkg ?: return
+        closeLauncherFlow()
+        _notice.value = Copy.launcherLater(launcherName(pkg))
     }
 
     /** Ad-blocking Private DNS through [host], or back to Automatic with null. */

@@ -124,6 +124,8 @@ data class AppInfo(
     val iconAccent: Long? = null,
     /** Installed by the user (`pm list packages -3`), so Uninstall is offered. Never for apps that came with the TV. */
     val removable: Boolean = false,
+    /** The launcher Home opens now. */
+    val home: Boolean = false,
     /** Another launcher that can replace the current home screen, [homeInstead]: "Set as default launcher" is offered. */
     val homeInstead: String? = null,
     /** On the home screen the user added: the name of the launcher "Switch home back" returns to. */
@@ -141,6 +143,9 @@ data class AppInfo(
     /** Has an icon on the TV's own home screen, not only a phone-style one. True when the TV can't say. */
     val tvHome: Boolean = true,
 )
+
+/** Where an install from the Play Store stands, read every few seconds while the TV shows the Store. */
+enum class StoreState { Installed, InStore, Elsewhere }
 
 /** An app on the Remote's dock. [label] is kept so it can be named after the app is gone. */
 data class Docked(val packageName: String, val label: String)

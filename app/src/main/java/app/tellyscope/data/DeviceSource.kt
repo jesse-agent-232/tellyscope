@@ -82,6 +82,17 @@ interface DeviceSource {
     /** Puts away the TV page's card about [packageName]'s service being off, until the next switch. */
     suspend fun dismissServiceNote(deviceId: String, packageName: String) {}
 
+    /** Opens the Play Store on the TV at [packageName]'s page, a launcher from the bundled list; false when it didn't open. */
+    suspend fun openStore(deviceId: String, packageName: String): Boolean = false
+
+    /** Whether [packageName] is installed yet, and if not, whether the Store is still on screen. */
+    suspend fun storeState(deviceId: String, packageName: String): StoreState = StoreState.Elsewhere
+
+    /** Not now on the Apps tab's card about getting a better home screen, kept per TV. */
+    suspend fun launcherCardHidden(deviceId: String): Boolean = false
+
+    suspend fun hideLauncherCard(deviceId: String) {}
+
     /** Everything Tellyscope changed on this TV, newest first. Survives app restarts. */
     suspend fun history(deviceId: String): List<HistoryEntry>
 

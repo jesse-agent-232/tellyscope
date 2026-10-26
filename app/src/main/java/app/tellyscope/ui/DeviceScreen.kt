@@ -80,6 +80,10 @@ data class DeviceActions(
     val homeServiceOn: (String) -> Unit = {},
     /** Got it on the TV page's card about that service being off. */
     val dismissServiceNote: (String) -> Unit = {},
+    /** Opens Install a home screen, from the Apps tab's card or Tweaks. */
+    val installLauncher: () -> Unit = {},
+    /** Not now on the Apps tab's card about a better home screen. */
+    val hideLauncherCard: () -> Unit = {},
     val undo: (HistoryEntry) -> Unit = {},
     val reconnect: () -> Unit = {},
     val forget: (String) -> Unit = {},

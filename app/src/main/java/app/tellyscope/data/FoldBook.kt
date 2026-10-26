@@ -7,7 +7,8 @@ import java.util.Properties
 
 /**
  * Which Apps tabs have their System section folded, kept in [file] so a fold the user chose
- * stays across restarts until they open it again. Unfolded until told otherwise.
+ * stays across restarts until they open it again. Unfolded until told otherwise. The same book
+ * keeps, in its own file, which TVs put away the card about a better home screen.
  */
 class FoldBook(private val file: File) {
     @Synchronized

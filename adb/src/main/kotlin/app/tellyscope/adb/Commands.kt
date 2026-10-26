@@ -53,6 +53,11 @@ internal object Commands {
             "cmd package query-activities --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER 2>/dev/null"
     const val A11Y_SERVICES = "cmd package query-services --brief -a android.accessibilityservice.AccessibilityService"
     const val A11Y_ON = "settings get secure enabled_accessibility_services"
+    const val PLAY_STORE = "com.android.vending"
+    /** Opens a `market://` link in the Play Store only; `-W` waits, so a refusal prints an Error. */
+    const val OPEN_STORE = "am start -W -a android.intent.action.VIEW -p $PLAY_STORE -d"
+    /** The app on screen: `mResumedActivity` up to Android 13, `topResumedActivity` from 14. */
+    const val RESUMED = "dumpsys activity activities | grep -E 'mResumedActivity|topResumedActivity'"
 
     private fun List<String>.batch() = joinToString("; echo $SEP; ") { "$it 2>/dev/null" }
 

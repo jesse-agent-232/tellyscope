@@ -38,6 +38,8 @@ those of "bluetooth", "headphones", "keyboard", "mouse", "sports_esports",
 "usb", "speaker" and "settings_input_hdmi". The logged-out page and the
 logged-out badge on a TV's chip use that of "logout"; the dialog that asks
 about a launcher's accessibility service that of "accessibility_new".
+The install-a-launcher flow uses those of "download", "error_outline",
+"info" (outlined) and "code".
 
 --------------------------------------------------------------------------------
 Store badges in docs/badges/ (README only, not in the app)

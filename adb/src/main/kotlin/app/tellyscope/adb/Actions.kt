@@ -162,6 +162,23 @@ class Actions(private val shell: AdbShell) {
         return serviceOn(service) == on
     }
 
+    /** Opens the Play Store on the TV at [pkg]'s page. False when it didn't: no Store, or it refused the link. */
+    suspend fun openStore(pkg: String): Boolean {
+        require(PACKAGE.matches(pkg)) { "not a package name: $pkg" }
+        val r = shell.shell("${Commands.OPEN_STORE} 'market://details?id=$pkg' 2>&1")
+        return r.exitCode == 0 && "Error" !in r.output
+    }
+
+    /** `pm path` names an installed package's APK and prints nothing for one that isn't. */
+    suspend fun installed(pkg: String): Boolean {
+        require(PACKAGE.matches(pkg)) { "not a package name: $pkg" }
+        return shell.shell("pm path $pkg 2>/dev/null").output.lineSequence().any { it.startsWith("package:") }
+    }
+
+    /** Whether the Play Store is the app on screen. */
+    suspend fun storeOnScreen(): Boolean =
+        shell.shell(Commands.RESUMED).output.lineSequence().any { "ResumedActivity" in it && " ${Commands.PLAY_STORE}/" in it }
+
     /** The activity Home opens, or null when Android would ask (its chooser lives in `android`). */
     private suspend fun currentHome(): String? =
         activitiesIn(shell.shell(Commands.HOME_ACTIVITY).output).singleOrNull()?.takeUnless { it.startsWith("android/") }

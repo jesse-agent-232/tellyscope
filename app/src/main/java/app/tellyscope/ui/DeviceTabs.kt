@@ -321,6 +321,9 @@ fun DeviceTabsScreen(
                                     below = { SearchPill(enabled = !offline) { searching = true } },
                                 ) { appsTab = AppsTab.entries[it] }
                             }
+                            if (!offline && offerLauncher(ui.apps, ui.launcherCardHidden)) item(key = "launcherCard") {
+                                LauncherCard(ui.apps.firstOrNull { it.home }?.label, onNotNow = actions.hideLauncherCard, onChoose = actions.installLauncher)
+                            }
                             val split = splitApps(ui.apps, procs, appsTab)
                             if (split.apps.isEmpty() && split.system.isEmpty()) item {
                                 // Away, the TV can't say what's running, rather than nothing is.

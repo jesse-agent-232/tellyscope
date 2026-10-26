@@ -80,11 +80,9 @@ class AdbDeviceSource(context: Context) : DeviceSource {
     @Volatile private var statsFor: Pair<String, StatsProfile>? = null
     private val hits = ConcurrentHashMap<String, ScanHit>()
     private val store = DeviceStore(File(appContext.filesDir, "devices.tsv"))
+    private val launchers by lazy { parseLaunchers(appContext.assets.open("launchers.json").bufferedReader().use { it.readText() }) }
     /** Launchers whose accessibility service a switch may turn on: only those `launchers.json` names. */
-    private val serviceLaunchers by lazy {
-        parseLaunchers(appContext.assets.open("launchers.json").bufferedReader().use { it.readText() })
-            .filter { it.accessibility }.map { it.pkg }.toSet()
-    }
+    private val serviceLaunchers by lazy { launchers.filter { it.accessibility }.map { it.pkg }.toSet() }
     private val saved = ConcurrentHashMap<String, SavedDevice>()
     /** Remembered TVs that haven't answered since launch: shown offline, not "connecting". */
     private val restoring = ConcurrentHashMap.newKeySet<String>()
@@ -96,6 +94,8 @@ class AdbDeviceSource(context: Context) : DeviceSource {
     private val book = HistoryBook(File(appContext.filesDir, "history.tsv"))
     private val names = NameBook(File(appContext.filesDir, "names.tsv"))
     private val docks = DockBook(File(appContext.filesDir, "docks.tsv"))
+    /** TVs whose Apps tab got Not now on the card about a better home screen. */
+    private val launcherCards = FoldBook(File(appContext.filesDir, "launcher-card.properties"))
     private val mine = MineBook(File(appContext.filesDir, "mine.tsv"))
     /** Last label seen per package, so history entries read like the app list. */
     private val labels = ConcurrentHashMap<String, String>()
@@ -398,6 +398,7 @@ class AdbDeviceSource(context: Context) : DeviceSource {
                 version = "",
                 icon = name.icon,
                 removable = p.name in userInstalled,
+                home = p.name == homeOptions?.current,
                 homeInstead = homeOptions?.takeIf { p.name in it.others }?.current,
                 homeBack = back?.takeIf { p.name == homeOptions?.current }?.let { names[it.pkg]?.label ?: AppNames.fallback(it.pkg) },
                 homeService = p.name in serviceLaunchers,
@@ -577,6 +578,25 @@ class AdbDeviceSource(context: Context) : DeviceSource {
             disabled.filter { it in system && Protected.reason(it) == ProtectedReason.HOME_SCREEN }.sorted()).distinct()
 
     override suspend fun history(deviceId: String): List<HistoryEntry> = book.entries(key(deviceId))
+
+    override suspend fun openStore(deviceId: String, packageName: String): Boolean {
+        // Only a launcher the bundled list names: the Store link is the one thing this opens.
+        if (launchers.none { it.pkg == packageName }) return false
+        return Actions(session(deviceId)).openStore(packageName)
+    }
+
+    override suspend fun storeState(deviceId: String, packageName: String): StoreState {
+        val actions = Actions(session(deviceId))
+        return when {
+            actions.installed(packageName) -> StoreState.Installed
+            actions.storeOnScreen() -> StoreState.InStore
+            else -> StoreState.Elsewhere
+        }
+    }
+
+    override suspend fun launcherCardHidden(deviceId: String): Boolean = key(deviceId) in launcherCards.folded()
+
+    override suspend fun hideLauncherCard(deviceId: String) = launcherCards.set(key(deviceId), true)
 
     override suspend fun restoreAll(deviceId: String): List<HistoryEntry> {
         // Only what is still off now: the user may have turned some back on from the TV itself.

@@ -123,6 +123,55 @@ object Copy {
 
     const val TV_OWN_LAUNCHER = "the TV's own launcher"
 
+    /** Install a home screen: the Apps tab's card, the picker, the wait for the Store, and its dead ends. */
+    const val BETTER_HOME = "Get a better home screen"
+
+    fun betterHomeText(current: String?) =
+        "Swap ${current ?: "the TV's home screen"} for a launcher without ads. Free on the Play Store; switch back any time."
+
+    const val CHOOSE_ONE = "Choose one"
+    const val CHOOSE_HOME = "Choose a home screen"
+    const val CHOOSE_HOME_TEXT = "Each one replaces the TV's home screen. Tellyscope opens it in the Play Store on the TV; you install it with the remote."
+    const val RECOMMENDED = "Recommended"
+    const val USES_SERVICE = "Uses an accessibility service"
+    const val NO_SERVICE = "Open source · no accessibility service"
+    const val OPEN_IN_STORE = "Open in Play Store"
+    const val INSTALL_HOME = "Install a home screen"
+    const val INSTALL_IT = "Install it on your TV"
+
+    fun installItText(name: String) =
+        "The Play Store is open on the TV, on $name's page. Use the remote to select Install. Tellyscope moves on by itself once it's installed."
+
+    fun storeOn(tv: String) = "Play Store on $tv"
+
+    const val WAITING_INSTALL = "Waiting for install…"
+    const val DOWNLOADS_TAKE = "Downloads can take a minute. Tellyscope can't see the download, only when it's done."
+    const val OPEN_STORE_AGAIN = "Open Play Store again"
+    const val MAKE_IT_HOME = "Make it the home screen?"
+
+    fun isInstalled(name: String) = "$name is installed."
+
+    fun launcherLater(name: String) = "$name is installed. To use it later, open its row and choose $MAKE_HOME."
+
+    fun launcherInstalled(name: String) = "$name is installed. Press Home on the remote to pick it."
+
+    const val NO_STORE = "The Play Store didn't open"
+
+    fun noStoreText(tv: String, name: String) =
+        "$tv didn't open the Play Store for Tellyscope. On the TV, open the Play Store yourself and search for $name. " +
+            "Tellyscope keeps watching and moves on once it's installed."
+
+    const val CHOOSE_ANOTHER = "Choose another"
+
+    fun notInstalled(name: String) = "$name isn't installed"
+
+    const val NOT_INSTALLED_TEXT =
+        "The Play Store closed on the TV before it was installed. If the Store said it isn't available for this TV, choose another launcher."
+
+    /** The Tweaks row that reopens it after Not now on the card. */
+    const val ANOTHER_HOME = "Another home screen"
+    const val ANOTHER_HOME_TEXT = "Install a launcher from the Play Store, like Projectivy or FLauncher. Switch back any time."
+
     fun serviceOffText(app: String) = "$app's accessibility service is off, so the TV can take Home back."
 
     private val GOOGLE_HOMES = setOf("com.google.android.tvlauncher", "com.google.android.apps.tv.launcherx")

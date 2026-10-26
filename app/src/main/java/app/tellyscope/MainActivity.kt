@@ -57,6 +57,8 @@ import app.tellyscope.ui.DebloatScreen
 import app.tellyscope.ui.DeviceActions
 import app.tellyscope.ui.DeviceTabsScreen
 import app.tellyscope.ui.Done
+import app.tellyscope.ui.LauncherActions
+import app.tellyscope.ui.LauncherScreen
 import app.tellyscope.ui.LoggedOutScreen
 import app.tellyscope.ui.PermissionScreen
 import app.tellyscope.ui.RemoteActions
@@ -310,6 +312,18 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
             back = { settings = false },
             snackbar = snackbar,
         )
+    } else if (state.device.launcher != null) {
+        BackHandler { vm.closeLauncherFlow() }
+        LauncherScreen(
+            state.selected!!, state.device.launcher!!, state.device.apps,
+            LauncherActions(
+                close = vm::closeLauncherFlow,
+                install = vm::installLauncher,
+                chooseAnother = vm::pickLauncher,
+                switch = vm::switchToLauncher,
+                later = vm::launcherLater,
+            ),
+        )
     } else if (debloat) {
         // Its own back handler closes the list search before leaving.
         DebloatScreen(
@@ -340,6 +354,8 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
                 cancel = vm::cancel,
                 homeServiceOn = vm::homeServiceOn,
                 dismissServiceNote = vm::dismissServiceNote,
+                installLauncher = vm::openLauncherFlow,
+                hideLauncherCard = vm::hideLauncherCard,
                 undo = vm::undo,
                 reconnect = { state.selectedId?.let(vm::reconnect) },
                 forget = vm::forget,

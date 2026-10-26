@@ -4,6 +4,7 @@ package app.tellyscope
 
 import app.tellyscope.data.KnownLauncher
 import app.tellyscope.data.parseLaunchers
+import app.tellyscope.ui.RECOMMENDED
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -25,6 +26,15 @@ class LaunchersTest {
             setOf("com.spocky.projengmenu", "com.overdevs.at4k", "com.spauldhaliwal.dispatch"),
             launchers.filter { it.accessibility }.map { it.pkg }.toSet(),
         )
+    }
+
+    @Test fun theRecommendedOnesAreOnTheBundledListAsItSaysThem() {
+        val known = parseLaunchers(File("src/main/assets/launchers.json").readText()).associateBy { it.pkg }
+        RECOMMENDED.forEach { r ->
+            val k = known[r.pkg] ?: error("${r.pkg} isn't in launchers.json")
+            assertEquals(r.pkg, k.accessibility, r.accessibility)
+            assertEquals(k.name, r.name)
+        }
     }
 
     @Test fun badEntriesAreDroppedAndOnlySchemaOneCounts() {
