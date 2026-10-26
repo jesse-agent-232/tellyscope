@@ -53,6 +53,25 @@ class PeripheralsTest {
         assertEquals(Kind.Mouse, Peripherals.inputs(out).single().kind)
     }
 
+    @Test fun aUsbCameraIsACameraNamedOnce() {
+        // The projector's camera, as dumpsys input lists its button.
+        val out = """
+            Event Hub State:
+              Devices:
+                4: icspring camera: icspring camer
+                  Classes: KEYBOARD | EXTERNAL
+                  Identifier: bus=0x0003, vendor=0x1d6b, product=0x0102, version=0x0100
+        """.trimIndent()
+        assertEquals(listOf(Peripheral("icspring camera", Group.Input, Kind.Camera, true, "USB")), Peripherals.inputs(out))
+    }
+
+    @Test fun aNameIsCutToOnceOnlyWhenOneHalfStartsTheOther() {
+        assertEquals("icspring camera", Peripherals.once("icspring camera: icspring camer"))
+        assertEquals("HD Webcam C270", Peripherals.once("HD Webcam: HD Webcam C270"))
+        assertEquals("Mi Remote: Consumer Control", Peripherals.once("Mi Remote: Consumer Control"))
+        assertEquals("Logitech K400", Peripherals.once("Logitech K400"))
+    }
+
     private val bluetooth = """
         Bonded devices:
           AA:BB:CC:DD:EE:01 [ DUAL ] Xbox Wireless Controller

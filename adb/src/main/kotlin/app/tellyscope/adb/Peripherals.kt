@@ -14,7 +14,7 @@ data class Peripheral(
     val free: Long? = null,
 ) {
     enum class Group { Bluetooth, Input, Storage, Hdmi, Audio }
-    enum class Kind { Remote, Headphones, Speaker, Keyboard, Mouse, Controller, Bluetooth, Usb, Hdmi, Sound }
+    enum class Kind { Remote, Headphones, Speaker, Keyboard, Mouse, Controller, Bluetooth, Usb, Hdmi, Sound, Camera }
 }
 
 /**
@@ -99,7 +99,26 @@ class Peripherals(private val shell: AdbShell) {
             }.groupBy { it.first }.map { (n, rows) ->
                 // One remote shows up as several devices; the strongest kind wins.
                 val best = rows.maxBy { it.second.ordinal }
-                Peripheral(n, Peripheral.Group.Input, best.second.kind, true, best.third)
+                val shown = once(n)
+                Peripheral(shown, Peripheral.Group.Input, if (CAMERA.containsMatchIn(shown)) Peripheral.Kind.Camera else best.second.kind, true, best.third)
+            }.distinctBy { it.name }
+        }
+
+        /** A USB camera's button: an input device named after the camera, not a remote. */
+        private val CAMERA = Regex("\\b(camera|webcam)\\b", RegexOption.IGNORE_CASE)
+
+        /**
+         * Linux names a UVC camera's input device "<product>: <name>", cut short: "icspring
+         * camera: icspring camer". When one half starts the other, the name is said once.
+         */
+        fun once(name: String): String {
+            val a = name.substringBefore(": ", "").trim()
+            val b = name.substringAfter(": ", "").trim()
+            return when {
+                a.isEmpty() || b.isEmpty() -> name
+                a.startsWith(b) -> a
+                b.startsWith(a) -> b
+                else -> name
             }
         }
 

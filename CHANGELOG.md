@@ -12,6 +12,7 @@ until this file has a section for its version.
 
 ## Unreleased
 
+- **Improved:** A USB camera shows a camera icon and its name once, under Input.
 - **Improved:** On Fire TV, the Remote's Home opens your default launcher. [#153](../../pull/153)
 - **New:** Install a recommended home screen from the TV's Play Store, then switch to it. [#152](../../pull/152)
 - **Improved:** Setting a launcher as default asks separately before turning on its accessibility service, and the TV's page offers to turn it on later.
