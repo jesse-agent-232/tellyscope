@@ -12,6 +12,8 @@ until this file has a section for its version.
 
 ## Unreleased
 
+- **New:** A connection left open after Remove offers Check again and Restart the TV. [#148](../../pull/148)
+
 ## 0.9.0 — 2026-10-26
 
 - **New:** A button on the Remote empties the TV's text box. [#144](../../pull/144)
