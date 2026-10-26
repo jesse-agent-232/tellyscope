@@ -252,9 +252,6 @@ const val SCREENSHOT = "screenshot"
 /** [DeviceUi.busy] value while the TV's connection prompt is being answered. */
 const val ANSWERING = "request"
 
-/** How long a removal waits to see the link drop before checking a link that stayed up. */
-const val RELINK_GRACE_MS = 5_000L
-
 /** Where a removal ends, from the re-read after it: never Done on a guess. */
 fun outcome(access: TvAccess?): Removal = when {
     access?.connected == null || access.allowed == null -> Removal(Removal.Step.Unconfirmed)
@@ -1043,25 +1040,18 @@ class TellyscopeViewModel(
     }
 
     /**
-     * Reconnects so the TV asks to allow this phone, waits for it to be back, then checks. A link
-     * that stays up through the revoke didn't need allowing again, and is checked straight away.
+     * Reconnects so the TV asks to allow this phone, then checks on the new link. The link shows
+     * online all through the reconnect, so only a read that works says the TV allowed this phone.
      */
     private suspend fun relink(id: String) {
         setRemoval(id, Removal(Removal.Step.Allow, fingerprint = source.phoneFingerprint()))
         source.reconnect(id)
-        suspend fun state() = source.known().firstOrNull { it.id == id }?.state
-        var dropped = false
-        var waited = 0L
         while (true) {
-            val st = state()
-            if (st != DeviceState.Online) dropped = true
-            if (st == DeviceState.Online && (dropped || waited >= RELINK_GRACE_MS)) break
+            val st = source.known().firstOrNull { it.id == id }?.state
             if (st == DeviceState.NotAllowed) updateDevice(id) { it.copy(removal = it.removal?.copy(refused = true)) }
+            if (st == DeviceState.Online) readAccess(id)?.let { setRemoval(id, outcome(it)); return }
             delay(1_000)
-            waited += 1_000
         }
-        setRemoval(id, Removal(Removal.Step.Checking))
-        setRemoval(id, outcome(readAccess(id)))
     }
 
     /** "Try again" after another computer was still there: clear again, no need to ask twice. */

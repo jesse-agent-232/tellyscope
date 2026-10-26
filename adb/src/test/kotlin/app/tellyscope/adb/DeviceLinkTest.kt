@@ -2,6 +2,7 @@
 package app.tellyscope.adb
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
@@ -109,6 +110,23 @@ class DeviceLinkTest {
         assertEquals(DeviceState.FOUND, link.state.value)
         assertTrue(shell.closed)
         assertEquals(null, link.session)
+    }
+
+    @Test fun reconnectLetsTheOldSessionGoBeforeTheNewOneOpens() = runTest {
+        // After a revoke the TV keeps the old session up and holds the new one at its prompt.
+        val first = FakeShell()
+        var opens = 0
+        val link = DeviceLink("tv", 5555, backgroundScope, monitorFor = { _, _ -> fakeMonitor(failFirst = false) },
+            open = { _, _ -> if (opens++ == 0) ConnectResult.Online(first) else { delay(10_000); ConnectResult.Online(FakeShell()) } })
+        link.connect(); runCurrent()
+        assertEquals(first, link.session)
+        link.connect()
+        assertEquals(null, link.session)
+        advanceTimeBy(5_000)
+        assertTrue(first.closed)
+        assertEquals(null, link.session)
+        advanceTimeBy(5_001)
+        assertTrue(link.session != null && link.session != first)
     }
 
     private fun fakeMonitor(failFirst: Boolean) = object : MonitorSource {

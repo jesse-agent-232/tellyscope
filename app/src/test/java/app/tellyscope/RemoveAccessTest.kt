@@ -33,6 +33,8 @@ import org.junit.Test
 /** A TV whose access, revoke answer and link state the test sets. */
 private class AccessTv : DeviceSource by FakeDeviceSource(FakeDeviceSource.Scenario.Empty, clock = { 0L }) {
     var state = DeviceState.Online
+    /** False from a reconnect until the TV allows this phone: the link still shows online, with no session. */
+    var readable = true
     var revokes = true
     var revoked = 0
     var reconnects = 0
@@ -42,9 +44,9 @@ private class AccessTv : DeviceSource by FakeDeviceSource(FakeDeviceSource.Scena
     override suspend fun known() = listOf(Device("tv", ScanHit("tv", 5555, ScanKind.Classic, "tv", null), state, null, null, null, 0L))
     override fun live(deviceId: String) = emptyFlow<Snapshot>()
     override suspend fun apps(deviceId: String) = emptyList<app.tellyscope.data.AppInfo>()
-    override suspend fun access(deviceId: String) = if (state == DeviceState.Online) after else throw IllegalStateException("offline")
+    override suspend fun access(deviceId: String) = if (state == DeviceState.Online && readable) after else throw IllegalStateException("offline")
     override suspend fun revokeAll(deviceId: String): Boolean { revoked++; return revokes }
-    override suspend fun reconnect(deviceId: String) { reconnects++ }
+    override suspend fun reconnect(deviceId: String) { reconnects++; readable = false }
     override suspend fun openDeveloperOptions(deviceId: String): Boolean { devOptions++; return true }
     override fun phoneFingerprint() = "AA:BB"
 }
@@ -88,6 +90,7 @@ class RemoveAccessTest {
         assertEquals(Removal.Step.Allow, step)
         tv.after = onlyPhone
         tv.state = DeviceState.Online
+        tv.readable = true
         advanceTimeBy(3_100)
         assertEquals(Removal.Step.Done, step)
     }
@@ -123,12 +126,27 @@ class RemoveAccessTest {
         assertEquals(false, vm.state.value.device.removal!!.refused)
     }
 
-    @Test fun aLinkThatStaysUpIsCheckedAfterTheGraceAndAnotherComputerIsNamed() = with(test) {
+    @Test fun onlineIsNotEnoughTheFirstReadOnTheNewLinkDecides() = with(test) {
+        tv.after = onlyPhone
+        start()
+        vm.askRemoveAccess()
+        vm.removeAccess()
+        // The link stays "online" while the TV holds the new connection at its prompt.
+        advanceTimeBy(30_100)
+        assertEquals(Removal.Step.Allow, step)
+        tv.readable = true
+        advanceTimeBy(1_100)
+        assertEquals(Removal.Step.Done, step)
+    }
+
+    @Test fun aComputerStillConnectedIsNamed() = with(test) {
         tv.after = TvAccess(onlyPhone.connected!! + app.tellyscope.data.AccessClient("192.0.2.47", 2, app.tellyscope.data.AccessClient.Who.Other), emptyList())
         start()
         vm.askRemoveAccess()
         vm.removeAccess()
-        advanceTimeBy(6_100)
+        runCurrent()
+        tv.readable = true
+        advanceTimeBy(1_100)
         assertEquals(Removal.Step.StillConnected, step)
         vm.closeRemoval()
         runCurrent()

@@ -48,8 +48,10 @@ class DeviceLink(
 
     private var job: Job? = null
 
+    /** Starts over. The old session is let go at once, so nothing reads through it while the new one opens. */
     fun connect() {
         job?.cancel()
+        session = null
         job = scope.launch { loop() }
     }
 
