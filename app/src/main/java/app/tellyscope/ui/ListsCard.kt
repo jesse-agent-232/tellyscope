@@ -374,8 +374,15 @@ internal fun DisableDialog(apps: List<Suggested>, onDisable: () -> Unit, onDismi
 
 internal val REPO = RELEASES.removeSuffix("/releases")
 
+/** The project's GitHub Pages site: `https://OWNER.github.io/tellyscope/` for `github.com/OWNER/tellyscope`. */
+internal val SITE = REPO.removePrefix("https://github.com/").split('/').let { (owner, repo) -> "https://$owner.github.io/$repo/" }
+
+/** The demo video, the same one the README and the site play. */
+internal const val DEMO_VIDEO = "https://youtu.be/N_PeDw5GiCc"
+
 /**
- * About and licences: the installed version, who makes it and the repo, then the licences.
+ * About and licences: the installed version, links to the site, the repo and the demo video,
+ * then the licences.
  * [commit] is the cleanyourtv commit the downloaded lists were built from; [version] is the
  * installed versionName, alpha suffix included.
  */
@@ -388,15 +395,9 @@ fun AboutDialog(commit: String?, onDismiss: () -> Unit, version: String = instal
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Version $version", style = MaterialTheme.typography.titleSmall)
-                Text("Made by ${REPO.removePrefix("https://github.com/").substringBefore('/')}", style = MaterialTheme.typography.bodyMedium)
-                Row(
-                    Modifier.heightIn(min = 48.dp).clickable(role = Role.Button) { runCatching { browser.openUri(REPO) } },
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(REPO.removePrefix("https://"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                    Spacer(Modifier.width(4.dp))
-                    Icon(OpenInNew, contentDescription = null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
-                }
+                AboutLink("Website", SITE, browser::openUri)
+                AboutLink("GitHub", REPO, browser::openUri)
+                AboutLink("Watch the demo on YouTube", DEMO_VIDEO, browser::openUri)
                 Text("Free software under the GNU GPL v3.", style = MaterialTheme.typography.bodyMedium)
                 Text(
                     "Device lists are adapted from cleanyourtv by Gathin (MIT licence), " +
@@ -411,6 +412,18 @@ fun AboutDialog(commit: String?, onDismiss: () -> Unit, version: String = instal
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
     )
+}
+
+@Composable
+private fun AboutLink(label: String, url: String, open: (String) -> Unit) {
+    Row(
+        Modifier.heightIn(min = 48.dp).clickable(role = Role.Button) { runCatching { open(url) } },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.width(4.dp))
+        Icon(OpenInNew, contentDescription = null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+    }
 }
 
 @Composable

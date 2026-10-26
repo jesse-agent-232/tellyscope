@@ -16,6 +16,7 @@ until this file has a section for its version.
 - **Improved:** The dock picker leaves out built-in phone-style apps like Camera. [#138](../../pull/138)
 - **New:** See who has ADB access to your TV, and remove it in one tap. [#137](../../pull/137)
 - **New:** Connected devices shows what's paired or plugged into the TV. [#137](../../pull/137)
+- **Improved:** About links to the website, GitHub and the demo video. [#137](../../pull/137)
 
 ## 0.8.1 — 2026-10-25
 
