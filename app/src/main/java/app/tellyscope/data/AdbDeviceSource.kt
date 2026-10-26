@@ -548,7 +548,7 @@ class AdbDeviceSource(context: Context) : DeviceSource {
      * service off with it, as Switch home back does. Any step that fails stops it before the uninstall.
      */
     private suspend fun uninstallHome(deviceId: String, pkg: String): HistoryEntry =
-        uninstallAfterHomeBack({ homeBack(deviceId, pkg, null) }, { actNow(deviceId, Action.Uninstall, pkg, null) })
+        uninstallAfterHomeBack({ homeBack(deviceId, pkg, null) }, { actNow(deviceId, Action.Uninstall, pkg, null) }, book::dropUndo)
 
     /**
      * Makes Home again the launcher that [added], now Home, replaced: the one the last switch saved,
@@ -948,10 +948,11 @@ internal suspend fun applyTweak(
 
 /**
  * Runs [switchBack] (Home to the TV's own, the launcher's service off), and [uninstall] only once
- * it worked. A failure says which step stopped it.
+ * it worked. A failure says which step stopped it. Once it's gone, the switch's Undo, which would
+ * make it Home again, can't work: [dropUndo] takes it away.
  */
-internal suspend fun uninstallAfterHomeBack(switchBack: suspend () -> Unit, uninstall: suspend () -> HistoryEntry): HistoryEntry {
-    try {
+internal suspend fun uninstallAfterHomeBack(switchBack: suspend () -> HistoryEntry, uninstall: suspend () -> HistoryEntry, dropUndo: (Long) -> Unit): HistoryEntry {
+    val back = try {
         switchBack()
     } catch (e: CancellationException) {
         throw e
@@ -960,5 +961,5 @@ internal suspend fun uninstallAfterHomeBack(switchBack: suspend () -> Unit, unin
         // "switched back, but …": Home moved, its service didn't turn off.
         throw IllegalStateException(if (why.startsWith("switched back")) "$why. Nothing was uninstalled" else "Home didn't switch back: $why. Nothing was uninstalled")
     }
-    return uninstall()
+    return uninstall().also { dropUndo(back.id) }
 }

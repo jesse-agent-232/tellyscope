@@ -60,6 +60,14 @@ class HistoryBook(private val file: File? = null) {
         return entry
     }
 
+    /** Takes entry [id]'s Undo away, for a change a later one made impossible to undo. */
+    @Synchronized
+    fun dropUndo(id: Long) {
+        val i = entries.indexOfFirst { it.id == id }.takeIf { it >= 0 } ?: return
+        entries[i] = entries[i].copy(undo = null)
+        save()
+    }
+
     /** Adds [extra] to entry [id]'s saved state, for a later step of the same change. */
     @Synchronized
     fun amend(id: Long, extra: Map<String, String?>) {
