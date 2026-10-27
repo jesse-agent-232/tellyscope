@@ -202,6 +202,7 @@ data class UiState(
     val selectedId: String? = null,
     val device: DeviceUi = DeviceUi(),
     val query: String = "",
+    /** When this state was made; it doesn't tick. Screens read the time with [clock]. */
     val now: Long = System.currentTimeMillis(),
     /** TVs asked to restart, by id. */
     val restarting: Map<String, Restart> = emptyMap(),
@@ -297,6 +298,10 @@ class TellyscopeViewModel(
     private val _state = MutableStateFlow(UiState(now = clock()))
     val state: StateFlow<UiState> = _state.asStateFlow()
 
+    /** The clock, every second. Apart from [state], so a tick redraws only what shows a time. */
+    private val _now = MutableStateFlow(clock())
+    val now: StateFlow<Long> = _now.asStateFlow()
+
     /** One-shot "done, undo?" messages for the snackbar, with the TV they happened on. */
     private val _done = MutableStateFlow<Done?>(null)
     val done: StateFlow<Done?> = _done.asStateFlow()
@@ -379,7 +384,7 @@ class TellyscopeViewModel(
             var tick = 0
             while (true) {
                 delay(1_000)
-                _state.update { it.copy(now = clock()) }
+                _now.value = clock()
                 if (++tick % 3 == 0) refreshDevices()
             }
         }

@@ -303,7 +303,7 @@ fun AccessScreen(state: UiState, actions: AccessActions, snackbar: SnackbarHostS
     ) { pad ->
         val body = Modifier.fillMaxSize().padding(pad)
         when (removal?.step) {
-            null, Removal.Step.Confirm -> AccessList(ui.access, state.now, device.state == DeviceState.Online, actions, body)
+            null, Removal.Step.Confirm -> AccessList(ui.access, state.clock(), device.state == DeviceState.Online, actions, body)
             Removal.Step.Revoking -> Waiting(Copy.REVOKING, body)
             Removal.Step.Checking -> Waiting(Copy.CHECKING, body)
             Removal.Step.Manual -> ManualGuide(actions, body)

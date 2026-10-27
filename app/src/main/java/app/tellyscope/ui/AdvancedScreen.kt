@@ -69,9 +69,11 @@ fun AdvancedScreen(
     val ui = state.device
     val snap = ui.snapshot
     val offline = device.state != DeviceState.Online
-    val labels = ui.apps.associate { it.packageName to it.label }
-    fun label(p: Proc) = p.packageName?.let { labels[it] ?: AppNames.fallback(it) } ?: Copy.ANDROID_SYSTEM
-    val byApp = snap?.procs.orEmpty().groupBy(::label)
+    val procs = snap?.procs.orEmpty()
+    val byApp = remember(ui.apps, procs) {
+        val labels = ui.apps.associate { it.packageName to it.label }
+        procs.groupBy { p -> p.packageName?.let { labels[it] ?: AppNames.fallback(it) } ?: Copy.ANDROID_SYSTEM }
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
@@ -104,7 +106,7 @@ fun AdvancedScreen(
             }
             if (snap != null) {
                 // Offline: the last stats this phone saw, greyed and dated, rather than a grid of blanks.
-                item { Stats(snap, if (offline) state.now else null) }
+                item { Stats(snap, if (offline) state.clock() else null) }
             } else {
                 item {
                     Text(

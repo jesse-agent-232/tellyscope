@@ -201,11 +201,11 @@ fun RemoteScreen(
     var confirmReboot by rememberSaveable { mutableStateOf(false) }
     if (confirmReboot) RebootDialog(onRestart = { confirmReboot = false; actions.reboot() }, onDismiss = { confirmReboot = false })
     // Hide keeps a restart in the top bar; the dialog comes back when the wait moves on, or on a tap there.
-    val stage = restart?.let { "${it.since}/${it.waitFrom}/${it.phase(state.now)}" }
+    val stage = restart?.let { "${it.since}/${it.waitFrom}/${it.phase(state.clock())}" }
     var hidden by rememberSaveable { mutableStateOf<String?>(null) }
     if (restart != null && hidden != stage) {
         RestartDialog(
-            restart, state.now, name(device),
+            restart, state.clock(), name(device),
             onHide = { hidden = stage },
             onRetry = actions.retryRestart,
             onStop = actions.stopWaiting,
@@ -218,7 +218,7 @@ fun RemoteScreen(
             TopAppBar(
                 title = {
                     when {
-                        restart != null && hidden == stage -> RestartStatus(late = restart.phase(state.now) != Restart.Phase.Waiting, onClick = { hidden = null })
+                        restart != null && hidden == stage -> RestartStatus(late = restart.phase(state.clock()) != Restart.Phase.Waiting, onClick = { hidden = null })
                         // In place of the title, so the keys below never move.
                         screenOff -> ScreenOffStatus()
                         else -> Text("Remote")

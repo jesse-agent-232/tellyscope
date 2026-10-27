@@ -246,6 +246,22 @@ fun DeviceTabsScreen(
                 }
             },
         ) { pad ->
+            // Worked out again only when what they're made from changes, not on every redraw of the page.
+            val procs = ui.snapshot?.procs.orEmpty()
+            val debloat = remember(ui.history, ui.apps, ui.lists) { debloatState(ui) }
+            val found = if (tab == TvTab.Apps && searching) {
+                remember(ui.apps, q) {
+                    ui.apps.filter { q.isEmpty() || it.label.lowercase().contains(q) || it.packageName.contains(q) }
+                        .sortedWith(compareBy({ !it.enabled }, { it.system }, { it.label }))
+                }
+            } else {
+                emptyList()
+            }
+            val split = if (tab == TvTab.Apps && !searching) {
+                remember(ui.apps, procs, appsTab) { splitApps(ui.apps, procs, appsTab) }
+            } else {
+                null
+            }
             LazyColumn(
                 Modifier.fillMaxSize().padding(pad),
                 state = list,
@@ -260,11 +276,11 @@ fun DeviceTabsScreen(
                     TvTab.Overview -> {
                         val restart = state.restarting[device.id]
                         if (restart != null) {
-                            item { RestartingCard(restart, state.now) }
+                            item { RestartingCard(restart, state.clock()) }
                         } else if (device.state == DeviceState.NotAllowed) {
                             item { NotAllowedCard(actions.reconnect) }
                         } else if (offline) {
-                            item { OfflineCard(device, state.now, actions.reconnect) }
+                            item { OfflineCard(device, state.clock(), actions.reconnect) }
                         }
                         // A switch that left the launcher's service off: Home may go back to the TV's own.
                         ui.apps.firstOrNull { it.homeServiceNote }?.takeIf { !offline }?.let { a ->
@@ -278,11 +294,10 @@ fun DeviceTabsScreen(
                         if (live != null) {
                             item { SystemWidget(live) }
                         } else if (offline && used != null && total != null) {
-                            item { SystemWidget(used, total, null, asOf = device.lastSeen?.let { Copy.ago(it, state.now) } ?: "the last visit") }
+                            item { SystemWidget(used, total, null, asOf = device.lastSeen?.let { Copy.ago(it, state.clock()) } ?: "the last visit") }
                         } else if (offline) {
                             item { Muted(Copy.noStats(device.state)) }
                         }
-                        val debloat = debloatState(ui)
                         if (!offline) {
                             item {
                                 ActionTiles(
@@ -301,16 +316,12 @@ fun DeviceTabsScreen(
                         item { AndroidCard(state, snap, offline, onUpdates = actions.checkUpdates) }
                     }
                     TvTab.Apps -> {
-                        val procs = snap?.procs.orEmpty()
                         fun rows(apps: List<AppInfo>) = items(apps, key = { it.packageName }) { app ->
                             AppRow(app, procs, ui.pending, ui.busy == app.packageName, actions, homeLabel(ui.apps, app), locked = ui.busy != null)
                         }
                         if (searching) {
                             // One flat list of every matching app, whichever button it sits under; each row says
                             // whether it's running, off or protected.
-                            val found = ui.apps
-                                .filter { q.isEmpty() || it.label.lowercase().contains(q) || it.packageName.contains(q) }
-                                .sortedWith(compareBy({ !it.enabled }, { it.system }, { it.label }))
                             if (found.isEmpty()) item { EmptyLine(q) }
                             rows(found)
                         } else {
@@ -324,16 +335,17 @@ fun DeviceTabsScreen(
                             if (!offline && offerLauncher(ui.apps, ui.launcherCardHidden)) item(key = "launcherCard") {
                                 LauncherCard(ui.apps.firstOrNull { it.home }?.label, onNotNow = actions.hideLauncherCard, onChoose = actions.installLauncher)
                             }
-                            val split = splitApps(ui.apps, procs, appsTab)
-                            if (split.apps.isEmpty() && split.system.isEmpty()) item {
-                                // Away, the TV can't say what's running, rather than nothing is.
-                                if (appsTab == AppsTab.Running && live == null) EmptyState(DeviceIcons.Tv, Copy.TV_OFFLINE, Copy.RUNNING_OFFLINE) else EmptyLine(q)
-                            }
-                            rows(split.apps)
-                            if (split.system.isNotEmpty()) {
-                                val folded = appsTab in state.foldedSystem
-                                item(key = "system") { SystemHeader(split.system.size, folded) { actions.foldSystem(appsTab, it) } }
-                                if (!folded) rows(split.system)
+                            if (split != null) {
+                                if (split.apps.isEmpty() && split.system.isEmpty()) item {
+                                    // Away, the TV can't say what's running, rather than nothing is.
+                                    if (appsTab == AppsTab.Running && live == null) EmptyState(DeviceIcons.Tv, Copy.TV_OFFLINE, Copy.RUNNING_OFFLINE) else EmptyLine(q)
+                                }
+                                rows(split.apps)
+                                if (split.system.isNotEmpty()) {
+                                    val folded = appsTab in state.foldedSystem
+                                    item(key = "system") { SystemHeader(split.system.size, folded) { actions.foldSystem(appsTab, it) } }
+                                    if (!folded) rows(split.system)
+                                }
                             }
                         }
                     }
@@ -354,7 +366,7 @@ fun DeviceTabsScreen(
                                     "Files you send land here.",
                                 )
                             }
-                            else -> item { FilesBlock(ui.files, state.now, actions) }
+                            else -> item { FilesBlock(ui.files, state.clock(), actions) }
                         }
                     }
                     TvTab.Tweaks -> {
@@ -362,7 +374,7 @@ fun DeviceTabsScreen(
                         else item { Panel(Copy.TWEAKS) { TweaksBlock(ui, actions) } }
                         item {
                             Panel("Recent changes") {
-                                HistoryList(ui.history, state.now, actions.undo, restoring = ui.busy == RESTORING, onRestoreAll = actions.restoreAll, busy = ui.busy != null)
+                                HistoryList(ui.history, state.clock(), actions.undo, restoring = ui.busy == RESTORING, onRestoreAll = actions.restoreAll, busy = ui.busy != null)
                             }
                         }
                     }

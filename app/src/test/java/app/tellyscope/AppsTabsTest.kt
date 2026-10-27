@@ -62,6 +62,13 @@ class AppsTabsTest {
         assertEquals(listOf("gms", "launcher", "systemui"), names(split.system))
     }
 
+    @Test fun `a protected launcher offered in place of an app the TV doesn't have stays locked`() {
+        val gone = app("com.maker.home", system = true, locked = "launcher", home = "com.not.installed")
+        val split = splitApps(apps + gone, procs, AppsTab.BuiltIn)
+        assertEquals(listOf("assistant", "ota"), names(split.apps))
+        assertEquals(listOf("gms", "home", "launcher", "systemui"), names(split.system))
+    }
+
     @Test fun `a fold is kept per tab across restarts, until it is opened again`() {
         val file = tmp.root.resolve("folds.properties")
         FoldBook(file).set(AppsTab.Running.name, true)

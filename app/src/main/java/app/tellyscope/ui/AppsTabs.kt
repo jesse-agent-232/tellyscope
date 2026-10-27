@@ -28,8 +28,8 @@ enum class AppsTab(val label: String) { Running("Running"), Installed("Installed
 data class AppsSplit(val apps: List<AppInfo>, val system: List<AppInfo>)
 
 /** Locked, as [AppRow] shows it: protected, and not offered as the new home screen or the way back. */
-private fun locked(app: AppInfo, all: List<AppInfo>) =
-    app.protectedReason != null && (app.homeInstead == null || !app.enabled || homeLabel(all, app) == null) &&
+private fun locked(app: AppInfo, installed: Set<String>) =
+    app.protectedReason != null && (app.homeInstead == null || !app.enabled || app.homeInstead !in installed) &&
         (app.homeBack == null || !app.enabled) && !(app.homeFirst && app.enabled)
 
 /**
@@ -40,13 +40,16 @@ private fun locked(app: AppInfo, all: List<AppInfo>) =
  */
 internal fun splitApps(apps: List<AppInfo>, procs: List<Proc>, tab: AppsTab): AppsSplit {
     val running = procs.filter { it.ramMb > 0 }.mapNotNull { it.packageName }.toSet()
+    // Worked out once per app up front, so the sort compares a lookup rather than searching every app each time.
+    val installed = apps.mapTo(HashSet()) { it.packageName }
+    val lock = apps.filter { locked(it, installed) }.mapTo(HashSet()) { it.packageName }
     val shown = when (tab) {
         AppsTab.Running -> apps.filter { it.packageName in running }
         AppsTab.Installed -> apps.filter { !it.system }
         AppsTab.BuiltIn -> apps.filter { it.system }
-    }.sortedWith(compareBy({ locked(it, apps) }, { !it.enabled }, { it.system }, { it.label }))
+    }.sortedWith(compareBy({ it.packageName in lock }, { !it.enabled }, { it.system }, { it.label }))
     if (tab == AppsTab.Installed) return AppsSplit(shown, emptyList())
-    val (system, rest) = shown.partition { it.system && locked(it, apps) }
+    val (system, rest) = shown.partition { it.system && it.packageName in lock }
     return AppsSplit(rest, system)
 }
 
