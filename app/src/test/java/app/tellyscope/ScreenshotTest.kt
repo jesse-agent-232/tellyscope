@@ -1267,7 +1267,7 @@ class ScreenshotTest {
         val tv = s.selected!!.let { it.copy(model = "TCL 55C735", manufacturer = "TCL", hit = it.hit.copy(maker = "TCL", hostname = null)) }
         var disabled = emptyList<String>()
         shot("18_debloat_none", dark) {
-            DebloatScreen(Suggestions.NoList(null, ready.devices), {}, { disabled = it }, {}, tv = tv, tvApps = s.device.apps)
+            DebloatScreen(Suggestions.NoList(null, ready.devices), {}, { disabled = it.map { a -> a.packageName } }, {}, tv = tv, tvApps = s.device.apps)
         }
         compose.onNodeWithText("TCL 55C735").assertExists()
         compose.onNodeWithText("No list for this TV or its maker yet").assertExists()
