@@ -712,17 +712,14 @@ class ScreenshotTest {
         shot("13_device_storage_full") { DeviceTabsScreen(state, DeviceActions()) }
     }
 
-    // Tall enough that History is composed without scrolling: the lazy list never lays it out otherwise.
-    @Config(qualifiers = "w411dp-h2600dp-xxhdpi")
     @Test fun device_history() {
         val history = listOf(
             HistoryEntry(2, xgimi.ip, now - 40_000, Action.Disable, "com.xgimi.ota", "XGIMI Updates", Action.Enable, null),
             HistoryEntry(1, xgimi.ip, now - 5 * 60_000, Action.Stop, "com.netflix.ninja", "Netflix", Action.Open, now - 4 * 60_000),
         )
-        shot("07_device_history") { DeviceTabsScreen(deviceState { copy(history = history) }, DeviceActions(), startTab = TvTab.Tweaks) }
+        shot("07_device_history") { HistoryScreen(deviceState { copy(history = history) }, {}, {}, {}) }
     }
 
-    @Config(qualifiers = "w411dp-h2600dp-xxhdpi")
     @Test fun history_undoOfTurnOnAsksFirst() {
         val turnedOn = HistoryEntry(3, xgimi.ip, now - 20_000, Action.Enable, "com.xgimi.assistant", "XGIMI Assistant", Action.Disable, null)
         val undone = mutableListOf<HistoryEntry>()
@@ -732,7 +729,7 @@ class ScreenshotTest {
             Unit
         }
         shot("16_history_undo_disable", screen = true, before = openAndTap) {
-            DeviceTabsScreen(deviceState { copy(history = listOf(turnedOn)) }, DeviceActions(undo = { undone += it }), startTab = TvTab.Tweaks)
+            HistoryScreen(deviceState { copy(history = listOf(turnedOn)) }, onUndo = { undone += it }, onRestoreAll = {}, back = {})
         }
         compose.onNodeWithText("Disable XGIMI Assistant?").assertExists()
         assertEquals(emptyList<HistoryEntry>(), undone)
