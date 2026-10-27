@@ -12,7 +12,6 @@ import java.io.IOException
 import java.time.YearMonth
 import kotlin.time.ComparableTimeMark
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
@@ -82,7 +81,7 @@ data class StatsProfile(val fastEvery: Duration, val processes: ProcessLevel, va
  * [changed] counts the ended changes to apps or storage, so what they touch is read again right after one.
  */
 class StatsGate {
-    internal val running = MutableStateFlow(0)
+    private val running = MutableStateFlow(0)
 
     val profile = MutableStateFlow(StatsProfile.ADVANCED)
 
@@ -132,8 +131,6 @@ class DeviceMonitor(
     private val pingTimeout: Duration = 10.seconds,
     /** While a change runs, how often the TV is pinged instead of read. */
     private val pingEvery: Duration = 10.seconds,
-    /** How long changes must stay quiet, none running, before what they touched is read again. */
-    private val settle: Duration = 300.milliseconds,
     private val gate: StatsGate = StatsGate(),
     /** Times the tiers and network speed; tests pass the test scheduler's clock. */
     private val clock: TimeSource.WithComparableMarks = TimeSource.Monotonic,
@@ -198,18 +195,12 @@ class DeviceMonitor(
     private fun TimeMark?.due(every: Duration) = this == null || elapsedNow() >= every
 
     /**
-     * Waits until no change runs and none has ended for [settle], and returns the count then: a
-     * Debloat, or taps on several rows, are read again once at the end rather than after each app.
+     * Waits until no change runs, and returns the count then: a Debloat, one change around one per
+     * app, is read again once at the end rather than after each app.
      */
     private suspend fun settled(): Int {
-        while (true) {
-            awaitIdle()
-            val count = gate.changed.value
-            val stirred = withTimeoutOrNull(settle) {
-                combine(gate.changed, gate.running) { c, r -> c != count || r > 0 }.first { it }
-            }
-            if (stirred == null) return count
-        }
+        awaitIdle()
+        return gate.changed.value
     }
 
     /** Pings while a change runs, so one that dies mid-change still ends instead of hanging. */
