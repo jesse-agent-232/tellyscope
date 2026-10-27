@@ -194,10 +194,12 @@ fun homeBackTarget(current: String, history: List<HistoryEntry>, builtIns: List<
 }
 
 /**
- * A home switch disables the old launcher, unless there was none to replace: then it offers no
- * undo, or one for its service only.
+ * A home switch disables the old launcher, unless there was none to replace (then it offers no
+ * undo, or one for its service only) or the old one was a launcher the user added, which stays
+ * on ("kept").
  */
-private val HistoryEntry.disables get() = action == Action.Disable || (action == Action.Home && undo != null && firstHomeService == null)
+private val HistoryEntry.disables get() =
+    action == Action.Disable || (action == Action.Home && undo != null && firstHomeService == null && previous?.get("kept") == null)
 
 /** The service a switch with no launcher to replace turned on: its Undo turns that off, and nothing else. */
 val HistoryEntry.firstHomeService: String?

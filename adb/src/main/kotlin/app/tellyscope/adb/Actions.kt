@@ -15,10 +15,11 @@ sealed interface ActionResult {
 
 /**
  * What [Actions.makeHome] did. [from] and [to] are the old and new home activities, for Undo;
- * [from] is null when the TV had no default home and no launcher of its own to replace.
+ * [from] is null when the TV had no default home and no launcher of its own to replace. [kept]:
+ * the old launcher was one the user added, so it stayed on.
  */
 sealed interface HomeResult {
-    data class Switched(val from: String?, val to: String) : HomeResult
+    data class Switched(val from: String?, val to: String, val kept: Boolean = false) : HomeResult
     data class Refused(val reason: ProtectedReason) : HomeResult
     data class Failed(val output: String) : HomeResult
 }
@@ -93,7 +94,8 @@ class Actions(private val shell: AdbShell) {
 
     /**
      * Makes [pkg] the home screen in place of the current one, then disables the old launcher so
-     * the TV can't switch back by itself. Home is checked to open [pkg] before anything is
+     * the TV can't switch back by itself. Only a launcher the TV came with is ever disabled: one
+     * the user added stays on, and the switch only moves Home. Home is checked to open [pkg] before anything is
      * disabled; if it doesn't, the old home is set back and nothing is turned off. The one
      * exception: Android skips the default while a launcher with a higher Home priority is on, as
      * Android TV Home is. Such an old launcher is turned off first, and turned back on and made
@@ -104,12 +106,18 @@ class Actions(private val shell: AdbShell) {
         // With no default home, the TV's own launcher is the one being replaced; with none on, nothing is.
         val from = currentHome() ?: stockHome() ?: return firstHome(pkg)
         val old = from.substringBefore('/')
-        if (old == pkg) return HomeResult.Failed("it's already the home screen")
+        // With no default home, the TV's own launcher can be made the default too.
+        if (old == pkg) return if (currentHome() == null) firstHome(pkg) else HomeResult.Failed("it's already the home screen")
         val homes = shell.shell(Commands.HOME_ACTIVITIES).output
         val to = launchersIn(homes)[pkg] ?: return HomeResult.Failed("it has no home screen")
         // The old launcher is protected as the home screen and by name; once it isn't Home, that
         // guard has done its job. Any other reason still stands.
         Protected.reason(old)?.takeIf { it != ProtectedReason.HOME_SCREEN }?.let { return HomeResult.Refused(it) }
+        if (old in userPackages()) {
+            if (setHome(to)) return HomeResult.Switched(from, to, kept = true)
+            setHome(from)
+            return HomeResult.Failed("the TV kept the home screen it has")
+        }
         val checked = setHome(to)
         val priority = prioritiesIn(homes)
         if (!checked && (priority[old] ?: 0) <= (priority[pkg] ?: 0)) {

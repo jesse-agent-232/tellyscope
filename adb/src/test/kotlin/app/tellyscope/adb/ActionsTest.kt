@@ -95,6 +95,26 @@ class ActionsTest {
         assertEquals("com.spocky.projengmenu/.ui.home.MainActivity", Actions(sh).currentHome())
     }
 
+    @Test fun aSwitchBetweenTheUsersLaunchersTurnsNeitherOff() = runTest {
+        val sh = stockOff("com.spocky.projengmenu", "me.efesser.flauncher")
+        Actions(sh).makeHome("com.spocky.projengmenu")
+        assertEquals(
+            HomeResult.Switched("com.spocky.projengmenu/.ui.home.MainActivity", "me.efesser.flauncher/.MainActivity", kept = true),
+            Actions(sh).makeHome("me.efesser.flauncher"),
+        )
+        assertTrue(sh.ran.none { it.startsWith("pm disable") || it.startsWith("pm enable") })
+        assertEquals("me.efesser.flauncher/.MainActivity", Actions(sh).currentHome())
+    }
+
+    @Test fun aSwitchBetweenTheUsersLaunchersThatDoesNotTakePutsHomeBack() = runTest {
+        val sh = stockOff("com.spocky.projengmenu", "me.efesser.flauncher")
+        Actions(sh).makeHome("com.spocky.projengmenu")
+        sh.answer.let { prev -> sh.answer = { if (it.startsWith("cmd package set-home-activity --user 0 'me.")) ok("Success\n") else prev(it) } }
+        assertEquals(HomeResult.Failed("the TV kept the home screen it has"), Actions(sh).makeHome("me.efesser.flauncher"))
+        assertEquals("com.spocky.projengmenu/.ui.home.MainActivity", Actions(sh).currentHome())
+        assertTrue(sh.ran.none { it.startsWith("pm ") && !it.startsWith("pm list") })
+    }
+
     @Test fun stockOffAndOneOfTheUsersLaunchersKeepsItLocked() = runTest {
         // The only launcher left: without it the TV would have no home screen.
         val sh = stockOff("com.spocky.projengmenu")
@@ -273,6 +293,29 @@ class ActionsTest {
             Actions(sh).makeHome("com.spocky.projengmenu"),
         )
         assertTrue("pm disable-user --user 0 com.google.android.tvlauncher 2>&1" in sh.ran)
+    }
+
+    @Test fun noDefaultHomeMakesTheTvsOwnTheDefault() = runTest {
+        var home = "android/com.android.internal.app.ResolverActivity"
+        val sh = FakeShell(mapOf(
+            "cmd package query-activities" to ok("com.google.android.tvlauncher/.MainActivity\ncom.spocky.projengmenu/.ui.home.MainActivity\n"),
+            "pm list packages -3" to ok("package:com.spocky.projengmenu\n"),
+        )).apply {
+            answer = { cmd ->
+                when {
+                    cmd.startsWith("cmd package resolve-activity") -> ok("priority=0\n$home\n")
+                    cmd.startsWith("cmd package set-home-activity") -> {
+                        home = cmd.substringAfter("'").substringBefore("'")
+                        ok("Success\n")
+                    }
+                    else -> null
+                }
+            }
+        }
+        assertEquals(HomeResult.Switched(null, "com.google.android.tvlauncher/.MainActivity"), Actions(sh).makeHome("com.google.android.tvlauncher"))
+        assertTrue(sh.ran.none { it.startsWith("pm disable") || it.startsWith("pm enable") })
+        // Once it's the default, it's Home: asking again changes nothing.
+        assertTrue(Actions(sh).makeHome("com.google.android.tvlauncher") is HomeResult.Failed)
     }
 
     @Test fun makeHomeSwitchesChecksThenDisables() = runTest {
