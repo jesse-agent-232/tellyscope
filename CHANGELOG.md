@@ -12,6 +12,8 @@ until this file has a section for its version.
 
 ## Unreleased
 
+## 0.11.1 — 2026-10-27
+
 - **New:** Share Tellyscope, in ⋮ and in Settings, sends a friend the GitHub link. [#191](../../pull/191)
 
 ## 0.11.0 — 2026-10-27
