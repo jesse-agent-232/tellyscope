@@ -701,8 +701,8 @@ class TellyscopeViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                updateDevice(id) { it.copy(busy = null) }
                 _notice.value = e.message?.replaceFirstChar(Char::uppercase) ?: "That didn't work."
+                rereadAfterFailure(id)
                 return@launch
             }
             val history = source.history(id)
@@ -949,9 +949,9 @@ class TellyscopeViewModel(
                 throw e
             } catch (e: Exception) {
                 // Anything else (a dropped socket) still must not crash the app.
-                updateDevice(id) { it.copy(busy = null) }
                 undoing?.let(undoInFlight::remove) // a failed Undo can be tried again
                 _notice.value = e.message?.replaceFirstChar(Char::uppercase) ?: "That didn't work."
+                rereadAfterFailure(id)
                 return@launch
             }
             val history = source.history(id)
@@ -959,6 +959,16 @@ class TellyscopeViewModel(
             if (undoing == null) _done.value = Done(id, entry)
             if (action == Action.Uninstall) pruneDock(id, apps)
         }
+    }
+
+    /**
+     * A change can fail halfway (a Home switch whose old launcher didn't come back, recorded first),
+     * so the rows and History show what the TV has now. A TV that dropped keeps what was shown.
+     */
+    private suspend fun rereadAfterFailure(id: String) {
+        val apps = runCatching { source.apps(id) }.getOrNull()
+        val history = runCatching { source.history(id) }.getOrNull()
+        updateDevice(id) { it.copy(apps = apps ?: it.apps, busy = null, history = history ?: it.history) }
     }
 
     /** The user picked one or more files to install. Reads them, then asks the TV what it has. */
@@ -1251,6 +1261,8 @@ class TellyscopeViewModel(
                 else -> Copy.REQUEST_DENIED
             }
             updateDevice(id) { it.copy(busy = null, request = null) }
+            // An allowed device joins who has access now, not at the next 10 s read.
+            if (ok) readAccess(id)
         }
     }
 

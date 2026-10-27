@@ -256,9 +256,27 @@ class DeviceMonitorTest {
         assertEquals(listOf(2201), readings.last().processes.map { it.pid })
 
         advanceTimeBy(1_000)
-        gate.during(apps = true) { tv.ps = "PID USER RSS NAME\n" }
+        gate.during(reread = true) { tv.ps = "PID USER RSS NAME\n" }
         runCurrent()
         assertEquals(emptyList(), readings.last().processes)
+    }
+
+    @Test fun clearingCachesShowsTheFreedStorageAtOnce() = runTest {
+        // Storage is read once a minute; on Files or Tweaks, which read no processes, a change still brings it.
+        val gate = StatsGate().apply { profile.value = StatsProfile.OTHER }
+        var used = 9800
+        val tv = AdbShell { cmd ->
+            if (cmd.startsWith("cat /proc/stat")) ok("cpu  25 0 0 75 0 0 0 0\n${sep}MemTotal: 2000 kB\n")
+            else ok("$sep" + "Filesystem 1K-blocks Used Available Use% Mounted on\n/dev/x 16000 $used 0 0% /data\n$sep$sep$sep")
+        }
+        val readings = mutableListOf<Stats>()
+        backgroundScope.launch { DeviceMonitor(tv, gate = gate, clock = testScheduler.timeSource).stats().collect { readings += it } }
+        advanceTimeBy(10_001)
+        assertEquals(Parsers.Storage(16000, 9800), readings.last().storage)
+
+        gate.during(reread = true) { used = 7000 }
+        runCurrent()
+        assertEquals(Parsers.Storage(16000, 7000), readings.last().storage)
     }
 
     @Test fun aKeyPressDoesNotReadProcessesAgain() = runTest {

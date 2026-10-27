@@ -78,7 +78,7 @@ data class StatsProfile(val fastEvery: Duration, val processes: ProcessLevel, va
  * never competes with `pm`, an install or a Home switch; [profile] is the open screen's refresh
  * rates. Until a screen sets one, everything is read every 2 s. [paused] is the app in the
  * background: no stats are read and a dropped link doesn't retry until it's false again.
- * [appsChanged] counts the changes to apps that have ended, so the process list is read again right after one.
+ * [changed] counts the ended changes to apps or storage, so what they touch is read again right after one.
  */
 class StatsGate {
     private val running = MutableStateFlow(0)
@@ -87,18 +87,21 @@ class StatsGate {
 
     val paused = MutableStateFlow(false)
 
-    val appsChanged = MutableStateFlow(0)
+    val changed = MutableStateFlow(0)
 
     val busy: Boolean get() = running.value > 0
 
-    /** [apps]: the change stops, starts, disables or removes an app, so what's running may differ after it. */
-    suspend fun <T> during(apps: Boolean = false, block: suspend () -> T): T {
+    /**
+     * [reread]: the change stops, starts, disables, installs or removes an app, or frees or fills storage,
+     * so the process list, storage and the package list are read again once it ends.
+     */
+    suspend fun <T> during(reread: Boolean = false, block: suspend () -> T): T {
         running.update { it + 1 }
         try {
             return block()
         } finally {
             running.update { it - 1 }
-            if (apps) appsChanged.update { it + 1 }
+            if (reread) changed.update { it + 1 }
         }
     }
 
@@ -138,7 +141,7 @@ class DeviceMonitor(
         var procStats: Pair<List<AppProcess>, Boolean?> = emptyList<AppProcess>() to null
         var lastProcs: TimeMark? = null
         var lastLevel = ProcessLevel.NONE
-        var seenChanged = gate.appsChanged.value
+        var seenChanged = gate.changed.value
         var prev: Fast? = null
 
         while (true) {
@@ -150,20 +153,22 @@ class DeviceMonitor(
             val profile = gate.profile.value
             // Tiers are timed from the start of the round they ran in, so a 2 s tier runs every round.
             val started = clock.markNow()
+            // A change just ended (an app stopped, installed, uninstalled; caches cleared): what it touched
+            // can't wait out its interval. Storage and packages first, so a new app's processes are named.
+            val changed = gate.changed.value
+            val fresh = changed != seenChanged
+            seenChanged = changed
             // A skipped tier waits its whole interval again, so a TV that is always slow isn't asked every round.
-            if (lastSlow.due(slow)) {
+            if (lastSlow.due(slow) || fresh) {
                 readSlow()?.let { slowStats = it }
                 lastSlow = started
             }
             val level = profile.processes
-            // A change just ended (an app stopped, disabled, uninstalled): the Running list can't wait out the interval.
-            val changed = gate.appsChanged.value
-            if (level != ProcessLevel.NONE && (level != lastLevel || lastProcs.due(profile.processEvery) || changed != seenChanged)) {
+            if (level != ProcessLevel.NONE && (level != lastLevel || lastProcs.due(profile.processEvery) || fresh)) {
                 readProcesses(level, slowStats.packages, procStats.second)?.let { procStats = it }
                 lastProcs = started
                 lastLevel = level
             }
-            seenChanged = changed
             val now = readFast()
             val last = prev
             if (now != null && last != null) {
@@ -182,7 +187,7 @@ class DeviceMonitor(
             val wait = profile.fastEvery - started.elapsedNow()
             if (wait.isPositive()) {
                 withTimeoutOrNull(wait) {
-                    combine(gate.profile, gate.appsChanged) { p, c -> p != profile || (level != ProcessLevel.NONE && c != seenChanged) }.first { it }
+                    combine(gate.profile, gate.changed) { p, c -> p != profile || c != seenChanged }.first { it }
                 }
             }
         }

@@ -12,7 +12,11 @@ until this file has a section for its version.
 
 ## Unreleased
 
-- **Fixed:** A stopped or turned-off app leaves Running right away, not seconds later. [#202](../../pull/202)
+- **Fixed:** The TV's page shows the result of a change right away. [#202](../../pull/202)
+  - A stopped or turned-off app leaves Running at once, and an opened one joins it.
+  - Free storage updates right after clearing caches, installing, uninstalling or uploading.
+  - A change that fails partway shows what the TV has now.
+  - A device you allow shows under access straight away.
 
 ## 0.11.2 — 2026-10-28
 
