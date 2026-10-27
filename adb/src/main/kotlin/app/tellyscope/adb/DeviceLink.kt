@@ -92,6 +92,7 @@ class DeviceLink(
 
     private suspend fun loop() {
         while (true) {
+            gate.awaitResumed()
             when (val r = open(host, port)) {
                 is ConnectResult.NotAllowed -> {
                     _loggedOutAt.value = if (allowedBefore) System.currentTimeMillis() else null

@@ -331,6 +331,12 @@ class TellyscopeViewModel(
     /** Watches the TV for a launcher's install from the Play Store. */
     private var launcherJob: Job? = null
     private var updateJob: Job? = null
+    /** The clock and the device refresh, every second. */
+    private var tickJob: Job? = null
+    /** In the background since [pause]; [resume] starts everything again. */
+    private var paused = false
+    /** The scan was running, or asked for, while in the background, so [resume] starts it. */
+    private var scanOnResume = false
     /** The fingerprint the user waved away on the phone; its prompt stays hidden while the TV shows it. */
     private var dismissedRequest: String? = null
 
@@ -342,14 +348,7 @@ class TellyscopeViewModel(
             _state.update { it.copy(devices = known, listSource = lists) }
             if (_state.value.selectedId == null) known.firstOrNull()?.let { select(it.id) }
         }
-        viewModelScope.launch {
-            var tick = 0
-            while (true) {
-                delay(1_000)
-                _state.update { it.copy(now = clock()) }
-                if (++tick % 3 == 0) refreshDevices()
-            }
-        }
+        startTick()
         updates?.let { u ->
             viewModelScope.launch(Dispatchers.IO) { _state.update { it.copy(checkUpdates = u.enabled, alphaBuild = u.alpha) } }
         }
@@ -375,7 +374,48 @@ class TellyscopeViewModel(
         }
     }
 
+    private fun startTick() {
+        tickJob = viewModelScope.launch {
+            var tick = 0
+            while (true) {
+                delay(1_000)
+                _state.update { it.copy(now = clock()) }
+                if (++tick % 3 == 0) refreshDevices()
+            }
+        }
+    }
+
+    /**
+     * The app went to the background: nothing reads the TVs or sweeps the LAN until [resume].
+     * What the user started goes on: a copy, an install, an action, the Play Store wait, a removal.
+     */
+    fun pause() {
+        if (paused) return
+        paused = true
+        tickJob?.cancel()
+        scanOnResume = scanJob?.isActive == true
+        scanJob?.cancel()
+        stopWatching()
+        source.pause(true)
+    }
+
+    /** Back in the foreground: the TVs are read again and the page on screen picks up where it was, dialogs and all. */
+    fun resume() {
+        if (!paused) return
+        paused = false
+        source.pause(false)
+        startTick()
+        if (scanOnResume) rescan()
+        viewModelScope.launch {
+            if (!refreshDevices()) _state.value.selected?.let(::watch)
+        }
+    }
+
     fun rescan() {
+        if (paused) {
+            scanOnResume = true
+            return
+        }
         if (scanJob?.isActive == true) return
         scanJob = viewModelScope.launch {
             // Empty scan with no TV open: the guide is on screen; keep looking so the user never has to
@@ -472,12 +512,8 @@ class TellyscopeViewModel(
     fun showStats(profile: StatsProfile) = source.showStats(_state.value.selectedId, profile)
 
     fun select(id: String?) {
-        liveJob?.cancel()
+        stopWatching()
         launcherJob?.cancel()
-        mediumJob?.cancel()
-        listsJob?.cancel()
-        requestJob?.cancel()
-        accessJob?.cancel()
         // A copy still running on this TV keeps its dialog, after a reconnect or a look at another TV.
         val transfer = id?.let(transfers::get)
         // A removal survives the reconnect it causes; the TV coming back reselects it.
@@ -493,29 +529,44 @@ class TellyscopeViewModel(
             val hidden = source.launcherCardHidden(device.id)
             _state.update { if (it.selectedId == device.id) it.copy(device = it.device.copy(history = history, dock = dock, launcherCardHidden = hidden)) else it }
         }
-        if (device.state != DeviceState.Online) return
+        watch(device)
+    }
+
+    /** Stops the reads of the TV on screen that [watch] started. */
+    private fun stopWatching() {
+        liveJob?.cancel()
+        mediumJob?.cancel()
+        listsJob?.cancel()
+        requestJob?.cancel()
+        accessJob?.cancel()
+    }
+
+    /** Reads the TV on screen while it's online: stats, apps, tweaks, files, lists, prompts, access. Not in the background. */
+    private fun watch(device: Device) {
+        if (paused || device.state != DeviceState.Online) return
+        val id = device.id
         liveJob = viewModelScope.launch {
-            source.live(id!!).collect { snap ->
+            source.live(id).collect { snap ->
                 lastSnapshot[id] = snap
                 _state.update { it.copy(device = it.device.copy(snapshot = snap)) }
             }
         }
         // Its own job: the list download never holds up apps or stats.
-        listsJob = viewModelScope.launch { loadLists(id!!) }
-        requestJob = viewModelScope.launch { watchRequests(id!!) }
-        accessJob = viewModelScope.launch { watchAccess(id!!) }
+        listsJob = viewModelScope.launch { loadLists(id) }
+        requestJob = viewModelScope.launch { watchRequests(id) }
+        accessJob = viewModelScope.launch { watchAccess(id) }
         mediumJob = viewModelScope.launch {
             // A TV that drops mid-read throws; the live flow ends and the offline card takes over.
             try {
                 // Read first: update {} may run its block again, and must never call the TV.
-                val apps = source.apps(id!!)
+                val apps = source.apps(id)
                 updateDevice(id) { it.copy(apps = apps) }
                 pruneDock(id, apps)
                 val tweaks = source.tweaks(id)
                 updateDevice(id) { it.copy(tweaks = tweaks) }
                 loadFiles()
                 while (true) {
-                    val net = source.network(id!!)
+                    val net = source.network(id)
                     _state.update { it.copy(device = it.device.copy(network = net)) }
                     delay(10_000)
                 }
@@ -527,13 +578,18 @@ class TellyscopeViewModel(
         }
     }
 
-    /** Remembered TVs reconnect on their own; pick up their state and restart stats when one comes back. */
-    private suspend fun refreshDevices() {
+    /**
+     * Remembered TVs reconnect on their own; pick up their state and restart stats when one comes back.
+     * True when that reselected the TV on screen.
+     */
+    private suspend fun refreshDevices(): Boolean {
         val known = source.known()
         val before = _state.value.selected?.state
         _state.update { s -> s.copy(devices = known, restarting = restarts(s.restarting, known)) }
-        val now = _state.value.selected ?: return
-        if (now.state == DeviceState.Online && before != DeviceState.Online) select(now.id)
+        val now = _state.value.selected ?: return false
+        if (now.state != DeviceState.Online || before == DeviceState.Online) return false
+        select(now.id)
+        return true
     }
 
     /** Reconnect button: a TV stopped at "not allowed" asks again; an offline one restarts its stats. */

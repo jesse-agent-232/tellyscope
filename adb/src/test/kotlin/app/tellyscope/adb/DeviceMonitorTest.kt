@@ -145,6 +145,21 @@ class DeviceMonitorTest {
         assertTrue(readings.isNotEmpty())
     }
 
+    @Test fun nothingIsReadWhilePaused() = runTest {
+        var calls = 0
+        val inner = device()
+        val tv = AdbShell { cmd -> calls++; inner.shell(cmd) }
+        val gate = StatsGate().apply { paused.value = true }
+        val readings = mutableListOf<Stats>()
+        backgroundScope.launch { DeviceMonitor(tv, gate = gate).stats().collect { readings += it } }
+        advanceTimeBy(10 * 60_000); runCurrent()
+        assertEquals(0, calls)
+        gate.paused.value = false
+        advanceTimeBy(5_000); runCurrent()
+        assertTrue(calls > 0)
+        assertTrue(readings.isNotEmpty())
+    }
+
     @Test fun aTvThatDiesMidChangeIsStillLost() = runTest {
         val gate = StatsGate()
         val ran = mutableListOf<String>()

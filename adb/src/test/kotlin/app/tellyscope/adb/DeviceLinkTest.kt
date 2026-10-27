@@ -60,6 +60,19 @@ class DeviceLinkTest {
         assertEquals(0, calls)
     }
 
+    @Test fun pausedLinkDoesNotRetry() = runTest {
+        var calls = 0
+        val link = DeviceLink("tv", 5555, backgroundScope, open = { _, _ -> calls++; ConnectResult.Unreachable("asleep") })
+        link.connect(); runCurrent()
+        assertEquals(1, calls)
+        link.gate.paused.value = true
+        advanceTimeBy(10 * 60_000); runCurrent()
+        assertEquals(1, calls)
+        link.gate.paused.value = false
+        runCurrent()
+        assertEquals(2, calls)
+    }
+
     @Test fun dropsToOfflineThenReconnects() = runTest {
         val sessions = mutableListOf<FakeShell>()
         var reachable = true

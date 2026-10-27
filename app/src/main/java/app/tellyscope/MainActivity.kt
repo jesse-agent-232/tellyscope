@@ -203,6 +203,9 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
 
     // On every return to the app, not just a cold start; the check itself enforces the interval.
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { vm.checkForUpdate() }
+    // In the background nothing reads the TVs or sweeps the LAN; back on screen, everything picks up again.
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { vm.pause() }
+    LifecycleEventEffect(Lifecycle.Event.ON_START) { vm.resume() }
 
     Snackbars(snackbar, vm.done, vm.notice, vm::doneShown, vm::noticeShown) { vm.undo(it.entry, it.deviceId) }
     LoggedOutSnackbars(snackbar, { state.devices }, { state.selectedId }, onView = vm::select)

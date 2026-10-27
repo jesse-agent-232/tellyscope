@@ -63,6 +63,12 @@ interface DeviceSource {
     /** Reads [deviceId] at its screen's [profile]; every other TV, or all of them for null, at the slowest. */
     fun showStats(deviceId: String?, profile: StatsProfile) {}
 
+    /**
+     * The app went to the background ([paused] true) or came back. While paused no TV's stats are
+     * read and a dropped TV isn't retried; open connections stay, so a running copy or install goes on.
+     */
+    fun pause(paused: Boolean) {}
+
     suspend fun apps(deviceId: String): List<AppInfo>
 
     suspend fun network(deviceId: String): NetworkInfo

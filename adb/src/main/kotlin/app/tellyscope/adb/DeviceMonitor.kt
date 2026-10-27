@@ -75,12 +75,15 @@ data class StatsProfile(val fastEvery: Duration, val processes: ProcessLevel, va
 /**
  * What the app tells one TV's stats loop. [during] pauses it while a change runs, so a slow read
  * never competes with `pm`, an install or a Home switch; [profile] is the open screen's refresh
- * rates. Until a screen sets one, everything is read every 2 s.
+ * rates. Until a screen sets one, everything is read every 2 s. [paused] is the app in the
+ * background: no stats are read and a dropped link doesn't retry until it's false again.
  */
 class StatsGate {
     private val running = MutableStateFlow(0)
 
     val profile = MutableStateFlow(StatsProfile.ADVANCED)
+
+    val paused = MutableStateFlow(false)
 
     val busy: Boolean get() = running.value > 0
 
@@ -95,6 +98,10 @@ class StatsGate {
 
     internal suspend fun awaitIdle() {
         running.first { it == 0 }
+    }
+
+    internal suspend fun awaitResumed() {
+        paused.first { !it }
     }
 }
 
@@ -128,6 +135,11 @@ class DeviceMonitor(
         var prev: Fast? = null
 
         while (true) {
+            // Back from the background: CPU % and network speed start from fresh samples, not an average over the pause.
+            if (gate.paused.value) {
+                gate.awaitResumed()
+                prev = null
+            }
             val profile = gate.profile.value
             // Tiers are timed from the start of the round they ran in, so a 2 s tier runs every round.
             val started = clock.markNow()

@@ -79,6 +79,8 @@ class AdbDeviceSource(context: Context) : DeviceSource {
     private val links = ConcurrentHashMap<String, DeviceLink>()
     /** The TV on screen and its screen's refresh rates; every other TV reads at [StatsProfile.OTHER]. */
     @Volatile private var statsFor: Pair<String, StatsProfile>? = null
+    /** The app is in the background; see [pause]. */
+    @Volatile private var paused = false
     private val hits = ConcurrentHashMap<String, ScanHit>()
     private val store = DeviceStore(File(appContext.filesDir, "devices.tsv"))
     private val launchers by lazy { parseLaunchers(appContext.assets.open("launchers.json").bufferedReader().use { it.readText() }) }
@@ -137,6 +139,7 @@ class AdbDeviceSource(context: Context) : DeviceSource {
             pending?.also { pending = null } ?: Connector.connect(h, p)
         })
         link.gate.profile.value = statsFor?.takeIf { it.first == host }?.second ?: StatsProfile.OTHER
+        link.gate.paused.value = paused
         links.put(host, link)?.disconnect()
         watchers.put(host, scope.launch {
             // Save a fresh reading only when what's kept of it changed, not every 2 s.
@@ -351,6 +354,11 @@ class AdbDeviceSource(context: Context) : DeviceSource {
     override fun showStats(deviceId: String?, profile: StatsProfile) {
         statsFor = deviceId?.let { it to profile }
         links.forEach { (host, link) -> link.gate.profile.value = if (host == deviceId) profile else StatsProfile.OTHER }
+    }
+
+    override fun pause(paused: Boolean) {
+        this.paused = paused
+        links.values.forEach { it.gate.paused.value = paused }
     }
 
     /** Runs a change with that TV's stats paused, so a slow stats read can't compete with it or cut it off. */
