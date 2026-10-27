@@ -1479,14 +1479,17 @@ class TellyscopeViewModel(
         _state.update { it.copy(device = it.device.copy(busy = DISABLING)) }
         viewModelScope.launch {
             var done = 0
-            for (pkg in packages) {
-                try {
-                    source.act(id, Action.Disable, pkg)
-                    done++
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (_: Exception) {
-                    // The TV refused this one or dropped; the count says so.
+            // One change for the whole list: the TV's stats are read again once, after the last app.
+            source.batch(id) {
+                for (pkg in packages) {
+                    try {
+                        source.act(id, Action.Disable, pkg)
+                        done++
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                        // The TV refused this one or dropped; the count says so.
+                    }
                 }
             }
             _notice.value = Copy.disabledSuggested(done, packages.size)

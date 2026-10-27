@@ -469,6 +469,8 @@ class AdbDeviceSource(context: Context) : DeviceSource {
         return labels[pkg] ?: AppNames.fallback(pkg)
     }
 
+    override suspend fun <T> batch(deviceId: String, block: suspend () -> T): T = busy(deviceId, reread = true, block)
+
     override suspend fun act(deviceId: String, action: Action, packageName: String, undoing: Long?): HistoryEntry =
         busy(deviceId, reread = true) { actNow(deviceId, action, packageName, undoing) }
 
@@ -639,8 +641,11 @@ class AdbDeviceSource(context: Context) : DeviceSource {
         // Only what is still off now: the user may have turned some back on from the TV itself.
         val off = disabledPackages(deviceId)
         val key = key(deviceId)
-        return restoreEach(book.restorable(key).filter { it in off }) { pkg ->
-            act(deviceId, Action.Enable, pkg, undoing = book.openDisable(key, pkg))
+        // One change for them all: the stats are read again once, after the last app.
+        return batch(deviceId) {
+            restoreEach(book.restorable(key).filter { it in off }) { pkg ->
+                act(deviceId, Action.Enable, pkg, undoing = book.openDisable(key, pkg))
+            }
         }
     }
 

@@ -12,6 +12,7 @@ import java.io.IOException
 import java.time.YearMonth
 import kotlin.time.ComparableTimeMark
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
@@ -81,7 +82,7 @@ data class StatsProfile(val fastEvery: Duration, val processes: ProcessLevel, va
  * [changed] counts the ended changes to apps or storage, so what they touch is read again right after one.
  */
 class StatsGate {
-    private val running = MutableStateFlow(0)
+    internal val running = MutableStateFlow(0)
 
     val profile = MutableStateFlow(StatsProfile.ADVANCED)
 
@@ -131,6 +132,8 @@ class DeviceMonitor(
     private val pingTimeout: Duration = 10.seconds,
     /** While a change runs, how often the TV is pinged instead of read. */
     private val pingEvery: Duration = 10.seconds,
+    /** How long changes must stay quiet, none running, before what they touched is read again. */
+    private val settle: Duration = 300.milliseconds,
     private val gate: StatsGate = StatsGate(),
     /** Times the tiers and network speed; tests pass the test scheduler's clock. */
     private val clock: TimeSource.WithComparableMarks = TimeSource.Monotonic,
@@ -155,9 +158,8 @@ class DeviceMonitor(
             val started = clock.markNow()
             // A change just ended (an app stopped, installed, uninstalled; caches cleared): what it touched
             // can't wait out its interval. Storage and packages first, so a new app's processes are named.
-            val changed = gate.changed.value
-            val fresh = changed != seenChanged
-            seenChanged = changed
+            val fresh = gate.changed.value != seenChanged
+            if (fresh) seenChanged = settled()
             // A skipped tier waits its whole interval again, so a TV that is always slow isn't asked every round.
             if (lastSlow.due(slow) || fresh) {
                 readSlow()?.let { slowStats = it }
@@ -196,12 +198,32 @@ class DeviceMonitor(
     private fun TimeMark?.due(every: Duration) = this == null || elapsedNow() >= every
 
     /**
+     * Waits until no change runs and none has ended for [settle], and returns the count then: a
+     * Debloat, or taps on several rows, are read again once at the end rather than after each app.
+     */
+    private suspend fun settled(): Int {
+        while (true) {
+            awaitIdle()
+            val count = gate.changed.value
+            val stirred = withTimeoutOrNull(settle) {
+                combine(gate.changed, gate.running) { c, r -> c != count || r > 0 }.first { it }
+            }
+            if (stirred == null) return count
+        }
+    }
+
+    /** Pings while a change runs, so one that dies mid-change still ends instead of hanging. */
+    private suspend fun awaitIdle() {
+        while (withTimeoutOrNull(pingEvery) { gate.awaitIdle() } == null) ping()
+    }
+
+    /**
      * Null skips the sample: the read ran past [readTimeout] while a change was running, or the TV
      * still answered `echo` after it. While a change runs nothing is read, but the TV is pinged
      * every [pingEvery], so one that dies mid-change still ends the change instead of hanging it.
      */
     private suspend fun run(command: String): String? {
-        while (withTimeoutOrNull(pingEvery) { gate.awaitIdle() } == null) ping()
+        awaitIdle()
         withTimeoutOrNull(readTimeout) { shell.shell(command).output }?.let { return it }
         if (!gate.busy) ping()
         return null

@@ -183,6 +183,12 @@ interface DeviceSource {
      */
     suspend fun change(deviceId: String, tweak: Tweak, values: Map<String, String?>, undoing: Long? = null): HistoryEntry
 
+    /**
+     * Runs [block], several changes to apps, as one: the TV's stats wait for all of it, then are
+     * read again once. Debloat's loop runs inside it.
+     */
+    suspend fun <T> batch(deviceId: String, block: suspend () -> T): T = block()
+
     /** Frees every app's cache, keeping app data and sign-ins, and records it. Returns KB freed, or null when the TV can't say. */
     suspend fun clearCaches(deviceId: String): Long?
 

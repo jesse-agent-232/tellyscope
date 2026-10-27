@@ -257,8 +257,38 @@ class DeviceMonitorTest {
 
         advanceTimeBy(1_000)
         gate.during(reread = true) { tv.ps = "PID USER RSS NAME\n" }
-        runCurrent()
+        advanceTimeBy(301)
         assertEquals(emptyList(), readings.last().processes)
+    }
+
+    @Test fun aDebloatIsReadAgainOnceAtTheEnd() = runTest {
+        val gate = StatsGate().apply { profile.value = StatsProfile.APPS }
+        val tv = PsTv("PID USER RSS NAME\n")
+        backgroundScope.launch { DeviceMonitor(tv, gate = gate, clock = testScheduler.timeSource).stats().collect {} }
+        advanceTimeBy(1_000)
+        val before = tv.ran.size
+        // Five apps turned off one by one, each its own change inside the batch, each slower than the settle.
+        gate.during(reread = true) { repeat(5) { gate.during(reread = true) { delay(500) } } }
+        advanceTimeBy(301)
+        val after = tv.ran.drop(before)
+        assertEquals(1, after.count { it.startsWith("getprop") }, "ran: $after")
+        assertEquals(1, after.count { it.startsWith("ps") }, "ran: $after")
+    }
+
+    @Test fun quickTapsOnSeveralRowsShareOneRead() = runTest {
+        val gate = StatsGate().apply { profile.value = StatsProfile.APPS }
+        val tv = PsTv("PID USER RSS NAME\n")
+        backgroundScope.launch { DeviceMonitor(tv, gate = gate, clock = testScheduler.timeSource).stats().collect {} }
+        advanceTimeBy(1_000)
+        val before = tv.ran.size
+        repeat(5) {
+            gate.during(reread = true) {}
+            advanceTimeBy(50)
+        }
+        advanceTimeBy(301)
+        val after = tv.ran.drop(before)
+        assertEquals(1, after.count { it.startsWith("getprop") }, "ran: $after")
+        assertEquals(1, after.count { it.startsWith("ps") }, "ran: $after")
     }
 
     @Test fun clearingCachesShowsTheFreedStorageAtOnce() = runTest {
@@ -275,7 +305,7 @@ class DeviceMonitorTest {
         assertEquals(Parsers.Storage(16000, 9800), readings.last().storage)
 
         gate.during(reread = true) { used = 7000 }
-        runCurrent()
+        advanceTimeBy(301)
         assertEquals(Parsers.Storage(16000, 7000), readings.last().storage)
     }
 
