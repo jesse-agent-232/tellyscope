@@ -12,7 +12,7 @@ until this file has a section for its version.
 
 ## Unreleased
 
-- **Fixed:** Undo in History turns off a new home screen's accessibility service, as promised.
+- **Fixed:** Undo in History turns off a new home screen's accessibility service, as promised. [#185](../../pull/185)
 - **Fixed:** Restore everything always ends on your TV's own home screen. [#184](../../pull/184)
 - **Fixed:** The Remote's backspace no longer closes the TV app once the box is empty. [#183](../../pull/183)
 - **Improved:** The Remote's dock moves to the bottom; Screen off and Restart go under ⋮. [#182](../../pull/182)
