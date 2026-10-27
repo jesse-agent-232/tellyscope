@@ -445,7 +445,7 @@ object Copy {
     const val TYPE_HINT = "Select a text box on the TV, like a search box, then type here."
     const val BACKSPACE = "Backspace on the TV"
     const val SCREEN_OFF = "Screen off"
-    const val SCREEN_ON = "Turn the screen back on"
+    const val SCREEN_ON = "Screen on"
     const val SCREEN_OFF_WAKE = "tap any key to wake"
     const val SCREEN_OFF_TIP = "Turns off the TV's picture. The app stays connected; any key wakes it."
     const val SCREEN_OFF_REFUSED = "This TV can't turn its picture off from Tellyscope."
@@ -462,6 +462,7 @@ object Copy {
         }
     }
 
+    const val RESTART_TV = "Restart TV"
     const val REBOOT_TITLE = "Restart the TV?"
     const val REBOOT_TEXT = "The TV turns off and on again. Tellyscope reconnects by itself when it's back, usually within a minute."
     const val RESTARTING_TITLE = "Restarting…"
@@ -482,6 +483,8 @@ object Copy {
     // Dock
 
     const val ADD_TO_DOCK = "Add to dock"
+    const val DOCK_ADD = "Add"
+    const val DOCK_EMPTY = "Dock up to four TV apps, one tap to open."
     const val DOCK_PICK_TITLE = "Add an app to the dock"
     const val DOCK_PICK_HINT = "Tap an app to add it."
     const val DOCK_ADDED = "Added"

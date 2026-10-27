@@ -55,7 +55,7 @@ class DockBook(private val file: File? = null) {
 
 /** The dock's rules, kept apart from the screen so they can be tested on their own. */
 object Dock {
-    /** One row of four under Back and Home; "Add to dock" goes once it's full. */
+    /** One row of four along the Remote's bottom edge; the Add tile goes once it's full. */
     const val MAX = 4
 
     /**

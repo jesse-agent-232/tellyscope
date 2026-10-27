@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -29,6 +28,11 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -46,6 +50,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -56,10 +61,8 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -67,7 +70,6 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Scaffold
@@ -102,11 +104,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -128,6 +132,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.geometry.CornerRadius
 import app.tellyscope.adb.RemoteKey
 import app.tellyscope.data.AppInfo
 import app.tellyscope.data.DeviceState
@@ -177,7 +183,7 @@ internal suspend fun repeatWhileHeld(key: RemoteKey, held: () -> Boolean, press:
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun RemoteScreen(
     state: UiState,
@@ -228,15 +234,14 @@ fun RemoteScreen(
                     // A chevron, not an arrow, so it can't be mistaken for the TV's Back key.
                     IconButton(onClick = actions.back) { Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Back to the TV's page") }
                 },
-                actions = {
-                    if (screenControl) ScreenOffButton(screenOff, live, showTip = state.screenOffTip, actions)
-                    IconButton(onClick = { confirmReboot = true }, enabled = live) { Icon(RemoteIcons.RestartAlt, contentDescription = "Restart TV") }
-                },
+                actions = { RemoteMenu(screenControl, screenOff, live, showTip = state.screenOffTip, actions, onRestart = { confirmReboot = true }) },
             )
         },
+        // Pinned under the keys, out of a thumb's way; the keyboard covers it while typing.
+        bottomBar = { if (!WindowInsets.isImeVisible) DockBand(state.device.dock, state.device.apps, name(device), live, actions) },
     ) { pad ->
         Column(
-            Modifier.fillMaxSize().padding(pad).imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
+            Modifier.fillMaxSize().padding(pad).imePadding().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
@@ -271,9 +276,8 @@ fun RemoteScreen(
                         ) { Icon(RemoteIcons.VolumeUp, null) }
                     }
                 }
-                // Clear space above and below, so a thumb aiming at a volume key doesn't open an app.
-                DockSection(state.device.dock, state.device.apps, name(device), live, actions, Modifier.padding(vertical = 4.dp))
-                Keyboard(live, actions.type, actions.press)
+                // Twice the usual gap, so a thumb aiming at a volume key doesn't land in the text box.
+                Box(Modifier.padding(top = 20.dp)) { Keyboard(live, actions.type, actions.press) }
             } }
         }
     }
@@ -486,36 +490,48 @@ private fun StatusShape(icon: ImageVector, container: Color, content: Color) {
     }
 }
 
-/** Filled while the picture is off; a tap turns it back on. Explains itself on the first visit. */
+/** Screen off (or on again) and Restart, behind ⋮. Explains Screen off on the first visit. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ScreenOffButton(off: Boolean, live: Boolean, showTip: Boolean, actions: RemoteActions) {
+private fun RemoteMenu(screenControl: Boolean, off: Boolean, live: Boolean, showTip: Boolean, actions: RemoteActions, onRestart: () -> Unit) {
+    var open by remember { mutableStateOf(false) }
     val tip = rememberTooltipState(isPersistent = true)
-    LaunchedEffect(showTip) {
-        if (showTip) {
+    LaunchedEffect(showTip, screenControl) {
+        if (showTip && screenControl) {
             tip.show()
             actions.screenOffTipSeen()
         }
     }
-    TooltipBox(
-        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Below),
-        tooltip = {
-            PlainTooltip {
-                Column(Modifier.padding(vertical = 4.dp)) {
-                    Text(Copy.SCREEN_OFF, style = MaterialTheme.typography.labelLarge)
-                    Text(Copy.SCREEN_OFF_TIP)
+    Box {
+        TooltipBox(
+            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Below),
+            tooltip = {
+                PlainTooltip {
+                    Column(Modifier.padding(vertical = 4.dp)) {
+                        Text(Copy.SCREEN_OFF, style = MaterialTheme.typography.labelLarge)
+                        Text(Copy.SCREEN_OFF_TIP)
+                    }
                 }
-            }
-        },
-        state = tip,
-        enableUserInput = false,
-    ) {
-        FilledIconToggleButton(
-            checked = off,
-            onCheckedChange = actions.screenOff,
-            enabled = live,
-            colors = IconButtonDefaults.filledIconToggleButtonColors(containerColor = Color.Transparent),
-        ) { Icon(RemoteIcons.TvOff, contentDescription = if (off) Copy.SCREEN_ON else Copy.SCREEN_OFF) }
+            },
+            state = tip,
+            enableUserInput = false,
+        ) {
+            IconButton(onClick = { open = true }) { Icon(Icons.Default.MoreVert, contentDescription = "More options") }
+        }
+        DropdownMenu(open, onDismissRequest = { open = false }, shape = MaterialTheme.shapes.large) {
+            if (screenControl) DropdownMenuItem(
+                text = { Text(if (off) Copy.SCREEN_ON else Copy.SCREEN_OFF) },
+                leadingIcon = { Icon(RemoteIcons.TvOff, null) },
+                enabled = live,
+                onClick = { open = false; actions.screenOff(!off) },
+            )
+            DropdownMenuItem(
+                text = { Text(Copy.RESTART_TV) },
+                leadingIcon = { Icon(RemoteIcons.RestartAlt, null) },
+                enabled = live,
+                onClick = { open = false; onRestart() },
+            )
+        }
     }
 }
 
@@ -553,12 +569,12 @@ private fun RestartStatus(late: Boolean, onClick: () -> Unit) {
 }
 
 /**
- * Up to [Dock.MAX] apps in fixed slots from the left, with "Add to dock" under them until the row
- * is full. A tap opens the app on the TV; a long press opens its menu, and moving while still
+ * The bottom band: up to [Dock.MAX] apps in fixed slots from the left, with an Add tile in the next
+ * free one. A tap opens the app on the TV; a long press opens its menu, and moving while still
  * holding drags it to another slot.
  */
 @Composable
-private fun DockSection(dock: List<Docked>, apps: List<AppInfo>, tvName: String, enabled: Boolean, actions: RemoteActions, modifier: Modifier = Modifier) {
+private fun DockBand(dock: List<Docked>, apps: List<AppInfo>, tvName: String, enabled: Boolean, actions: RemoteActions) {
     // Null: closed. Empty: adding. A package: swapping that app for another.
     var picking by rememberSaveable { mutableStateOf<String?>(null) }
     picking?.let { swap ->
@@ -571,25 +587,20 @@ private fun DockSection(dock: List<Docked>, apps: List<AppInfo>, tvName: String,
             onDismiss = { picking = null },
         )
     }
-    Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        if (dock.isNotEmpty()) DockRow(dock, apps, enabled, actions, onSwap = { picking = it.packageName })
-        if (dock.size < Dock.MAX) {
-            OutlinedButton(
-                onClick = { picking = "" },
-                enabled = enabled,
-                contentPadding = PaddingValues(horizontal = 12.dp),
-                modifier = Modifier.height(28.dp),
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(6.dp))
-                Text(Copy.ADD_TO_DOCK, style = MaterialTheme.typography.labelLarge)
-            }
+    Surface(color = MaterialTheme.colorScheme.surfaceContainer, shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)) {
+        Box(
+            Modifier
+                .windowInsetsPadding(WindowInsets.navigationBars)
+                .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp)
+                .alpha(if (enabled) 1f else 0.38f),
+        ) {
+            DockRow(dock, apps, enabled, actions, onAdd = { picking = "" }, onSwap = { picking = it.packageName })
         }
     }
 }
 
 @Composable
-private fun DockRow(dock: List<Docked>, apps: List<AppInfo>, enabled: Boolean, actions: RemoteActions, onSwap: (Docked) -> Unit) {
+private fun DockRow(dock: List<Docked>, apps: List<AppInfo>, enabled: Boolean, actions: RemoteActions, onAdd: () -> Unit, onSwap: (Docked) -> Unit) {
     var menu by remember { mutableStateOf<String?>(null) }
     // The app being dragged, and how far; the others make room for it as it goes.
     var lifted by remember { mutableStateOf<String?>(null) }
@@ -599,6 +610,15 @@ private fun DockRow(dock: List<Docked>, apps: List<AppInfo>, enabled: Boolean, a
         fun from() = dock.indexOfFirst { it.packageName == lifted }
         fun to() = (from() + (dragX / slot).roundToInt()).coerceIn(0, dock.lastIndex)
         val order = if (from() < 0) dock else Dock.move(dock, from(), to())
+        if (dock.size < Dock.MAX) {
+            AddTile(enabled, onAdd, Modifier.width(maxWidth / Dock.MAX).offset { IntOffset((dock.size * slot).roundToInt(), 0) })
+        }
+        if (dock.isEmpty()) Text(
+            Copy.DOCK_EMPTY,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.align(Alignment.CenterStart).padding(start = maxWidth / Dock.MAX + 8.dp, bottom = 16.dp),
+        )
         dock.forEachIndexed { i, app -> key(app.packageName) {
             val up = app.packageName == lifted
             val x by animateFloatAsState(order.indexOf(app) * slot, label = "dock slot")
@@ -728,6 +748,34 @@ private fun DockTile(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(horizontal = 4.dp),
         )
+    }
+}
+
+/** The next free slot: a dashed outline the size of an app icon, with Add under it. */
+@Composable
+private fun AddTile(enabled: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val outline = MaterialTheme.colorScheme.outline
+    val shape = MaterialTheme.shapes.medium
+    Column(
+        modifier
+            .clickable(enabled = enabled, onClickLabel = Copy.ADD_TO_DOCK, role = Role.Button, onClick = onClick)
+            .semantics(mergeDescendants = true) { contentDescription = Copy.ADD_TO_DOCK }
+            .padding(top = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Box(
+            Modifier.size(48.dp).drawBehind {
+                val corner = shape.topStart.toPx(size, this)
+                drawRoundRect(
+                    outline,
+                    cornerRadius = CornerRadius(corner),
+                    style = Stroke(1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 4.dp.toPx()))),
+                )
+            },
+            contentAlignment = Alignment.Center,
+        ) { Icon(Icons.Default.Add, contentDescription = null, tint = MaterialTheme.colorScheme.primary) }
+        Text(Copy.DOCK_ADD, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
     }
 }
 
