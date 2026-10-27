@@ -12,7 +12,7 @@ until this file has a section for its version.
 
 ## Unreleased
 
-- **Improved:** Every dialog uses one style, with the main action filled.
+- **Improved:** Every dialog uses one style, with the main action filled. [#180](../../pull/180)
 
 ## 0.10.1 — 2026-10-27
 
