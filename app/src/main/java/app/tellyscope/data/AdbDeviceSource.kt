@@ -362,9 +362,12 @@ class AdbDeviceSource(context: Context) : DeviceSource {
         links.values.forEach { it.gate.paused.value = paused }
     }
 
-    /** Runs a change with that TV's stats paused, so a slow stats read can't compete with it or cut it off. */
-    private suspend fun <T> busy(deviceId: String, block: suspend () -> T): T =
-        links[deviceId]?.gate?.during(block) ?: block()
+    /**
+     * Runs a change with that TV's stats paused, so a slow stats read can't compete with it or cut it off.
+     * [apps]: it stops, starts, disables or removes an app, so the Running list is read again once it ends.
+     */
+    private suspend fun <T> busy(deviceId: String, apps: Boolean = false, block: suspend () -> T): T =
+        links[deviceId]?.gate?.during(apps, block) ?: block()
 
     override suspend fun apps(deviceId: String): List<AppInfo> {
         val session = session(deviceId)
@@ -467,10 +470,10 @@ class AdbDeviceSource(context: Context) : DeviceSource {
     }
 
     override suspend fun act(deviceId: String, action: Action, packageName: String, undoing: Long?): HistoryEntry =
-        busy(deviceId) { actNow(deviceId, action, packageName, undoing) }
+        busy(deviceId, apps = true) { actNow(deviceId, action, packageName, undoing) }
 
     override suspend fun makeHome(deviceId: String, packageName: String, service: Boolean): HistoryEntry =
-        busy(deviceId) { actNow(deviceId, Action.Home, packageName, null, service) }
+        busy(deviceId, apps = true) { actNow(deviceId, Action.Home, packageName, null, service) }
 
     override suspend fun homeServiceOn(deviceId: String, packageName: String): Unit = busy(deviceId) {
         val actions = Actions(session(deviceId))
@@ -735,7 +738,7 @@ class AdbDeviceSource(context: Context) : DeviceSource {
     override suspend fun openUpdates(deviceId: String) = Remote(session(deviceId)).openUpdates()
 
     override suspend fun launch(deviceId: String, packageName: String) =
-        busy(deviceId) { Actions(session(deviceId)).run(AdbAction.OPEN, packageName) is ActionResult.Done }
+        busy(deviceId, apps = true) { Actions(session(deviceId)).run(AdbAction.OPEN, packageName) is ActionResult.Done }
 
     override suspend fun dock(deviceId: String): List<Docked> {
         restored.await()

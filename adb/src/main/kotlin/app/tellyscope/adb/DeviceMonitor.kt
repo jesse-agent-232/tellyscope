@@ -3,6 +3,7 @@ package app.tellyscope.adb
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.update
@@ -77,6 +78,7 @@ data class StatsProfile(val fastEvery: Duration, val processes: ProcessLevel, va
  * never competes with `pm`, an install or a Home switch; [profile] is the open screen's refresh
  * rates. Until a screen sets one, everything is read every 2 s. [paused] is the app in the
  * background: no stats are read and a dropped link doesn't retry until it's false again.
+ * [appsChanged] counts the changes to apps that have ended, so the process list is read again right after one.
  */
 class StatsGate {
     private val running = MutableStateFlow(0)
@@ -85,14 +87,18 @@ class StatsGate {
 
     val paused = MutableStateFlow(false)
 
+    val appsChanged = MutableStateFlow(0)
+
     val busy: Boolean get() = running.value > 0
 
-    suspend fun <T> during(block: suspend () -> T): T {
+    /** [apps]: the change stops, starts, disables or removes an app, so what's running may differ after it. */
+    suspend fun <T> during(apps: Boolean = false, block: suspend () -> T): T {
         running.update { it + 1 }
         try {
             return block()
         } finally {
             running.update { it - 1 }
+            if (apps) appsChanged.update { it + 1 }
         }
     }
 
@@ -132,6 +138,7 @@ class DeviceMonitor(
         var procStats: Pair<List<AppProcess>, Boolean?> = emptyList<AppProcess>() to null
         var lastProcs: TimeMark? = null
         var lastLevel = ProcessLevel.NONE
+        var seenChanged = gate.appsChanged.value
         var prev: Fast? = null
 
         while (true) {
@@ -149,11 +156,14 @@ class DeviceMonitor(
                 lastSlow = started
             }
             val level = profile.processes
-            if (level != ProcessLevel.NONE && (level != lastLevel || lastProcs.due(profile.processEvery))) {
+            // A change just ended (an app stopped, disabled, uninstalled): the Running list can't wait out the interval.
+            val changed = gate.appsChanged.value
+            if (level != ProcessLevel.NONE && (level != lastLevel || lastProcs.due(profile.processEvery) || changed != seenChanged)) {
                 readProcesses(level, slowStats.packages, procStats.second)?.let { procStats = it }
                 lastProcs = started
                 lastLevel = level
             }
+            seenChanged = changed
             val now = readFast()
             val last = prev
             if (now != null && last != null) {
@@ -170,7 +180,11 @@ class DeviceMonitor(
             }
             if (now != null) prev = now
             val wait = profile.fastEvery - started.elapsedNow()
-            if (wait.isPositive()) withTimeoutOrNull(wait) { gate.profile.first { it != profile } }
+            if (wait.isPositive()) {
+                withTimeoutOrNull(wait) {
+                    combine(gate.profile, gate.appsChanged) { p, c -> p != profile || (level != ProcessLevel.NONE && c != seenChanged) }.first { it }
+                }
+            }
         }
     }
 

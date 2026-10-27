@@ -12,6 +12,8 @@ until this file has a section for its version.
 
 ## Unreleased
 
+- **Fixed:** A stopped or turned-off app leaves Running right away, not seconds later. [#PR](../../pull/PR)
+
 ## 0.11.2 — 2026-10-28
 
 - **Fixed:** An unpaired TV on wireless debugging asks for the pairing code, not "didn't answer". [#200](../../pull/200)

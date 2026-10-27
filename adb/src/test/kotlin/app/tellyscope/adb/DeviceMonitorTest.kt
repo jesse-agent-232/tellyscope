@@ -246,6 +246,32 @@ class DeviceMonitorTest {
         assertTrue(tv.ran.any { it.startsWith("top") }, "ran: ${tv.ran}")
     }
 
+    @Test fun anAppStoppedOnAppsLeavesTheListAtOnce() = runTest {
+        // Apps reads processes every 10 s: a stopped app must not linger in Running until the next one.
+        val gate = StatsGate().apply { profile.value = StatsProfile.APPS }
+        val tv = PsTv("PID USER RSS NAME\n2201 u0_a87 319488 com.google.android.youtube.tv\n")
+        val readings = mutableListOf<Stats>()
+        backgroundScope.launch { DeviceMonitor(tv, gate = gate, clock = testScheduler.timeSource).stats().collect { readings += it } }
+        advanceTimeBy(10_001)
+        assertEquals(listOf(2201), readings.last().processes.map { it.pid })
+
+        advanceTimeBy(1_000)
+        gate.during(apps = true) { tv.ps = "PID USER RSS NAME\n" }
+        runCurrent()
+        assertEquals(emptyList(), readings.last().processes)
+    }
+
+    @Test fun aKeyPressDoesNotReadProcessesAgain() = runTest {
+        val gate = StatsGate().apply { profile.value = StatsProfile.APPS }
+        val tv = PsTv("PID USER RSS NAME\n")
+        backgroundScope.launch { DeviceMonitor(tv, gate = gate, clock = testScheduler.timeSource).stats().collect {} }
+        advanceTimeBy(11_000)
+        val before = tv.ran.count { it.startsWith("ps") }
+        gate.during {}
+        runCurrent()
+        assertEquals(before, tv.ran.count { it.startsWith("ps") })
+    }
+
     /** Commands each screen's profile runs in its first 20 s: (fast reads, ps, top). */
     private fun TestScope.reads(profile: StatsProfile): Triple<Int, Int, Int> {
         val gate = StatsGate().apply { this.profile.value = profile }
