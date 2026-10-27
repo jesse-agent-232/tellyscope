@@ -47,8 +47,10 @@ class HistoryBook(private val file: File? = null) {
         previous: Map<String, String?>? = null,
     ): HistoryEntry {
         val undone = undoing?.let { id -> entries.indexOfFirst { it.id == id } }?.takeIf { it >= 0 }
-        // Undoing a switch makes the old launcher Home again: a home change like any switch.
-        val takesHome = action == Action.Home || action == Action.HomeBack || undone?.let { entries[it].action == Action.Home } == true
+        // Undoing a switch makes the old launcher Home again: a home change like any switch. Undoing
+        // a first home only turns its service off; Home stays.
+        val takesHome = action == Action.Home || action == Action.HomeBack ||
+            undone?.let { entries[it].action == Action.Home && entries[it].firstHomeService == null } == true
         undone?.let { entries[it] = entries[it].copy(undoneAt = at) }
         if (takesHome) {
             // An older "Switched home back" would switch to a launcher that has since lost Home: its Undo goes.
@@ -191,8 +193,15 @@ fun homeBackTarget(current: String, history: List<HistoryEntry>, builtIns: List<
     return builtIns.firstOrNull { it != current }?.let { HomeBackTarget(it, null, null) }
 }
 
-/** A home switch disables the old launcher, unless there was none to replace: then it offers no undo. */
-private val HistoryEntry.disables get() = action == Action.Disable || (action == Action.Home && undo != null)
+/**
+ * A home switch disables the old launcher, unless there was none to replace: then it offers no
+ * undo, or one for its service only.
+ */
+private val HistoryEntry.disables get() = action == Action.Disable || (action == Action.Home && undo != null && firstHomeService == null)
+
+/** The service a switch with no launcher to replace turned on: its Undo turns that off, and nothing else. */
+val HistoryEntry.firstHomeService: String?
+    get() = previous?.takeIf { action == Action.Home && it["from"] == null }?.get("service")
 
 /**
  * Turns apps back on one at a time and stops at the first refusal, saying how far it got so the

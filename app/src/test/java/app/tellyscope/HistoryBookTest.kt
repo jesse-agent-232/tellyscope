@@ -6,6 +6,7 @@ import app.tellyscope.data.Action
 import app.tellyscope.data.FakeDeviceSource
 import app.tellyscope.data.HistoryBook
 import app.tellyscope.data.HistoryEntry
+import app.tellyscope.data.firstHomeService
 import app.tellyscope.data.historyKey
 import app.tellyscope.data.restoreEach
 import kotlinx.coroutines.test.runTest
@@ -139,6 +140,25 @@ class HistoryBookTest {
         book.record("tv", 1L, Action.Home, "me.efesser.flauncher", "FLauncher", undo = null)
         assertEquals(listOf("com.google.android.tvlauncher"), HistoryBook.leftDisabled(book.entries("tv")))
         assertNull(book.openDisable("tv", "me.efesser.flauncher"))
+    }
+
+    @Test fun aFirstHomesUndoIsForItsServiceAlone() {
+        val book = HistoryBook()
+        val service = "com.spocky.projengmenu/.Service"
+        val first = book.record("tv", 0L, Action.Home, "com.spocky.projengmenu", "Projectivy Launcher", undo = Action.Enable,
+            previous = mapOf("to" to "com.spocky.projengmenu/.Main", "service" to service))
+        val back = book.record("tv", 1L, Action.HomeBack, "me.efesser.flauncher", "Google TV Home", undo = Action.Home)
+        assertEquals(service, first.firstHomeService)
+        // The Undo the consent promised, and still nothing for Restore to turn on.
+        assertEquals(Action.Enable, first.undo)
+        assertEquals(emptyList<String>(), HistoryBook.leftDisabled(book.entries("tv")))
+        // Turning the service off leaves Home where it is, so an older switch back keeps its Undo.
+        book.record("tv", 2L, Action.Change, "com.spocky.projengmenu", "Turned off Projectivy Launcher's accessibility service", undo = null, undoing = first.id)
+        assertEquals(Action.Home, book.entries("tv").first { it.id == back.id }.undo)
+        // A switch that replaced a launcher is no first home, service or not.
+        val switch = book.record("tv", 3L, Action.Home, "com.google.android.tvlauncher", "Projectivy Launcher", undo = Action.Enable,
+            previous = mapOf("from" to "com.google.android.tvlauncher/.Main", "service" to service))
+        assertNull(switch.firstHomeService)
     }
 
     @Test fun restoreAllTurnsOnOnlyWhatTellyscopeDisabled() = runTest {

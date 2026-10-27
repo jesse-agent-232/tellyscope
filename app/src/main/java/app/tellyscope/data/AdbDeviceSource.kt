@@ -502,6 +502,8 @@ class AdbDeviceSource(context: Context) : DeviceSource {
             return switchHome(deviceId, packageName, undoing, again ?: service)
         }
         if (action == Action.HomeBack) return homeBack(deviceId, packageName, undoing)
+        undoing?.let { id -> book.entries(key).firstOrNull { it.id == id } }?.firstHomeService
+            ?.let { return firstHomeServiceOff(deviceId, packageName, it, undoing) }
         if (action == Action.Uninstall && Actions(shell).homeOptions()?.current == packageName) return uninstallHome(deviceId, packageName)
         val r = Actions(shell).run(AdbAction.valueOf(action.name.uppercase()), packageName)
         return when (r) {
@@ -542,10 +544,10 @@ class AdbDeviceSource(context: Context) : DeviceSource {
                     deviceId = key,
                     at = System.currentTimeMillis(),
                     action = Action.Home,
-                    // With no launcher of the TV's own to replace, nothing was turned off and there's nothing to undo.
+                    // With no launcher of the TV's own to replace, nothing was turned off: Undo is for the service alone.
                     packageName = r.from?.substringBefore('/') ?: packageName,
                     label = label,
-                    undo = Action.Enable.takeIf { r.from != null },
+                    undo = Action.Enable.takeIf { r.from != null || on == true },
                     undoing = undoing,
                     // "service" only when this switch turned it on, so Undo turns off no more than that.
                     previous = listOfNotNull(r.from?.let { "from" to it }, "to" to r.to, service?.takeIf { on == true }?.let { "service" to it }).toMap(),
@@ -554,6 +556,22 @@ class AdbDeviceSource(context: Context) : DeviceSource {
             is HomeResult.Refused -> throw IllegalStateException(reasonText(r.reason))
             is HomeResult.Failed -> throw IllegalStateException(r.output.ifEmpty { "the TV refused" })
         }
+    }
+
+    /** Undo of a first home: [launcher] stays Home, as there's none to go back to; its [service] goes off. */
+    private suspend fun firstHomeServiceOff(deviceId: String, launcher: String, service: String, undoing: Long): HistoryEntry {
+        val label = labels[launcher] ?: AppNames.fallback(launcher)
+        if (!Actions(session(deviceId)).setService(service, false)) throw IllegalStateException(serviceStillOn(label))
+        return book.record(
+            deviceId = key(deviceId),
+            at = System.currentTimeMillis(),
+            // A sentence of its own, like a setting's: nothing here for Restore or a later Undo.
+            action = Action.Change,
+            packageName = launcher,
+            label = "Turned off $label's accessibility service",
+            undo = null,
+            undoing = undoing,
+        )
     }
 
     /**
@@ -908,6 +926,9 @@ class AdbDeviceSource(context: Context) : DeviceSource {
 
     private fun serviceNotOff(app: String) =
         "switched back, but $app's accessibility service is still on. Turn it off in the TV's Settings → Accessibility"
+
+    private fun serviceStillOn(app: String) =
+        "$app's accessibility service is still on. Turn it off in the TV's Settings → Accessibility"
 
     private fun homeNotBack(app: String) =
         "turned $app back on, but the TV kept the other home screen. Press Home on the remote to pick $app"
