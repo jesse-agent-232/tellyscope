@@ -384,8 +384,9 @@ class AdbDeviceSource(context: Context) : DeviceSource {
         val names = appNames.names(key(deviceId), listed, LabelHelper(session, helperDex)::describe)
         val keep = keep[key(deviceId)].orEmpty()
         // On a launcher the user added, offer the way back to the one it replaced.
+        val own = homeOptions?.let { builtIns(system, disabled, it) }.orEmpty()
         val back = homeOptions?.current?.takeIf { it !in system }
-            ?.let { homeBackTarget(it, book.entries(key(deviceId)), builtIns(system, disabled, homeOptions)) }
+            ?.let { homeBackTarget(it, book.entries(key(deviceId)), own) }
         // Its service off, the TV's own launcher may still answer Home: the row offers Turn on.
         val serviceOff = back != null && homeOptions?.current?.takeIf { it in serviceLaunchers }
             ?.let { Actions(shell).homeService(it) }?.let { !Actions(shell).serviceOn(it) } == true
@@ -418,6 +419,7 @@ class AdbDeviceSource(context: Context) : DeviceSource {
                 homeInstead = homeOptions?.takeIf { p.name in it.others }?.current,
                 homeFirst = homeOptions?.takeIf { it.current == null && p.name in it.others } != null,
                 answersHome = homeOptions?.let { p.name == it.current || p.name in it.others } == true,
+                builtInLauncher = p.name in system && (p.name == homeOptions?.current || p.name in own),
                 homeBack = back?.takeIf { p.name == homeOptions?.current }?.let { names[it.pkg]?.label ?: AppNames.fallback(it.pkg) },
                 homeService = p.name in serviceLaunchers,
                 homeServiceOff = serviceOff && p.name == homeOptions?.current,
@@ -556,25 +558,29 @@ class AdbDeviceSource(context: Context) : DeviceSource {
 
     /**
      * Uninstall of the launcher on Home: Home goes back to the TV's own first, its accessibility
-     * service off with it, as Switch home back does. Any step that fails stops it before the uninstall.
+     * service off with it, as going back does. Any step that fails stops it before the uninstall.
      */
     private suspend fun uninstallHome(deviceId: String, pkg: String): HistoryEntry =
         uninstallAfterHomeBack({ homeBack(deviceId, pkg, null) }, { actNow(deviceId, Action.Uninstall, pkg, null) }, book::dropUndo)
 
     /**
-     * Makes Home again the launcher that [added], now Home, replaced: the one the last switch saved,
-     * else the TV's own. [added] stays on; the entry's undo makes it Home again.
+     * Leaves the launcher the user added, now Home, for one of the TV's own. [pkg] is either that
+     * added launcher, going back to the one it replaced (the one the last switch saved, else the
+     * TV's own), or the TV's own launcher to go to, from the Home screen card. The added launcher
+     * stays on; the entry's undo makes it Home again.
      */
-    private suspend fun homeBack(deviceId: String, added: String, undoing: Long?): HistoryEntry {
+    private suspend fun homeBack(deviceId: String, pkg: String, undoing: Long?): HistoryEntry {
         fireHomes -= deviceId
         val key = key(deviceId)
         val shell = session(deviceId)
         val system = Parsers.packages(shell.shell("pm list packages -s").output).map { it.name }.toSet()
         val disabled = Parsers.packages(shell.shell("pm list packages -d").output).map { it.name }.toSet()
-        val options = Actions(shell).homeOptions()
-        val target = options?.current?.takeIf { it == added && it !in system }
-            ?.let { homeBackTarget(it, book.entries(key), builtIns(system, disabled, options)) }
-            ?: throw IllegalStateException("there's no home screen to switch back to")
+        val nothing = "there's no home screen to switch back to"
+        val options = Actions(shell).homeOptions() ?: throw IllegalStateException(nothing)
+        val added = options.current?.takeIf { it !in system } ?: throw IllegalStateException(nothing)
+        val own = builtIns(system, disabled, options)
+        val target = (if (pkg == added) homeBackTarget(added, book.entries(key), own) else pkg.takeIf { it in own }?.let { builtInTarget(it, book.entries(key)) })
+            ?: throw IllegalStateException(nothing)
         return when (val r = Actions(shell).homeBack(target.pkg, target.activity)) {
             is HomeResult.Switched -> {
                 // Off with Home: it would keep sending Home to [added]. Undo, a switch, turns it on again.

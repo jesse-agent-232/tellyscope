@@ -12,6 +12,7 @@ until this file has a section for its version.
 
 ## Unreleased
 
+- **New:** A Home screen card in Tweaks switches launchers; only the TV's own turns off.
 - **Fixed:** Undo in History turns off a new home screen's accessibility service, as promised. [#185](../../pull/185)
 - **Fixed:** Restore everything always ends on your TV's own home screen. [#184](../../pull/184)
 - **Fixed:** The Remote's backspace no longer closes the TV app once the box is empty. [#183](../../pull/183)

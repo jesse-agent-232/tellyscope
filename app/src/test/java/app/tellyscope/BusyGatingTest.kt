@@ -92,22 +92,4 @@ class BusyGatingTest {
         compose.setContent { DebloatScreen(lists, {}, {}, {}) }
         compose.onNodeWithText("Disable 1 app").assertIsEnabled()
     }
-
-    @Test fun launcherSwitchWithItsTargetGoneIsCancelled() {
-        // "Set as default launcher" was asked, then the launcher was turned off in Debloat.
-        var cancels = 0
-        val off = app.copy(enabled = false, homeInstead = "com.stock.home")
-        compose.setContent { AppRow(off, emptyList(), pkg to Action.Home, busy = false, actions = DeviceActions(cancel = { cancels++ }), homeLabel = "Stock") }
-        compose.waitForIdle()
-        assertEquals(1, cancels)
-        compose.onNodeWithText(Copy.confirm(Action.Home)).assertDoesNotExist()
-    }
-
-    @Test fun switchBackWithItsTargetGoneIsCancelled() {
-        var cancels = 0
-        val off = app.copy(enabled = false, homeBack = "Stock")
-        compose.setContent { AppRow(off, emptyList(), pkg to Action.HomeBack, busy = false, actions = DeviceActions(cancel = { cancels++ })) }
-        compose.waitForIdle()
-        assertEquals(1, cancels)
-    }
 }

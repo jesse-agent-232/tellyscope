@@ -77,20 +77,54 @@ object Copy {
     /** Said in the confirm before Stop, Disable or Uninstall of an app the TV's list keeps. */
     const val KEEP_WARNING = "This TV's list says to keep this."
 
-    fun homeBack(launcher: String) = "Switch home back to $launcher"
-
-    /** The way back keeps the added launcher, so it can be made Home again or uninstalled. */
-    fun explainHomeBack(added: String, back: String, service: Boolean) = buildString {
-        append("Makes $back open when you press Home again, turning it back on if it's off. $added stays on")
-        append(if (service) ", with its accessibility service turned off. " else ". ")
-        append("Undo in History makes $added Home again.")
-    }
-
     /** Where the lists come from, for the Debloat screen and the snackbar after a change. */
     fun listSource(custom: String?) =
         if (custom == null) "Lists from tellyscope-devices, built from cleanyourtv" else "Lists from ${sourceName(custom)}"
 
-    const val MAKE_HOME = "Set as default launcher"
+    /** The Home screen card at the top of Tweaks: every launcher on the TV, and which one Home opens. */
+    const val HOME_SCREEN = "Home screen"
+
+    fun opensOnHome(app: String) = "$app opens when you press Home."
+
+    const val NO_DEFAULT = "No default: pick one below."
+    const val ADDED = "Added"
+
+    fun builtIn(off: Boolean) = "Built into the TV" + if (off) " · turned off" else ""
+
+    const val CURRENT = "Current"
+    const val KEEPS_HOME = "Keeps Home with its accessibility service"
+    const val MAKE_HOME = "Make Home"
+    const val GET_LAUNCHER = "Get another launcher"
+    const val GET_LAUNCHER_TEXT = "Install one from the Play Store, like Projectivy or FLauncher. Switch back any time."
+
+    /** The Apps tab's launcher rows: switching lives in the card, this opens it. */
+    const val HOME_SETTINGS = "Home screen settings"
+
+    fun makeHomeTitle(app: String) = "Make $app the home screen?"
+
+    /** A launcher the user added in place of the TV's own, which is turned off: otherwise many TVs switch back by themselves. */
+    fun explainReplace(app: String, current: String, currentPkg: String, service: Boolean) = buildString {
+        append("Home opens $app. To stop the TV switching back by itself, Tellyscope turns off $current, the TV's built-in launcher.")
+        append("\n\nThat's the only launcher it ever turns off. Launchers you added stay on, so you can switch between them any time.")
+        append("\n\nUndo in History turns $current back on.")
+        if (currentPkg in GOOGLE_HOMES) append("\n\nSome Google TV features, like the Apps row and the Live tab, are part of $current and go away with it.")
+        if (service) append("\n\nNext, you choose whether to turn on its accessibility service.")
+    }
+
+    /**
+     * Away from [current], a launcher the user added: it stays on, only its accessibility service
+     * goes off when it has one on, since that would take Home straight back. [off]: [app] is the
+     * TV's own launcher, turned off by an earlier switch.
+     */
+    fun explainLeave(app: String, off: Boolean, current: String, currentService: Boolean, service: Boolean) = buildString {
+        append(if (off) "Tellyscope turns $app back on and makes it open when you press Home." else "Tellyscope makes $app open when you press Home.")
+        append("\n\n")
+        if (currentService) append("It also turns off $current's accessibility service, which would otherwise take Home straight back. ")
+        append("$current stays installed and on, so you can make it Home again any time.")
+        append("\n\nUndo in History makes $current Home again")
+        append(if (currentService) " and turns its service back on." else ".")
+        if (service) append("\n\nNext, you choose whether to turn on its accessibility service.")
+    }
 
     /**
      * The home switch touches two apps, so it names both. The old launcher is disabled, not just
@@ -115,7 +149,7 @@ object Copy {
     fun explainService(app: String, other: String) =
         "It keeps the Home button opening $app. Without it, this TV's Home button may still open $other.\n\n" +
             "An accessibility service can see what's on screen. Turn it on only if you trust $app.\n\n" +
-            "Undo in History or Switch home back turns it off."
+            "Undo in History, or making another launcher Home, turns it off."
 
     const val TURN_IT_ON = "Turn it on"
     const val SWITCH_WITHOUT = "Switch without it"
@@ -158,7 +192,7 @@ object Copy {
 
     fun isInstalled(name: String) = "$name is installed."
 
-    fun launcherLater(name: String) = "$name is installed. To use it later, open its row and choose $MAKE_HOME."
+    fun launcherLater(name: String) = "$name is installed. To use it later, choose $MAKE_HOME on it in Tweaks, under $HOME_SCREEN."
 
     fun launcherInstalled(name: String) = "$name is installed. Press Home on the remote to pick it."
 
@@ -178,8 +212,6 @@ object Copy {
         "The Play Store closed on the TV before it was installed. If the Store said it isn't available for this TV, choose another launcher."
 
     /** The Tweaks row that reopens it after Not now on the card. */
-    const val ANOTHER_HOME = "Another home screen"
-    const val ANOTHER_HOME_TEXT = "Install a launcher from the Play Store, like Projectivy or FLauncher. Switch back any time."
 
     fun serviceOffText(app: String) = "$app's accessibility service is off, so the TV can take Home back."
 

@@ -31,8 +31,8 @@ Debloat your Android TV, install apps, and browse and transfer files on it, all 
   </tr>
   <tr>
     <td><img src="docs/screenshots/send.png" alt="Sending a video from the phone to the TV's Movies folder"></td>
-    <td><img src="docs/screenshots/tweaks.png" alt="TV tweaks: ad-blocking Private DNS on, faster animations, clear caches, screenshot, and Another home screen to install a launcher"></td>
-    <td><img src="docs/screenshots/home.png" alt="Making Projectivy Launcher the home screen: the confirm names both launchers"></td>
+    <td><img src="docs/screenshots/tweaks.png" alt="Tweaks: the Home screen card with Google TV Home as Current and Get another launcher, then ad-blocking Private DNS on, faster animations and clear caches"></td>
+    <td><img src="docs/screenshots/home.png" alt="Make Projectivy Launcher the home screen: the confirm says Google TV Home, the TV's built-in launcher, is the only one ever turned off"></td>
     <td><img src="docs/screenshots/advanced.png" alt="Advanced: CPU and RAM by app, the TV's network connection, and the apps' open connections"></td>
   </tr>
   <tr>
@@ -43,7 +43,7 @@ Debloat your Android TV, install apps, and browse and transfer files on it, all 
   </tr>
 </table>
 
-<sub>Rendered from the app's screenshot tests with sample data. The Install dialog and the Tweaks launcher row are drawn to match the app, and Advanced joins parts of its longer page.</sub>
+<sub>Rendered from the app's screenshot tests with sample data. The Install dialog is drawn to match the app, and Advanced joins parts of its longer page.</sub>
 
 ## What it does
 
@@ -54,7 +54,7 @@ Tellyscope talks to your Android TV, Google TV, NVIDIA Shield or Fire TV over Wi
 - **Debloat.** Matches your TV to one of 300+ tested lists (adapted from [cleanyourtv](https://github.com/Gathin23/cleanyourtv)) and shows every app it will turn off before it does. Untick anything you use. No list for your model? Pick from the maker's lists, or by hand.
 - **Apps.** See what's running and what's on the TV. Turn off apps you don't want, turn them back on any time, and uninstall the ones you added yourself.
 - **Install apps.** From an APK, split APKs or an `.apks`/`.xapk`/`.apkm` bundle on your phone. It says first whether it's new, an update or an older version.
-- **A better home screen.** On TVs with the Play Store, pick a recommended launcher (Projectivy, AT4K, Dispatch or FLauncher), install it and make it Home. Switch back or remove it any time. A launcher's accessibility service turns on only if you say yes.
+- **A better home screen.** On TVs with the Play Store, pick a recommended launcher (Projectivy, AT4K, Dispatch or FLauncher), install it and make it Home. Switch between launchers, or back to the TV's own, from the Home screen card in Tweaks; only the TV's own is ever turned off. A launcher's accessibility service turns on only if you say yes.
 - **Send files.** To and from the TV's Download and Movies folders.
 - **Remote.** D-pad, Back, Home, Menu, mute and volume, typing on the TV, a dock of up to four apps, restart the TV, and **Screen off** for music with the picture off (Android 13 or older).
 - **Tweaks.** Block ads with Private DNS, faster animations, clear caches, take a screenshot.

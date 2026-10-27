@@ -176,7 +176,7 @@ fun DeviceTabsScreen(
         }
     }
     // The tabs share one list, so each opens at the top with its hero, not where the last one was left.
-    // "See changes" lands on Tweaks scrolled to Recent changes, the list's third item, after the hero.
+    // "See changes" lands on Tweaks scrolled to Recent changes, the item after the hero and the cards above it.
     var toChanges by remember { mutableStateOf(false) }
     var shown by rememberSaveable { mutableStateOf(tab) }
     var gate by rememberSaveable { mutableStateOf(false) }
@@ -206,7 +206,8 @@ fun DeviceTabsScreen(
     LaunchedEffect(tab) {
         if (tab == shown) return@LaunchedEffect
         shown = tab
-        list.scrollToItem(if (tab == TvTab.Tweaks && toChanges) 2 else 0)
+        val hub = !offline && homeLaunchers(ui.apps).isNotEmpty()
+        list.scrollToItem(if (tab == TvTab.Tweaks && toChanges) (if (hub) 3 else 2) else 0)
         toChanges = false
     }
     // Opening search starts the results from the top; closing it brings the TV back into view.
@@ -336,7 +337,7 @@ fun DeviceTabsScreen(
                     }
                     TvTab.Apps -> {
                         fun rows(apps: List<AppInfo>) = items(apps, key = { it.packageName }) { app ->
-                            AppRow(app, procs, ui.pending, ui.busy == app.packageName, actions, homeLabel(ui.apps, app), locked = ui.busy != null)
+                            AppRow(app, procs, ui.pending, ui.busy == app.packageName, actions, locked = ui.busy != null, toHomeScreen = { if (searching) closeSearch(); tab = TvTab.Tweaks })
                         }
                         // Until the first read lands, an empty list means "not yet", not "none".
                         val loading = ui.appsLoading && !offline
@@ -396,7 +397,10 @@ fun DeviceTabsScreen(
                     }
                     TvTab.Tweaks -> {
                         if (offline) item { Muted("Connect to the TV to change its settings.") }
-                        else item { Panel(Copy.TWEAKS) { TweaksBlock(ui, actions) } }
+                        else {
+                            if (homeLaunchers(ui.apps).isNotEmpty()) item { Panel(Copy.HOME_SCREEN) { HomeScreenBlock(ui, actions) } }
+                            item { Panel(Copy.TWEAKS) { TweaksBlock(ui, actions) } }
+                        }
                         item {
                             Panel("Recent changes") {
                                 HistoryList(ui.history, state.clock(), actions.undo, restoring = ui.busy == RESTORING, onRestoreAll = actions.restoreAll, busy = ui.busy != null)

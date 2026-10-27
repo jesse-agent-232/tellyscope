@@ -7,8 +7,8 @@ import org.json.JSONObject
 /**
  * A third-party launcher Tellyscope knows, from `assets/launchers.json`. [accessibility]: it keeps
  * Home with its own accessibility service, for TVs whose Home button opens their own launcher
- * whatever the default is, so Set as default turns that service on and Undo / Switch home back
- * turn it off. [checked] is the version whose manifest was read.
+ * whatever the default is, so Make Home turns that service on, and Undo or a switch away from it
+ * turns it off. [checked] is the version whose manifest was read.
  */
 data class KnownLauncher(val pkg: String, val name: String, val accessibility: Boolean, val checked: String?)
 

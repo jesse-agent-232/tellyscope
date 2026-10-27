@@ -5,6 +5,7 @@ package app.tellyscope
 import app.tellyscope.data.Action
 import app.tellyscope.data.HistoryEntry
 import app.tellyscope.data.HomeBackTarget
+import app.tellyscope.data.builtInTarget
 import app.tellyscope.data.homeBackTarget
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -38,5 +39,16 @@ class HomeBackTest {
     @Test fun nothingToGoBackTo() {
         assertNull(homeBackTarget(added, emptyList(), emptyList()))
         assertNull(homeBackTarget(added, emptyList(), listOf(added)))
+    }
+
+    @Test fun theCardGoesBackToTheBuiltInItNames() {
+        // Stock → Projectivy → FLauncher: Make Home on the stock launcher reverses the switch that turned it off.
+        val history = listOf(
+            switch(1, "$stock/.MainActivity", "$added/.Home"),
+            switch(2, "$added/.Home", "me.efesser.flauncher/.Main"),
+        )
+        assertEquals(HomeBackTarget(stock, "$stock/.MainActivity", 1), builtInTarget(stock, history))
+        // Turned off on the TV itself, or by a switch since undone: nothing to reverse.
+        assertEquals(HomeBackTarget(stock, null, null), builtInTarget(stock, listOf(switch(3, "$stock/.MainActivity", "$added/.Home", undoneAt = 4))))
     }
 }

@@ -23,7 +23,6 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.activity.OnBackPressedDispatcher
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.ui.test.onFirst
-import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
@@ -1386,55 +1385,75 @@ class ScreenshotTest {
         compose.onNodeWithText("wallpaper-mountains.jpg").assertExists()
     }
 
+    // The Tweaks tab opens on the Home screen card: Google TV's own launcher is Home, nothing added yet.
     @Test fun readme_tweaks() {
         val tweaks = TvTweaks(dnsHost = TvSettings.ADGUARD, animationScale = null)
-        shot("29_readme_tweaks") { DeviceTabsScreen(deviceState { copy(tweaks = tweaks) }, DeviceActions(), startTab = TvTab.Tweaks) }
-        compose.onNodeWithText(Copy.dnsState(TvSettings.ADGUARD)).assertExists()
+        shot("29_readme_tweaks") { DeviceTabsScreen(deviceState { copy(tweaks = tweaks, apps = listOf(stockHome, playStore) + apps) }, DeviceActions(), startTab = TvTab.Tweaks) }
+        compose.onNodeWithText(Copy.GET_LAUNCHER_TEXT).assertExists()
     }
 
-    // The list scrolls to the confirm, as a user would.
+    private val stockHome = AppInfo(
+        "com.google.android.tvlauncher", "Google TV Home", 0xFF1A73E8, true, true, "this is your home screen", "1.0.4",
+        home = true, answersHome = true, builtInLauncher = true,
+    )
+    private val playStore = AppInfo("com.android.vending", "Google Play Store", 0xFF01875F, true, true, null, "40.1")
+    private val flauncher = AppInfo("me.efesser.flauncher", "FLauncher", 0xFF3F6FD8, false, true, null, "0.18", removable = true, answersHome = true)
+
+    /** Projectivy, installed by the user, as a launcher: [home] it's on Home, the stock launcher off; else it offers to replace it. */
+    private fun projectivy(a: AppInfo, home: Boolean) = a.copy(
+        protectedReason = "this is your home screen".takeIf { home }, system = false, removable = true, answersHome = true, homeService = true,
+        home = home, homeInstead = stockHome.packageName.takeUnless { home }, homeBack = stockHome.label.takeIf { home },
+    )
+
+    private fun homeState(home: Boolean, pending: Pair<String, Action>? = null) = deviceState {
+        val stock = if (home) stockHome.copy(enabled = false, home = false, answersHome = false, protectedReason = null) else stockHome
+        val f = flauncher.copy(homeInstead = if (home) "com.spocky.projengmenu" else stock.packageName)
+        copy(apps = listOf(stock, f) + apps.map { if (it.packageName == "com.spocky.projengmenu") projectivy(it, home) else it }, pending = pending)
+    }
+
+    // Make Home on Projectivy: the confirm says the TV's own launcher is the only one turned off.
     @Test fun readme_home() {
-        // Google TV's own launcher is Home; Projectivy, installed by the user, offers to replace it.
-        val stock = AppInfo("com.google.android.tvlauncher", "Google TV Home", 0xFF1A73E8, true, true, "this is your home screen", "1.0.4")
-        val state = deviceState {
-            val projectivy = { a: AppInfo -> a.copy(protectedReason = null, system = false, removable = true, homeInstead = stock.packageName) }
-            copy(apps = listOf(stock) + apps.map { if (it.packageName == "com.spocky.projengmenu") projectivy(it) else it }, pending = "com.spocky.projengmenu" to Action.Home)
-        }
-        shot("30_readme_home", before = { compose.onNode(hasScrollAction()).performScrollToNode(hasText("Yes, switch home screen")); Unit }) { DeviceTabsScreen(state, DeviceActions(), startTab = TvTab.Apps) }
-        compose.onNodeWithText("Yes, switch home screen").assertExists()
+        shot("30_readme_home", screen = true) { DeviceTabsScreen(homeState(home = false, pending = "com.spocky.projengmenu" to Action.Home), DeviceActions(), startTab = TvTab.Tweaks) }
+        compose.onNodeWithText(Copy.makeHomeTitle("Projectivy Launcher")).assertExists()
     }
 
-    // Projectivy is Home now, made so on the TV itself; its row offers the way back to Google TV Home, which is off.
-    private fun homeBackState(confirming: Boolean = false) = deviceState {
-        val stock = AppInfo("com.google.android.tvlauncher", "Google TV Home", 0xFF1A73E8, true, false, null, "1.0.4")
-        val projectivy = { a: AppInfo -> a.copy(protectedReason = "this is your home screen", system = false, removable = true, homeBack = stock.label) }
-        copy(
-            apps = listOf(stock) + apps.map { if (it.packageName == "com.spocky.projengmenu") projectivy(it) else it },
-            pending = ("com.spocky.projengmenu" to Action.HomeBack).takeIf { confirming },
-        )
+    private fun homeCard(dark: Boolean) {
+        shot("78_tweaks_home_card", dark) { DeviceTabsScreen(homeState(home = true), DeviceActions(), startTab = TvTab.Tweaks) }
+        compose.onNodeWithText(Copy.builtIn(off = true)).assertExists()
     }
+    @Test fun tweaks_homeCard() = homeCard(false)
+    @Test fun tweaks_homeCard_dark() = homeCard(true)
+
+    // No default: Android would ask which home screen to use, so the card says to pick one.
+    @Test fun tweaks_homeCardNoDefault() {
+        val state = homeState(home = false).let { s -> s.copy(device = s.device.copy(apps = s.device.apps.map { if (it.packageName == stockHome.packageName) it.copy(home = false) else it })) }
+        shot("78_tweaks_home_card_no_default") { DeviceTabsScreen(state, DeviceActions(), startTab = TvTab.Tweaks) }
+        compose.onNodeWithText(Copy.NO_DEFAULT).assertExists()
+    }
+
+    // Back to Google TV Home from Projectivy: turned back on, and Projectivy's service goes off with Home.
     private fun homeBack(dark: Boolean) {
-        val back = { compose.onNode(hasScrollAction()).performScrollToNode(hasText(Copy.confirm(Action.HomeBack))); Unit }
-        shot("78_apps_home_back", dark, before = back) { DeviceTabsScreen(homeBackState(confirming = true), DeviceActions(), startTab = TvTab.Apps) }
-        compose.onNodeWithText(Copy.explainHomeBack("Projectivy Launcher", "Google TV Home", service = false)).assertExists()
+        shot("78_tweaks_home_back", dark, screen = true) {
+            DeviceTabsScreen(homeState(home = true, pending = stockHome.packageName to Action.HomeBack), DeviceActions(), startTab = TvTab.Tweaks)
+        }
+        compose.onNodeWithText(Copy.explainLeave("Google TV Home", off = true, "Projectivy Launcher", currentService = true, service = false)).assertExists()
     }
-    @Test fun apps_homeBack() = homeBack(false)
-    @Test fun apps_homeBack_dark() = homeBack(true)
+    @Test fun tweaks_homeBack() = homeBack(false)
+    @Test fun tweaks_homeBack_dark() = homeBack(true)
 
-    @Test fun apps_homeBackIsOfferedOnTheAddedLauncher() {
-        val proposed = mutableListOf<Pair<String, Action>>()
+    // On Apps, a launcher's row links to the card rather than switching itself.
+    @Test fun apps_launcherRowLinksToTheCard() {
         compose.mainClock.autoAdvance = false
-        compose.setContent { TellyscopeTheme(dynamic = false) { DeviceTabsScreen(homeBackState(), DeviceActions(propose = { pkg, a -> proposed += pkg to a }), startTab = TvTab.Apps) } }
+        compose.setContent { TellyscopeTheme(dynamic = false) { DeviceTabsScreen(homeState(home = true), DeviceActions(), startTab = TvTab.Apps) } }
         compose.mainClock.advanceTimeBy(1_000)
         compose.onNode(hasScrollAction()).performScrollToNode(hasText("Projectivy Launcher"))
         compose.onNodeWithText("Projectivy Launcher").performClick()
         compose.mainClock.advanceTimeBy(1_000)
-        compose.onNode(hasScrollAction()).performScrollToNode(hasText(Copy.homeBack("Google TV Home")))
-        compose.onNodeWithText(Copy.homeBack("Google TV Home")).performClick()
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText(Copy.HOME_SETTINGS))
+        compose.onNodeWithText(Copy.HOME_SETTINGS).performClick()
         compose.mainClock.advanceTimeBy(1_000)
-        assertEquals(listOf("com.spocky.projengmenu" to Action.HomeBack), proposed)
-        // Still the home screen, so nothing that would turn it off.
-        compose.onAllNodesWithText("Disable").assertCountEquals(0)
+        // The Tweaks tab, on the card.
+        compose.onNodeWithText(Copy.opensOnHome("Projectivy Launcher")).assertExists()
     }
 
     // A keep from the TV's list only warns; a hard lock still offers nothing.

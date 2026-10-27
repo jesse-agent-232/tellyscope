@@ -128,13 +128,15 @@ data class AppInfo(
     val home: Boolean = false,
     /** On the bundled `launchers.json`: a launcher people add, never a TV's own. */
     val listedLauncher: Boolean = false,
-    /** Another launcher that can replace the current home screen, [homeInstead]: "Set as default launcher" is offered. */
+    /** Another launcher that can replace the current home screen, [homeInstead]: Make Home is offered. */
     val homeInstead: String? = null,
-    /** No default home and no launcher of the TV's own on: "Set as default launcher" is offered with nothing to replace. */
+    /** No default home and no launcher of the TV's own on: Make Home is offered with nothing to replace. */
     val homeFirst: Boolean = false,
     /** A launcher: it answers the Home button (an off app answers nothing). */
     val answersHome: Boolean = false,
-    /** On the home screen the user added: the name of the launcher "Switch home back" returns to. */
+    /** A launcher the TV came with, on or off: the Home screen card lists it, and it's the only kind a switch turns off. */
+    val builtInLauncher: Boolean = false,
+    /** On the home screen the user added: the name of the launcher going back from it returns to. */
     val homeBack: String? = null,
     /** A launcher that keeps Home with its accessibility service: the switch turns it on, the way back off. */
     val homeService: Boolean = false,
