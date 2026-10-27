@@ -91,6 +91,8 @@ data class ScanUi(
 data class DeviceUi(
     val snapshot: Snapshot? = null,
     val apps: List<AppInfo> = emptyList(),
+    /** The first read of [apps] after opening the TV is still out; ends on success, empty or error. */
+    val appsLoading: Boolean = false,
     val network: NetworkInfo? = null,
     val history: List<HistoryEntry> = emptyList(),
     /** Package whose action row is open, and the action awaiting confirmation. */
@@ -551,6 +553,8 @@ class TellyscopeViewModel(
     private fun watch(device: Device) {
         if (paused || device.state != DeviceState.Online) return
         val id = device.id
+        // Only a page with no list yet says it's loading; back from the background, the list stays up.
+        updateDevice(id) { it.copy(appsLoading = it.apps.isEmpty()) }
         liveJob = viewModelScope.launch {
             source.live(id).collect { snap ->
                 lastSnapshot[id] = snap
@@ -571,9 +575,10 @@ class TellyscopeViewModel(
                     source.apps(id)
                 } catch (e: Exception) {
                     apps.completeExceptionally(e)
+                    updateDevice(id) { it.copy(appsLoading = false) }
                     throw e
                 }
-                updateDevice(id) { it.copy(apps = read) }
+                updateDevice(id) { it.copy(apps = read, appsLoading = false) }
                 apps.complete(read)
                 pruneDock(id, read)
                 val tweaks = source.tweaks(id)

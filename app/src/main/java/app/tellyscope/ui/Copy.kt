@@ -260,6 +260,10 @@ object Copy {
     const val SYSTEM = "System"
     const val SYSTEM_WHY = "Needed by the TV · can't be changed"
 
+    /** Apps, while the TV's app list is being read. */
+    const val READING_APPS = "Reading the TV's apps…"
+    const val READING_APPS_LINE = "This takes a few seconds."
+
     /** Running, with no word from the TV. */
     const val TV_OFFLINE = "TV offline"
     const val RUNNING_OFFLINE = "Running apps show here once the TV is connected."

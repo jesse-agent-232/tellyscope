@@ -319,10 +319,12 @@ fun DeviceTabsScreen(
                         fun rows(apps: List<AppInfo>) = items(apps, key = { it.packageName }) { app ->
                             AppRow(app, procs, ui.pending, ui.busy == app.packageName, actions, homeLabel(ui.apps, app), locked = ui.busy != null)
                         }
+                        // Until the first read lands, an empty list means "not yet", not "none".
+                        val loading = ui.appsLoading && !offline
                         if (searching) {
                             // One flat list of every matching app, whichever button it sits under; each row says
                             // whether it's running, off or protected.
-                            if (found.isEmpty()) item { EmptyLine(q) }
+                            if (found.isEmpty()) item { if (loading) AppsLoading() else EmptyLine(q) }
                             rows(found)
                         } else {
                             stickyHeader(key = "appsTabs") {
@@ -338,7 +340,11 @@ fun DeviceTabsScreen(
                             if (split != null) {
                                 if (split.apps.isEmpty() && split.system.isEmpty()) item {
                                     // Away, the TV can't say what's running, rather than nothing is.
-                                    if (appsTab == AppsTab.Running && live == null) EmptyState(DeviceIcons.Tv, Copy.TV_OFFLINE, Copy.RUNNING_OFFLINE) else EmptyLine(q)
+                                    when {
+                                        loading -> AppsLoading()
+                                        appsTab == AppsTab.Running && live == null -> EmptyState(DeviceIcons.Tv, Copy.TV_OFFLINE, Copy.RUNNING_OFFLINE)
+                                        else -> EmptyLine(q)
+                                    }
                                 }
                                 rows(split.apps)
                                 if (split.system.isNotEmpty()) {

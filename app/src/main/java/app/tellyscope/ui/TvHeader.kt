@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -341,5 +342,18 @@ internal fun EmptyState(icon: ImageVector, title: String, line: String) {
         Text(title, style = MaterialTheme.typography.titleSmall, textAlign = TextAlign.Center)
         Spacer(Modifier.height(4.dp))
         Text(line, style = MaterialTheme.typography.bodyMedium, color = c.onSurfaceVariant, textAlign = TextAlign.Center)
+    }
+}
+
+/** Where [EmptyState] would sit, while the TV's app list is still on its way. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+internal fun AppsLoading() {
+    Column(Modifier.fillMaxWidth().padding(top = 96.dp, bottom = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        ContainedLoadingIndicator(Modifier.size(56.dp))
+        Spacer(Modifier.height(16.dp))
+        Text(Copy.READING_APPS, style = MaterialTheme.typography.titleSmall, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(4.dp))
+        Text(Copy.READING_APPS_LINE, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
     }
 }

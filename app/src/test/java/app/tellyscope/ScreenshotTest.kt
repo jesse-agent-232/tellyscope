@@ -423,6 +423,14 @@ class ScreenshotTest {
         compose.onNodeWithText(Copy.RUNNING_OFFLINE).assertExists()
     }
     @Test fun md3_apps_offline_dark() { shot("71_md3_apps_offline", dark = true) { DeviceTabsScreen(offlineMd3(), DeviceActions(), startTab = TvTab.Apps) } }
+    // Just opened: the list is still on its way, so Apps says so rather than "Nothing here yet."
+    private fun appsLoading() = md3State().let { it.copy(device = it.device.copy(apps = emptyList(), appsLoading = true)) }
+    @Test fun md3_apps_loading() {
+        shot("78_md3_apps_loading") { DeviceTabsScreen(appsLoading(), DeviceActions(), startTab = TvTab.Apps) }
+        compose.onNodeWithText(Copy.READING_APPS).assertExists()
+        compose.onNodeWithText(Copy.TV_OFFLINE).assertDoesNotExist()
+    }
+    @Test fun md3_apps_loading_dark() { shot("78_md3_apps_loading", dark = true) { DeviceTabsScreen(appsLoading(), DeviceActions(), startTab = TvTab.Apps) } }
     // Folded, the System header stays with its count and the protected apps go.
     private fun foldedBuiltIn() = md3State().copy(foldedSystem = setOf(AppsTab.BuiltIn))
     @Test fun md3_apps_builtin_folded() = appsTab("72_md3_apps_builtin_folded", false, "Built-in", ::foldedBuiltIn)
