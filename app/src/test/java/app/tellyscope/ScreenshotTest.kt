@@ -607,7 +607,7 @@ class ScreenshotTest {
         compose.onNodeWithText("Advanced").performClick()
         compose.mainClock.advanceTimeBy(1_000)
         compose.onNodeWithText("cleanyourtv").assertExists()
-        compose.onNodeWithText(" 30k+").assertExists()
+        compose.onNodeWithText(" 40k+").assertExists()
         compose.onNodeWithText("cleanyourtv").performClick()
         compose.onNodeWithText("How to use your own lists").performClick()
         assertEquals(listOf("https://github.com/Gathin23/cleanyourtv", RELEASES.removeSuffix("/releases") + "/blob/main/CONTRIBUTING.md#using-your-own-lists"), opened)

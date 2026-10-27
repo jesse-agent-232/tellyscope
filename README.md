@@ -51,7 +51,7 @@ Tellyscope talks to your Android TV, Google TV, NVIDIA Shield or Fire TV over Wi
 
 - **Connect.** Finds TVs on your Wi-Fi, or add one by IP. Works with network debugging and with Android 11+ wireless debugging and its pairing code. TVs reconnect by themselves.
 - **See how it's doing.** Free space, CPU, RAM, temperature and network speed, plus what's paired or plugged in. **Advanced** has CPU and RAM by app, processes, network and data used.
-- **Debloat.** Matches your TV to one of 300+ tested lists (adapted from [cleanyourtv](https://github.com/Gathin23/cleanyourtv)) and shows every app it will turn off before it does. Untick anything you use. No list for your model? Pick from the maker's lists, or by hand.
+- **Debloat.** Matches your TV to one of 330+ tested lists (adapted from [cleanyourtv](https://github.com/Gathin23/cleanyourtv)) and shows every app it will turn off before it does. Untick anything you use. No list for your model? Pick from the maker's lists, or by hand.
 - **Apps.** See what's running and what's on the TV. Turn off apps you don't want, turn them back on any time, and uninstall the ones you added yourself.
 - **Install apps.** From an APK, split APKs or an `.apks`/`.xapk`/`.apkm` bundle on your phone. It says first whether it's new, an update or an older version.
 - **A better home screen.** On TVs with the Play Store, pick a recommended launcher (Projectivy, AT4K, Dispatch or FLauncher), install it and make it Home. Switch between launchers, or back to the TV's own, from the Home screen card in Tweaks; only the TV's own is ever turned off. A launcher's accessibility service turns on only if you say yes.

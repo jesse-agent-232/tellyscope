@@ -208,7 +208,7 @@ private fun ListsFrom(source: String?, onOpen: () -> Unit) {
                 if (source == null) {
                     Spacer(Modifier.width(8.dp))
                     Icon(Icons.Default.Star, contentDescription = null, Modifier.size(16.dp), tint = Color(0xFFE0A100))
-                    Text(" 30k+", style = MaterialTheme.typography.bodyMedium, color = c.onSurfaceVariant)
+                    Text(" 40k+", style = MaterialTheme.typography.bodyMedium, color = c.onSurfaceVariant)
                 }
             }
         }
