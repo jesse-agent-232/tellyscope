@@ -13,7 +13,7 @@ until this file has a section for its version.
 ## Unreleased
 
 - **Improved:** Tellyscope stops polling your TV while it's in the background. [#172](../../pull/172)
-- **Improved:** The TV's page no longer redraws every app each second. [#PR](../../pull/PR)
+- **Improved:** The TV's page no longer redraws every app each second. [#174](../../pull/174)
 
 ## 0.10.0 — 2026-10-26
 
