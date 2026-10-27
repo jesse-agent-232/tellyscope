@@ -205,12 +205,13 @@ fun builtInTarget(pkg: String, history: List<HistoryEntry>): HomeBackTarget {
 }
 
 /**
- * A home switch disables the old launcher, unless there was none to replace (then it offers no
- * undo, or one for its service only) or the old one was a launcher the user added, which stays
- * on ("kept").
+ * A home switch disables the old launcher, unless there was none to replace or the old one was a
+ * launcher the user added, which stays on ("kept"). With none to replace there's no "from"; its
+ * Undo, when it turned a service on, is for that service alone. An entry without [previous]
+ * predates that record and keeps counting.
  */
 private val HistoryEntry.disables get() =
-    action == Action.Disable || (action == Action.Home && undo != null && firstHomeService == null && previous?.get("kept") == null)
+    action == Action.Disable || (action == Action.Home && undo != null && previous?.get("kept") == null && previous?.let { it["from"] != null } != false)
 
 /** The service a switch with no launcher to replace turned on: its Undo turns that off, and nothing else. */
 val HistoryEntry.firstHomeService: String?

@@ -161,6 +161,16 @@ class HistoryBookTest {
         assertNull(switch.firstHomeService)
     }
 
+    @Test fun aFirstHomeWithItsServiceOnLeavesNothingToRestore() {
+        // No default and the TV's own launcher off: Make Home on Projectivy with its service. Undo turns
+        // the service off; Restore must not list Projectivy, the launcher now on Home.
+        val book = HistoryBook()
+        val pkg = "com.spocky.projengmenu"
+        book.record("tv", 0L, Action.Home, pkg, "Projectivy Launcher", undo = Action.Enable, previous = mapOf("to" to "$pkg/.Home", "service" to "$pkg/.Service"))
+        assertEquals(emptyList<String>(), HistoryBook.leftDisabled(book.entries("tv")))
+        assertNull(book.openDisable("tv", pkg))
+    }
+
     @Test fun restoreAllTurnsOnOnlyWhatTellyscopeDisabled() = runTest {
         // The fake TV starts with TV Recommendations already disabled.
         val source = FakeDeviceSource()
