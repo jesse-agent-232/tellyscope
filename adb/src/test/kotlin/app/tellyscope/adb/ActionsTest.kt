@@ -342,7 +342,8 @@ class ActionsTest {
     @Test fun homeCheckFailsNothingDisabled() = runTest {
         val sh = twoLaunchers(accepts = false)
         assertEquals(HomeResult.Failed("the TV kept its own home screen, so nothing was turned off"), Actions(sh).makeHome("com.spocky.projengmenu"))
-        assertTrue(sh.ran.none { it.startsWith("pm ") })
+        // Asking which launchers the user added is a read; nothing is turned off or on.
+        assertTrue(sh.ran.none { it.startsWith("pm disable") || it.startsWith("pm enable") })
         // The old home is set back, in case the TV took the new one half-way.
         assertEquals("cmd package set-home-activity --user 0 'com.google.android.tvlauncher/.MainActivity' 2>&1", sh.ran.last { "set-home" in it })
     }
