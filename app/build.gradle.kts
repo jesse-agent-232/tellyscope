@@ -22,8 +22,8 @@ android {
         minSdk = 26
         targetSdk = 37
         // A PR into main must raise both past the latest v* tag (.github/workflows/release-check.yml).
-        versionCode = 17
-        versionName = "0.10.1"
+        versionCode = 18
+        versionName = "0.11.0"
 
         // An alpha tag (release.yml, vX.Y.Z-alpha.N on dev) passes -Ptellyscope.alpha=N:
         // a separate app ID, so it installs next to the release.

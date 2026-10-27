@@ -38,7 +38,7 @@ Debloat your Android TV, install apps, and browse and transfer files on it, all 
   <tr>
     <td align="center"><sub>Send files to the TV</sub></td>
     <td align="center"><sub>Block ads, tweak the TV, add a launcher</sub></td>
-    <td align="center"><sub>Set default launcher</sub></td>
+    <td align="center"><sub>Make a launcher Home</sub></td>
     <td align="center"><sub>Advanced: what is using the CPU, RAM and network</sub></td>
   </tr>
 </table>
