@@ -14,8 +14,13 @@ until this file has a section for its version.
 
 ## 0.11.0 — 2026-10-27
 
-- **Improved:** ⋮ opens a sheet, with History on its own screen instead of in Tweaks. A dot on ⋮ marks a change you haven't looked at, and Advanced is now Advanced monitor. [#188](../../pull/188)
-- **New:** A Home screen card in Tweaks switches launchers; only the TV's own turns off. [#186](../../pull/186)
+- **New:** A Home screen card in Tweaks: pick your TV's home screen in one place. [#186](../../pull/186)
+  - Switch between Projectivy, FLauncher and the TV's own launcher with one tap.
+  - Launchers you installed stay on. Only the TV's built-in one is turned off, and Undo brings it back.
+- **Improved:** The ⋮ menu is now a bottom sheet with bigger rows. [#188](../../pull/188)
+  - History (every change, with Undo and Restore everything) moved here from Tweaks.
+  - A dot on ⋮ tells you when there's a new change in History.
+  - Advanced is renamed Advanced monitor.
 - **Fixed:** Undo in History turns off a new home screen's accessibility service, as promised. [#185](../../pull/185)
 - **Fixed:** Restore everything always ends on your TV's own home screen. [#184](../../pull/184)
 - **Fixed:** The Remote's backspace no longer closes the TV app once the box is empty. [#183](../../pull/183)
