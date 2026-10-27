@@ -990,7 +990,7 @@ class ScreenshotTest {
         compose.setContent { TellyscopeTheme(dynamic = false) { RemoteScreen(s, RemoteActions()) } }
         compose.onNodeWithContentDescription("More options").performClick()
         compose.onNodeWithText(Copy.SCREEN_OFF).assertDoesNotExist()
-        compose.onNodeWithText(Copy.RESTART_TV).assertExists()
+        compose.onNodeWithText(Copy.REMOTE_RESTART).assertExists()
     }
 
     @Test fun remote_menu() = shot("13_remote_menu", screen = true, before = { compose.onNodeWithContentDescription("More options").performClick() }) {

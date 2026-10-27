@@ -462,7 +462,7 @@ object Copy {
         }
     }
 
-    const val RESTART_TV = "Restart TV"
+    const val REMOTE_RESTART = "Restart TV"
     const val REBOOT_TITLE = "Restart the TV?"
     const val REBOOT_TEXT = "The TV turns off and on again. Tellyscope reconnects by itself when it's back, usually within a minute."
     const val RESTARTING_TITLE = "Restarting…"

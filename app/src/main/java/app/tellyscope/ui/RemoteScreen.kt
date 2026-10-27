@@ -526,7 +526,7 @@ private fun RemoteMenu(screenControl: Boolean, off: Boolean, live: Boolean, show
                 onClick = { open = false; actions.screenOff(!off) },
             )
             DropdownMenuItem(
-                text = { Text(Copy.RESTART_TV) },
+                text = { Text(Copy.REMOTE_RESTART) },
                 leadingIcon = { Icon(RemoteIcons.RestartAlt, null) },
                 enabled = live,
                 onClick = { open = false; onRestart() },
