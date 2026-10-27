@@ -223,6 +223,8 @@ data class UiState(
     val screenOff: Set<String> = emptySet(),
     /** The Remote's Screen off button explains itself, the first time only. */
     val screenOffTip: Boolean = false,
+    /** Debloat with nothing left on the list explains why it opens Apps, until Don't show again. */
+    val debloatGate: Boolean = true,
     /** The Apps tabs whose System section the user folded away. */
     val foldedSystem: Set<AppsTab> = emptySet(),
     /** The report screen; null when it's closed. */
@@ -255,6 +257,9 @@ data class Restart(val since: Long, val down: Boolean = false, val waitFrom: Lon
 
 /** The newest messages a report's log keeps. */
 private const val LOG_LINES = 200
+
+/** The gates book's key once the user said Don't show again on the Debloat gate. */
+private const val DEBLOAT_GATE = "debloat"
 
 /** Most TVs are back within this; after it the Remote asks whether to keep waiting. */
 const val RESTART_WAIT_MS = 60_000L
@@ -294,6 +299,8 @@ class TellyscopeViewModel(
     private val updates: UpdateCheck? = null,
     private val folds: FoldBook? = null,
     private val keyHaptics: KeyHaptics? = null,
+    /** App-wide prompts the user turned off: [DEBLOAT_GATE]. */
+    private val gates: FoldBook? = null,
     /** This build and phone, for reports. */
     private val appFacts: AppFacts = AppFacts("unknown", "unknown phone"),
 ) : ViewModel() {
@@ -362,6 +369,9 @@ class TellyscopeViewModel(
         }
         keyHaptics?.let { k ->
             viewModelScope.launch(Dispatchers.IO) { _state.update { it.copy(keyHaptics = k.on, screenOffTip = !k.screenOffTipSeen) } }
+        }
+        gates?.let { g ->
+            viewModelScope.launch(Dispatchers.IO) { _state.update { it.copy(debloatGate = DEBLOAT_GATE !in g.folded()) } }
         }
         folds?.let { f ->
             viewModelScope.launch(Dispatchers.IO) {
@@ -1503,6 +1513,11 @@ class TellyscopeViewModel(
         val ok = source.screen(id, on = true)
         if (ok) _state.update { it.copy(screenOff = it.screenOff - id) } else _notice.value = Copy.SCREEN_ON_REFUSED
         return ok
+    }
+
+    fun debloatGateOff() {
+        _state.update { it.copy(debloatGate = false) }
+        viewModelScope.launch(Dispatchers.IO) { gates?.set(DEBLOAT_GATE, true) }
     }
 
     fun screenOffTipSeen() {

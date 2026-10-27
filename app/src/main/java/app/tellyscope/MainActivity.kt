@@ -117,6 +117,7 @@ class MainActivity : ComponentActivity() {
                                         updates = if (scenario != null) null else updateCheck(),
                                         folds = FoldBook(File(filesDir, "folds.properties")),
                                         keyHaptics = KeyHaptics(File(filesDir, "remote.properties")),
+                                        gates = FoldBook(File(filesDir, "gates.properties")),
                                         appFacts = AppFacts(installedVersion(), "${Build.MANUFACTURER} ${Build.MODEL}, Android ${Build.VERSION.RELEASE}"),
                                     )
                                 }
@@ -362,6 +363,7 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
                 dismissServiceNote = vm::dismissServiceNote,
                 installLauncher = vm::openLauncherFlow,
                 hideLauncherCard = vm::hideLauncherCard,
+                debloatGateOff = vm::debloatGateOff,
                 undo = vm::undo,
                 reconnect = { state.selectedId?.let(vm::reconnect) },
                 forget = vm::forget,

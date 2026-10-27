@@ -36,9 +36,11 @@ import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -177,6 +179,18 @@ fun DeviceTabsScreen(
     // "See changes" lands on Tweaks scrolled to Recent changes, the list's third item, after the hero.
     var toChanges by remember { mutableStateOf(false) }
     var shown by rememberSaveable { mutableStateOf(tab) }
+    var gate by rememberSaveable { mutableStateOf(false) }
+    if (gate) {
+        val toApps = { gate = false; tab = TvTab.Apps }
+        DebloatGate(
+            // Only where the picker can install one: the Play Store is on and no launcher was added yet.
+            launcher = offerChoose(ui.apps),
+            onChoose = { gate = false; actions.installLauncher() },
+            onApps = toApps,
+            onNeverAgain = { actions.debloatGateOff(); toApps() },
+            onDismiss = { gate = false },
+        )
+    }
     // Each tab refreshes what it shows at its own rate: Overview and Apps (Running, sorted by RAM) need
     // memory per app only, Files and Tweaks no processes at all.
     DisposableEffect(tab, device.id) {
@@ -305,8 +319,13 @@ fun DeviceTabsScreen(
                                     count = debloat.count,
                                     todo = debloat.todo,
                                     disabling = ui.busy == DISABLING,
-                                    // With nothing left on the list, Debloat leads to the apps for one-off changes.
-                                    onDebloat = if (debloat.todo) actions.debloat else ({ tab = TvTab.Apps }),
+                                    // With nothing left on the list, Debloat leads to the apps for one-off changes,
+                                    // through a gate that says so until the user turns it off.
+                                    onDebloat = when {
+                                        debloat.todo -> actions.debloat
+                                        state.debloatGate && ui.lists is Suggestions.Ready -> ({ gate = true })
+                                        else -> ({ tab = TvTab.Apps })
+                                    },
                                 )
                             }
                         }
@@ -544,6 +563,38 @@ internal data class DebloatState(
     /** Debloat has something to show: apps to turn off, or that this TV has no list. */
     val todo: Boolean,
 )
+
+/**
+ * Debloat with everything on the list already off. [launcher]: a minimal home screen is the next
+ * step, so it leads; otherwise Apps does. Don't show again also goes on to Apps.
+ */
+@Composable
+internal fun DebloatGate(launcher: Boolean, onChoose: () -> Unit, onApps: () -> Unit, onNeverAgain: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Broom, contentDescription = null) },
+        title = { Text(Copy.GATE_TITLE) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(Copy.GATE_DONE)
+                Text(if (launcher) Copy.GATE_LAUNCHER else Copy.GATE_APPS)
+            }
+        },
+        // Three actions stack full width; two sit side by side.
+        confirmButton = {
+            if (launcher) {
+                Column(Modifier.fillMaxWidth()) {
+                    Button(onClick = onChoose, Modifier.fillMaxWidth()) { Text(Copy.CHOOSE_HOME) }
+                    TextButton(onClick = onApps, Modifier.fillMaxWidth()) { Text(Copy.GO_TO_APPS) }
+                    TextButton(onClick = onNeverAgain, Modifier.fillMaxWidth()) { Text(Copy.DONT_SHOW_AGAIN) }
+                }
+            } else {
+                Button(onClick = onApps) { Text(Copy.GO_TO_APPS) }
+            }
+        },
+        dismissButton = if (launcher) null else ({ TextButton(onClick = onNeverAgain) { Text(Copy.DONT_SHOW_AGAIN) } }),
+    )
+}
 
 internal fun debloatState(ui: DeviceUi): DebloatState {
     // History lives on this phone, so it only knows what this phone turned off.

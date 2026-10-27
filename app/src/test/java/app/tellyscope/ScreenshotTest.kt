@@ -71,6 +71,7 @@ import app.tellyscope.ui.AccessActions
 import app.tellyscope.ui.AdvancedScreen
 import app.tellyscope.ui.AppsTab
 import app.tellyscope.ui.ConnectScreen
+import app.tellyscope.ui.DebloatGate
 import app.tellyscope.ui.DebloatScreen
 import app.tellyscope.ui.DeviceActions
 import app.tellyscope.ui.DeviceTabsScreen
@@ -1063,6 +1064,10 @@ class ScreenshotTest {
     }
 
     @Test fun reboot() = shot("15_reboot", screen = true) { RebootDialog({}, {}) }
+
+    @Test fun debloatGate() = shot("95_debloat_gate", screen = true) { DebloatGate(launcher = true, {}, {}, {}, {}) }
+
+    @Test fun debloatGateApps() = shot("95_debloat_gate_apps", screen = true) { DebloatGate(launcher = false, {}, {}, {}, {}) }
 
     @Config(qualifiers = "w411dp-h2400dp-xxhdpi")
     @Test fun advanced() = shot("17_advanced") { AdvancedScreen(deviceState(), back = {}) }

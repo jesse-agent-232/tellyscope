@@ -85,6 +85,8 @@ data class DeviceActions(
     val installLauncher: () -> Unit = {},
     /** Not now on the Apps tab's card about a better home screen. */
     val hideLauncherCard: () -> Unit = {},
+    /** Don't show again on the Debloat gate: Debloat goes straight to Apps from then on. */
+    val debloatGateOff: () -> Unit = {},
     val undo: (HistoryEntry) -> Unit = {},
     val reconnect: () -> Unit = {},
     val forget: (String) -> Unit = {},

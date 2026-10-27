@@ -260,6 +260,14 @@ object Copy {
     const val SYSTEM = "System"
     const val SYSTEM_WHY = "Needed by the TV · can't be changed"
 
+    /** Debloat with nothing left on the list: what's done, what's next, then Apps. */
+    const val GATE_TITLE = "Everything on the list is off"
+    const val GATE_DONE = "All the apps the cleanyourtv list suggests for this TV are already off."
+    const val GATE_LAUNCHER = "To trim it further, switch to a minimal home screen. It replaces the TV's own, with its ads and suggestions."
+    const val GATE_APPS = "You can still choose, app by app, what to keep or turn off in Apps."
+    const val GO_TO_APPS = "Go to Apps"
+    const val DONT_SHOW_AGAIN = "Don't show again"
+
     /** Apps, while the TV's app list is being read. */
     const val READING_APPS = "Reading the TV's apps…"
     const val READING_APPS_LINE = "This takes a few seconds."
