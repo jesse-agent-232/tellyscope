@@ -12,6 +12,7 @@ until this file has a section for its version.
 
 ## Unreleased
 
+- **Improved:** ⋮ opens a sheet, with History on its own screen instead of in Tweaks. A dot on ⋮ marks a change you haven't looked at, and Advanced is now Advanced monitor.
 - **New:** A Home screen card in Tweaks switches launchers; only the TV's own turns off. [#186](../../pull/186)
 - **Fixed:** Undo in History turns off a new home screen's accessibility service, as promised. [#185](../../pull/185)
 - **Fixed:** Restore everything always ends on your TV's own home screen. [#184](../../pull/184)

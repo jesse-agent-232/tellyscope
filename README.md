@@ -33,24 +33,24 @@ Debloat your Android TV, install apps, and browse and transfer files on it, all 
     <td><img src="docs/screenshots/send.png" alt="Sending a video from the phone to the TV's Movies folder"></td>
     <td><img src="docs/screenshots/tweaks.png" alt="Tweaks: the Home screen card with Google TV Home as Current and Get another launcher, then ad-blocking Private DNS on, faster animations and clear caches"></td>
     <td><img src="docs/screenshots/home.png" alt="Make Projectivy Launcher the home screen: the confirm says Google TV Home, the TV's built-in launcher, is the only one ever turned off"></td>
-    <td><img src="docs/screenshots/advanced.png" alt="Advanced: CPU and RAM by app, the TV's network connection, and the apps' open connections"></td>
+    <td><img src="docs/screenshots/advanced.png" alt="Advanced monitor: CPU and RAM by app, the TV's network connection, and the apps' open connections"></td>
   </tr>
   <tr>
     <td align="center"><sub>Send files to the TV</sub></td>
     <td align="center"><sub>Block ads, tweak the TV, add a launcher</sub></td>
     <td align="center"><sub>Make a launcher Home</sub></td>
-    <td align="center"><sub>Advanced: what is using the CPU, RAM and network</sub></td>
+    <td align="center"><sub>Advanced monitor: what is using the CPU, RAM and network</sub></td>
   </tr>
 </table>
 
-<sub>Rendered from the app's screenshot tests with sample data. The Install dialog is drawn to match the app, and Advanced joins parts of its longer page.</sub>
+<sub>Rendered from the app's screenshot tests with sample data. The Install dialog is drawn to match the app, and Advanced monitor joins parts of its longer page.</sub>
 
 ## What it does
 
 Tellyscope talks to your Android TV, Google TV, NVIDIA Shield or Fire TV over Wi-Fi using ADB, the debugging protocol developers use. Shield and Fire TV haven't been tested on real hardware yet.
 
 - **Connect.** Finds TVs on your Wi-Fi, or add one by IP. Works with network debugging and with Android 11+ wireless debugging and its pairing code. TVs reconnect by themselves.
-- **See how it's doing.** Free space, CPU, RAM, temperature and network speed, plus what's paired or plugged in. **Advanced** has CPU and RAM by app, processes, network and data used.
+- **See how it's doing.** Free space, CPU, RAM, temperature and network speed, plus what's paired or plugged in. **Advanced monitor** has CPU and RAM by app, processes, network and data used.
 - **Debloat.** Matches your TV to one of 330+ tested lists (adapted from [cleanyourtv](https://github.com/Gathin23/cleanyourtv)) and shows every app it will turn off before it does. Untick anything you use. No list for your model? Pick from the maker's lists, or by hand.
 - **Apps.** See what's running and what's on the TV. Turn off apps you don't want, turn them back on any time, and uninstall the ones you added yourself.
 - **Install apps.** From an APK, split APKs or an `.apks`/`.xapk`/`.apkm` bundle on your phone. It says first whether it's new, an update or an older version.

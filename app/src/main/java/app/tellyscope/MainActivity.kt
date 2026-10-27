@@ -47,6 +47,7 @@ import app.tellyscope.data.Device
 import app.tellyscope.data.DeviceState
 import app.tellyscope.data.FakeDeviceSource
 import app.tellyscope.data.FoldBook
+import app.tellyscope.data.SeenBook
 import app.tellyscope.data.KeyHaptics
 import app.tellyscope.data.UpdateCheck
 import app.tellyscope.ui.AccessActions
@@ -58,6 +59,7 @@ import app.tellyscope.ui.DebloatScreen
 import app.tellyscope.ui.DeviceActions
 import app.tellyscope.ui.DeviceTabsScreen
 import app.tellyscope.ui.Done
+import app.tellyscope.ui.HistoryScreen
 import app.tellyscope.ui.LauncherActions
 import app.tellyscope.ui.LauncherScreen
 import app.tellyscope.ui.LocalNow
@@ -71,6 +73,7 @@ import app.tellyscope.ui.RowState
 import app.tellyscope.ui.ScanScreen
 import app.tellyscope.ui.SettingsScreen
 import app.tellyscope.ui.TellyscopeViewModel
+import app.tellyscope.ui.TvTab
 import app.tellyscope.ui.UpdateDialog
 import app.tellyscope.ui.WelcomeScreen
 import app.tellyscope.ui.brands
@@ -118,6 +121,7 @@ class MainActivity : ComponentActivity() {
                                         folds = FoldBook(File(filesDir, "folds.properties")),
                                         keyHaptics = KeyHaptics(File(filesDir, "remote.properties")),
                                         gates = FoldBook(File(filesDir, "gates.properties")),
+                                        historySeen = SeenBook(File(filesDir, "history-seen.properties")),
                                         appFacts = AppFacts(installedVersion(), "${Build.MANUFACTURER} ${Build.MODEL}, Android ${Build.VERSION.RELEASE}"),
                                     )
                                 }
@@ -189,6 +193,9 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
     var adding by rememberSaveable { mutableStateOf(false) }
     var remote by rememberSaveable { mutableStateOf(false) }
     var advanced by rememberSaveable { mutableStateOf(false) }
+    var history by rememberSaveable { mutableStateOf(false) }
+    // The TV's page comes back on the tab it was left on, from History or any screen its menu opens.
+    var tvTab by rememberSaveable { mutableStateOf(TvTab.Overview) }
     var debloat by rememberSaveable { mutableStateOf(false) }
     var settings by rememberSaveable { mutableStateOf(false) }
     var access by rememberSaveable { mutableStateOf(false) }
@@ -216,10 +223,10 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
     LoggedOutSnackbars(snackbar, { state.devices }, { state.selectedId }, onView = vm::select)
 
     // A newly connected TV becomes the selection; leave the add flow then, not on tap.
-    LaunchedEffect(state.selectedId) { adding = false; remote = false; advanced = false; debloat = false; settings = false; access = false; rejoinId = null }
+    LaunchedEffect(state.selectedId) { adding = false; remote = false; advanced = false; history = false; debloat = false; settings = false; access = false; rejoinId = null }
     // Logged out mid-screen: the page takes over, and the TV comes back on Overview once allowed again.
     val loggedOutAt = state.selected?.loggedOutAt
-    LaunchedEffect(loggedOutAt) { if (loggedOutAt != null) { remote = false; advanced = false; debloat = false; settings = false; access = false } }
+    LaunchedEffect(loggedOutAt) { if (loggedOutAt != null) { remote = false; advanced = false; history = false; debloat = false; settings = false; access = false } }
     // The Allow screen while the TV is asked; allowed lands on Overview, a Deny there is a plain refusal (its card).
     val rejoining = state.selected?.takeIf { it.id == rejoinId && it.state == DeviceState.Waiting }
     LaunchedEffect(state.selected?.state, loggedOutAt) {
@@ -301,6 +308,14 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
             onDispose { vm.showStats(StatsProfile.OTHER) }
         }
         AdvancedScreen(state, back = { advanced = false }, snackbar = snackbar)
+    } else if (history) {
+        BackHandler { history = false }
+        // Seen on the way in, and again on the way out for changes made here, so ⋮ has no dot for them.
+        DisposableEffect(Unit) {
+            vm.historyOpened()
+            onDispose { vm.historyOpened() }
+        }
+        HistoryScreen(state, onUndo = vm::undo, onRestoreAll = vm::restoreAll, back = { history = false }, snackbar = snackbar)
     } else if (access || state.device.removal != null) {
         // A removal started from the warning opens this screen too, and back steps out of it first.
         BackHandler { if (state.device.removal != null) vm.closeRemoval() else access = false }
@@ -350,6 +365,8 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
         DeviceTabsScreen(
             state = state,
             snackbar = snackbar,
+            startTab = tvTab,
+            onTab = { tvTab = it },
             actions = DeviceActions(
                 select = vm::select,
                 addDevice = { adding = true; vm.rescan() },
@@ -385,6 +402,7 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
                 remote = { remote = true },
                 debloat = { debloat = true },
                 advanced = { advanced = true },
+                history = { history = true },
                 checkUpdates = vm::checkUpdates,
                 setDns = vm::setDns,
                 setFastAnimations = vm::setFastAnimations,

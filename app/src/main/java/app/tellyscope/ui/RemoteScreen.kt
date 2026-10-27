@@ -518,19 +518,22 @@ private fun RemoteMenu(screenControl: Boolean, off: Boolean, live: Boolean, show
         ) {
             IconButton(onClick = { open = true }) { Icon(Icons.Default.MoreVert, contentDescription = "More options") }
         }
+        // One block, like the dock's menu and the TV menu's groups.
         DropdownMenu(open, onDismissRequest = { open = false }, shape = MaterialTheme.shapes.large) {
-            if (screenControl) DropdownMenuItem(
-                text = { Text(if (off) Copy.SCREEN_ON else Copy.SCREEN_OFF) },
-                leadingIcon = { Icon(RemoteIcons.TvOff, null) },
-                enabled = live,
-                onClick = { open = false; actions.screenOff(!off) },
-            )
-            DropdownMenuItem(
-                text = { Text(Copy.REMOTE_RESTART) },
-                leadingIcon = { Icon(RemoteIcons.RestartAlt, null) },
-                enabled = live,
-                onClick = { open = false; onRestart() },
-            )
+            MenuBlock {
+                if (screenControl) DropdownMenuItem(
+                    text = { Text(if (off) Copy.SCREEN_ON else Copy.SCREEN_OFF) },
+                    leadingIcon = { Icon(RemoteIcons.TvOff, null) },
+                    enabled = live,
+                    onClick = { open = false; actions.screenOff(!off) },
+                )
+                DropdownMenuItem(
+                    text = { Text(Copy.REMOTE_RESTART) },
+                    leadingIcon = { Icon(RemoteIcons.RestartAlt, null) },
+                    enabled = live,
+                    onClick = { open = false; onRestart() },
+                )
+            }
         }
     }
 }

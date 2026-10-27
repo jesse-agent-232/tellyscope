@@ -70,7 +70,7 @@ object Copy {
         // A setting's label is the whole sentence: "Private DNS set to …".
         Action.Change -> app
         Action.ClearCaches -> "Cleared $app"
-        Action.Home -> "Set $app as the default launcher"
+        Action.Home -> "Made $app Home"
         Action.HomeBack -> "Switched home back to $app"
     }
 
@@ -580,6 +580,15 @@ object Copy {
     const val REMOVE_ACCESS = "Remove all other access…"
     const val CONNECTED_NOW = "Connected now"
     const val WHO_HAS_ACCESS = "Who has access"
+
+    /** The TV menu's rows for the screens it opens. */
+    const val HISTORY = "History"
+    const val ADVANCED_MONITOR = "Advanced monitor"
+
+    /** Under History in the menu, and on top of the History screen: apps Restore everything turns back on. */
+    fun stillOff(n: Int) = if (n == 1) "1 app still off" else "$n apps still off"
+    fun stillOffTitle(n: Int) = if (n == 1) "1 app Tellyscope turned off is still off" else "$n apps Tellyscope turned off are still off"
+    const val STILL_OFF_TEXT = "Restore everything turns them back on. Apps that were off before Tellyscope's first change stay off."
     fun othersConnected(n: Int) = if (n == 1) "1 other connected now" else "$n others connected now"
     fun connections(n: Int) = if (n == 1) "1 connection" else "$n connections"
     fun connectedFrom(address: String, n: Int) = "From $address · ${connections(n)}"

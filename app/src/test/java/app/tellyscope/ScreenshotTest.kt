@@ -52,6 +52,7 @@ import app.tellyscope.data.DeviceState
 import app.tellyscope.data.FakeDeviceSource
 import app.tellyscope.data.HistoryEntry
 import app.tellyscope.data.TvSettings
+import app.tellyscope.data.TvAccess
 import app.tellyscope.data.TvTweaks
 import app.tellyscope.data.ListEntry
 import app.tellyscope.data.PickedApp
@@ -75,9 +76,11 @@ import app.tellyscope.ui.DebloatGate
 import app.tellyscope.ui.DebloatScreen
 import app.tellyscope.ui.DeviceActions
 import app.tellyscope.ui.DeviceTabsScreen
+import app.tellyscope.ui.RESTORING
 import app.tellyscope.ui.TvTab
 import app.tellyscope.data.LastKnown
 import app.tellyscope.ui.Copy
+import app.tellyscope.ui.HistoryScreen
 import app.tellyscope.ui.TweaksBlock
 import app.tellyscope.ui.DeviceUi
 import app.tellyscope.ui.DisableDialog
@@ -122,6 +125,7 @@ import java.nio.file.Files
 import kotlin.random.Random
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -378,16 +382,16 @@ class ScreenshotTest {
     @Test fun md3_tweaks_offline_dark() { shot("75_md3_tweaks_offline", dark = true) { DeviceTabsScreen(offlineMd3(), DeviceActions(), startTab = TvTab.Tweaks) } }
     @Config(qualifiers = "w411dp-h640dp-xxhdpi")
     @Test fun md3_tweaks_collapsed_dark() = collapsed("66_md3_tweaks_collapsed", true, "Connected", TvTab.Tweaks)
-    // "See changes" on Overview still lands on Tweaks at Recent changes, the end space notwithstanding.
-    @Test fun seeChangesLandsOnRecentChanges() {
+    // "See changes" on Overview opens History, and Tweaks no longer lists the changes.
+    @Test fun seeChangesOpensHistory() {
+        var opened = 0
         compose.mainClock.autoAdvance = false
-        compose.setContent { TellyscopeTheme(dynamic = false) { DeviceTabsScreen(md3State(), DeviceActions()) } }
+        compose.setContent { TellyscopeTheme(dynamic = false) { DeviceTabsScreen(md3State(), DeviceActions(history = { opened++ })) } }
         compose.mainClock.advanceTimeBy(1_000)
         compose.onNode(hasScrollAction()).performScrollToNode(hasText("See changes"))
         compose.onNodeWithText("See changes").performClick()
         compose.mainClock.advanceTimeBy(1_000)
-        compose.onNodeWithText("Recent changes").assertIsDisplayed()
-        compose.onAllNodesWithText("Connected").onFirst().assertExists() // folded into the bar
+        assertEquals(1, opened)
     }
     @Config(qualifiers = "w411dp-h640dp-xxhdpi")
     @Test fun md3_tweaks_collapsed() = collapsed("66_md3_tweaks_collapsed", false, "Connected", TvTab.Tweaks)
@@ -575,20 +579,21 @@ class ScreenshotTest {
         compose.mainClock.autoAdvance = false
         compose.setContent {
             TellyscopeTheme(dark = false, dynamic = false) {
-                DeviceTabsScreen(tabsState(), DeviceActions(advanced = { calls += "advanced" }, settings = { calls += "settings" }))
+                DeviceTabsScreen(tabsState(), DeviceActions(advanced = { calls += "advanced" }, settings = { calls += "settings" }, history = { calls += "history" }))
             }
         }
         compose.mainClock.advanceTimeBy(1_000)
         compose.onNodeWithContentDescription("More options").performClick()
         compose.mainClock.advanceTimeBy(1_000)
-        // Both blocks are there: this TV's items, then the app's. Rename, Forget and About open dialogs.
-        for (i in listOf("Rename this TV", "Forget this TV", "Advanced", "Settings", "About & licences")) compose.onNodeWithText(i).assertHasClickAction()
+        // Every group is there: this TV's items, the app's, then Forget. Rename, Forget and About open dialogs.
+        for (i in listOf("Rename this TV", Copy.HISTORY, Copy.ADVANCED_MONITOR, "Settings", "About & licences", "Forget this TV")) compose.onNodeWithText(i).assertHasClickAction()
         compose.onNodeWithText(item).performClick()
         compose.mainClock.advanceTimeBy(1_000)
         return calls
     }
 
-    @Test fun tabs_menuAdvancedOpensAdvanced() = assertEquals(listOf("advanced"), pickFromMenu("Advanced"))
+    @Test fun tabs_menuAdvancedOpensAdvanced() = assertEquals(listOf("advanced"), pickFromMenu(Copy.ADVANCED_MONITOR))
+    @Test fun tabs_menuHistoryOpensHistory() = assertEquals(listOf("history"), pickFromMenu(Copy.HISTORY))
     @Test fun tabs_menuSettingsOpensSettings() = assertEquals(listOf("settings"), pickFromMenu("Settings"))
 
     private fun settings(opened: MutableList<String> = mutableListOf()) = @Composable {
@@ -629,6 +634,37 @@ class ScreenshotTest {
         }
         shot("45_tabs_app_menu", dark, screen = true, before = open) { DeviceTabsScreen(tabsState(), DeviceActions()) }
     }
+
+    // Someone else connected: red on ⋮ and on Who has access, and History keeps its own dot.
+    private fun appMenuWarning(dark: Boolean) {
+        val other = TvAccess(listOf(app.tellyscope.data.AccessClient("192.0.2.47", 1, app.tellyscope.data.AccessClient.Who.Other)), emptyList())
+        val open = { compose.onNodeWithContentDescription("More options").performClick(); compose.mainClock.advanceTimeBy(1_000); Unit }
+        shot("45_tabs_app_menu_warning", dark, screen = true, before = open) { DeviceTabsScreen(tabsState().let { it.copy(device = it.device.copy(access = other)) }, DeviceActions()) }
+        compose.onNodeWithText(Copy.othersConnected(1)).assertExists()
+    }
+    @Test fun tabs_appMenuWarning() = appMenuWarning(false)
+    @Test fun tabs_appMenuWarning_dark() = appMenuWarning(true)
+
+    // ⋮'s dot is for a change newer than the last look at History, and goes once History has seen it.
+    @Test fun historyDotUntilSeen() {
+        val s = tabsState()
+        assertTrue(s.historyNew)
+        val newest = s.device.history.maxOf { it.at }
+        assertFalse(s.copy(historySeen = mapOf(s.selectedId!! to newest)).historyNew)
+        assertTrue(s.copy(historySeen = mapOf(s.selectedId!! to newest - 1)).historyNew)
+        assertFalse(s.copy(device = s.device.copy(history = emptyList())).historyNew)
+    }
+
+    private fun history(name: String, dark: Boolean, state: () -> UiState) = shot(name, dark) { HistoryScreen(state(), {}, {}, {}) }
+    @Test fun history_list() = history("46_history", false, ::tabsState)
+    @Test fun history_list_dark() = history("46_history", true, ::tabsState)
+    @Test fun history_restoring() = history("47_history_restoring", false) { tabsState().let { it.copy(device = it.device.copy(busy = RESTORING)) } }
+    @Test fun history_restoring_dark() = history("47_history_restoring", true) { tabsState().let { it.copy(device = it.device.copy(busy = RESTORING)) } }
+    @Test fun history_empty() {
+        history("48_history_empty", false) { deviceState() }
+        compose.onNodeWithText("Nothing changed yet").assertExists()
+    }
+    @Test fun history_empty_dark() = history("48_history_empty", true) { deviceState() }
 
     @Test fun device_overview() {
         shot("04_device") { DeviceTabsScreen(deviceState(), DeviceActions()) }
@@ -1353,7 +1389,7 @@ class ScreenshotTest {
         compose.onNodeWithText("Disable 4 apps?").assertExists()
     }
 
-    // Phone-sized, like every README shot: Recent changes (item 1 on Tweaks) scrolled to the top.
+    // Phone-sized, like every README shot: the History screen.
     @Test fun readme_history() {
         val history = listOf(
             HistoryEntry(4, xgimi.ip, now - 40_000, Action.Disable, "com.google.android.tvrecommendations", "TV Recommendations", Action.Enable, null),
@@ -1361,7 +1397,7 @@ class ScreenshotTest {
             HistoryEntry(2, xgimi.ip, now - 5 * 60_000, Action.Stop, "com.netflix.ninja", "Netflix", Action.Open, null),
             HistoryEntry(1, xgimi.ip, now - 2 * 3_600_000, Action.Stop, "com.google.android.youtube.tv", "YouTube", Action.Open, now - 3_500_000),
         )
-        shot("22_readme_history", before = { compose.onNode(hasScrollAction()).performScrollToIndex(1); Unit }) { DeviceTabsScreen(deviceState { copy(history = history) }, DeviceActions(), startTab = TvTab.Tweaks) }
+        shot("22_readme_history") { HistoryScreen(deviceState { copy(history = history) }, {}, {}, {}) }
         compose.onNodeWithText("Restore everything (2)").assertExists()
     }
     @Test fun readme_install() {

@@ -79,7 +79,7 @@ fun AdvancedScreen(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = { Text("Advanced") },
+                title = { Text(Copy.ADVANCED_MONITOR) },
                 navigationIcon = {
                     IconButton(onClick = back) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to the TV's page") }
                 },

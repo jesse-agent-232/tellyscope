@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
@@ -61,7 +60,6 @@ import app.tellyscope.data.AppInfo
 import app.tellyscope.data.AppNames
 import app.tellyscope.data.Device
 import app.tellyscope.data.DeviceState
-import app.tellyscope.data.HistoryBook
 import app.tellyscope.data.HistoryEntry
 import app.tellyscope.data.Proc
 import app.tellyscope.data.Snapshot
@@ -109,8 +107,10 @@ data class DeviceActions(
     val remote: () -> Unit = {},
     /** Opens the Debloat flow: pick the TV's list, then review the apps it turns off. */
     val debloat: () -> Unit = {},
-    /** Opens the Advanced screen: every number, per-app CPU and RAM, processes and network. */
+    /** Opens the Advanced monitor: every number, per-app CPU and RAM, processes and network. */
     val advanced: () -> Unit = {},
+    /** Opens History: every change on this TV with its Undo, and Restore everything. */
+    val history: () -> Unit = {},
     /** Opens the TV's own system update screen. */
     val checkUpdates: () -> Unit = {},
     /** Ad-blocking Private DNS through the given hostname; null goes back to Automatic. */
@@ -471,55 +471,3 @@ internal fun AppRow(
     }
 }
 
-@Composable
-internal fun HistoryList(
-    history: List<HistoryEntry>,
-    now: Long,
-    onUndo: (HistoryEntry) -> Unit,
-    restoring: Boolean = false,
-    onRestoreAll: () -> Unit = {},
-    /** Something is running on this TV, a restore included: Undo and Restore wait for it. */
-    busy: Boolean = restoring,
-) {
-    var confirming by rememberSaveable { mutableStateOf(false) }
-    val off = HistoryBook.leftDisabled(history).size
-    if (confirming) RestoreDialog(off, onRestore = { confirming = false; onRestoreAll() }, onDismiss = { confirming = false })
-    var disabling by remember { mutableStateOf<HistoryEntry?>(null) }
-    disabling?.let { h ->
-        UndoDisableDialog(h, onDisable = { disabling = null; onUndo(h) }, onDismiss = { disabling = null })
-    }
-    if (off > 0) {
-        OutlinedButton(onClick = { confirming = true }, enabled = !busy) {
-            Text(if (restoring) "Turning apps back on…" else "Restore everything ($off)")
-        }
-    }
-    if (history.isEmpty()) {
-        Text(
-            "Nothing changed yet. Anything you stop, disable or turn on shows up here, with a way to undo it.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        return
-    }
-    history.forEach { h ->
-        Row(Modifier.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(Copy.done(h.action, h.label), style = MaterialTheme.typography.bodyMedium)
-                Text(Copy.ago(h.at, now), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            when {
-                // Same button as Undo, switched off: the row keeps its shape and reads as done.
-                h.undoneAt != null -> TextButton(
-                    onClick = {},
-                    enabled = false,
-                    colors = ButtonDefaults.textButtonColors(disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant),
-                ) {
-                    Icon(Icons.Default.Check, contentDescription = null, Modifier.size(18.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text("Undone")
-                }
-                h.undo != null -> TextButton(onClick = { if (h.undo == Action.Disable) disabling = h else onUndo(h) }, enabled = !busy) { Text(Copy.undo(h.undo)) }
-            }
-        }
-    }
-}

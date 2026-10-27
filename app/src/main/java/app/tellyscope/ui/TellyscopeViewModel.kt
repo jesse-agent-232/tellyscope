@@ -48,6 +48,7 @@ import app.tellyscope.data.TvSettings
 import app.tellyscope.data.TvTweaks
 import app.tellyscope.data.Update
 import app.tellyscope.data.FoldBook
+import app.tellyscope.data.SeenBook
 import app.tellyscope.data.UpdateCheck
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -229,7 +230,11 @@ data class UiState(
     val foldedSystem: Set<AppsTab> = emptySet(),
     /** The report screen; null when it's closed. */
     val report: ReportUi? = null,
+    /** When each TV's History was last opened, by id. */
+    val historySeen: Map<String, Long> = emptyMap(),
 ) {
+    /** The selected TV has a change since its History was last opened: ⋮ shows a dot. */
+    val historyNew: Boolean get() = selectedId?.let { id -> device.history.any { it.at > (historySeen[id] ?: 0L) } } == true
     val selected: Device? get() = devices.firstOrNull { it.id == selectedId }
 }
 
@@ -301,6 +306,7 @@ class TellyscopeViewModel(
     private val keyHaptics: KeyHaptics? = null,
     /** App-wide prompts the user turned off: [DEBLOAT_GATE]. */
     private val gates: FoldBook? = null,
+    private val historySeen: SeenBook? = null,
     /** This build and phone, for reports. */
     private val appFacts: AppFacts = AppFacts("unknown", "unknown phone"),
 ) : ViewModel() {
@@ -378,6 +384,9 @@ class TellyscopeViewModel(
         }
         gates?.let { g ->
             viewModelScope.launch(Dispatchers.IO) { _state.update { it.copy(debloatGate = DEBLOAT_GATE !in g.folded()) } }
+        }
+        historySeen?.let { h ->
+            viewModelScope.launch(Dispatchers.IO) { _state.update { it.copy(historySeen = h.seen()) } }
         }
         folds?.let { f ->
             viewModelScope.launch(Dispatchers.IO) {
@@ -1532,6 +1541,16 @@ class TellyscopeViewModel(
     fun debloatGateOff() {
         _state.update { it.copy(debloatGate = false) }
         viewModelScope.launch(Dispatchers.IO) { gates?.set(DEBLOAT_GATE, true) }
+    }
+
+    /** History opened: its newest change is seen, so ⋮ loses its dot until the next one. */
+    fun historyOpened() {
+        val s = _state.value
+        val id = s.selectedId ?: return
+        val at = s.device.history.maxOfOrNull { it.at } ?: return
+        if (at <= (s.historySeen[id] ?: 0L)) return
+        _state.update { it.copy(historySeen = it.historySeen + (id to at)) }
+        viewModelScope.launch(Dispatchers.IO) { historySeen?.set(id, at) }
     }
 
     fun screenOffTipSeen() {
