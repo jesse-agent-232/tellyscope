@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -106,7 +107,7 @@ private fun DnsDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
                 )
             }
         },
-        confirmButton = { TextButton(onClick = { onConfirm(host.trim()) }, enabled = valid) { Text(Copy.DNS_CONFIRM) } },
+        confirmButton = { Button(onClick = { onConfirm(host.trim()) }, enabled = valid) { Text(Copy.DNS_CONFIRM) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
 }

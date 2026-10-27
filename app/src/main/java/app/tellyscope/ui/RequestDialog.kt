@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -40,6 +42,7 @@ fun RequestDialog(
     var always by rememberSaveable(request.fingerprint) { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = { if (!busy) dismiss() },
+        icon = { Icon(AccessIcons.Shield, contentDescription = null) },
         title = { Text(Copy.REQUEST_TITLE) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -61,7 +64,7 @@ fun RequestDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { answer(true, always && request.canAlwaysAllow) }, enabled = !busy) { Text(Copy.REQUEST_ALLOW) }
+            Button(onClick = { answer(true, always && request.canAlwaysAllow) }, enabled = !busy) { Text(Copy.REQUEST_ALLOW) }
         },
         dismissButton = { TextButton(onClick = { answer(false, false) }, enabled = !busy) { Text(Copy.REQUEST_DENY) } },
     )

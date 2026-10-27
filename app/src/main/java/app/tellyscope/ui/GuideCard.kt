@@ -187,7 +187,7 @@ fun HelpDialog(brand: TvBrand, onAddByIp: () -> Unit, onDismiss: () -> Unit) {
                 tips.forEach { Text(it, style = MaterialTheme.typography.bodyMedium) }
             }
         },
-        confirmButton = { TextButton(onClick = { onDismiss(); onAddByIp() }) { Text("Add by IP address") } },
+        confirmButton = { Button(onClick = { onDismiss(); onAddByIp() }) { Text("Add by IP address") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } },
     )
 }

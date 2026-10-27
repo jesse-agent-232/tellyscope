@@ -238,10 +238,17 @@ private fun SourceDialog(source: String?, onSave: (String?) -> Unit, onDismiss: 
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 OutlinedTextField(url, { url = it }, placeholder = { Text("https://…") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                if (source != null) TextButton(onClick = { onSave(null) }) { Text("Reset to default") }
             }
         },
-        confirmButton = { Button(onClick = { onSave(url) }, enabled = url.isNotBlank()) { Text("Use these lists") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        // Three actions stack full width; two sit side by side.
+        confirmButton = {
+            val use = @Composable { m: Modifier -> Button(onClick = { onSave(url) }, enabled = url.isNotBlank(), modifier = m) { Text("Use these lists") } }
+            if (source == null) use(Modifier) else Column(Modifier.fillMaxWidth()) {
+                use(Modifier.fillMaxWidth())
+                TextButton(onClick = { onSave(null) }, Modifier.fillMaxWidth()) { Text("Reset to default") }
+                TextButton(onClick = onDismiss, Modifier.fillMaxWidth()) { Text("Cancel") }
+            }
+        },
+        dismissButton = if (source == null) ({ TextButton(onClick = onDismiss) { Text("Cancel") } }) else null,
     )
 }

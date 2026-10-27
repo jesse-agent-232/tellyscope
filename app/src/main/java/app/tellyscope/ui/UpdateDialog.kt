@@ -3,7 +3,7 @@
 package app.tellyscope.ui
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -33,11 +33,12 @@ fun UpdateDialog(update: Update, onGet: () -> Unit, onLater: () -> Unit, onSkip:
                 Text(boldSpans(dialogNotes(update.notes).ifEmpty { "No release notes." }), style = MaterialTheme.typography.bodyMedium)
             }
         },
-        confirmButton = { Button(onClick = onGet) { Text("Get it") } },
-        dismissButton = {
-            Row {
-                TextButton(onClick = onSkip) { Text("Skip this version") }
-                TextButton(onClick = onLater) { Text("Later") }
+        // Three actions stack full width.
+        confirmButton = {
+            Column(Modifier.fillMaxWidth()) {
+                Button(onClick = onGet, Modifier.fillMaxWidth()) { Text("Get it") }
+                TextButton(onClick = onSkip, Modifier.fillMaxWidth()) { Text("Skip this version") }
+                TextButton(onClick = onLater, Modifier.fillMaxWidth()) { Text("Later") }
             }
         },
     )

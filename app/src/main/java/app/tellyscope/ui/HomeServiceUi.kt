@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
@@ -47,7 +48,7 @@ fun ServiceDialog(app: String, other: String, onTurnOn: () -> Unit, dismissLabel
         icon = { Icon(DeviceIcons.Accessibility, contentDescription = null) },
         title = { Text(Copy.serviceTitle(app)) },
         text = { Text(Copy.explainService(app, other)) },
-        confirmButton = { TextButton(onClick = onTurnOn) { Text(Copy.TURN_IT_ON) } },
+        confirmButton = { Button(onClick = onTurnOn) { Text(Copy.TURN_IT_ON) } },
         dismissButton = { TextButton(onClick = onOther) { Text(dismissLabel) } },
     )
 }

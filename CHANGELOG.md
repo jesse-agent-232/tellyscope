@@ -10,6 +10,10 @@ Changes merged into `dev` collect under `## Unreleased`. A release renames
 that heading to its version and date. A pull request into `main` fails CI
 until this file has a section for its version.
 
+## Unreleased
+
+- **Improved:** Every dialog uses one style, with the main action filled.
+
 ## 0.10.1 — 2026-10-27
 
 - **Improved:** Apps shows it's loading while the TV's app list is read. [#176](../../pull/176)

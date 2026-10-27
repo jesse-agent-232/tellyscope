@@ -410,7 +410,6 @@ private fun Keyboard(enabled: Boolean, type: (String) -> String?, press: suspend
 fun RebootDialog(onRestart: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        icon = { Icon(RemoteIcons.RestartAlt, contentDescription = null) },
         title = { Text(Copy.REBOOT_TITLE) },
         text = { Text(Copy.REBOOT_TEXT) },
         confirmButton = { Button(onClick = onRestart) { Text("Restart") } },

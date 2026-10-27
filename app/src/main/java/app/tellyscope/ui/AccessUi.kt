@@ -350,7 +350,7 @@ private fun ConfirmRemoval(actions: AccessActions) {
                 Text(Copy.CONFIRM_REMOTE)
             }
         },
-        confirmButton = { TextButton(onClick = actions.remove, colors = ButtonDefaults.textButtonColors(contentColor = c.error)) { Text(Copy.CONFIRM_BUTTON) } },
+        confirmButton = { Button(onClick = actions.remove, colors = ButtonDefaults.buttonColors(containerColor = c.error, contentColor = c.onError)) { Text(Copy.CONFIRM_BUTTON) } },
         dismissButton = { TextButton(onClick = actions.close) { Text(Copy.CANCEL) } },
     )
 }
