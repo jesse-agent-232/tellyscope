@@ -10,6 +10,10 @@ Changes merged into `dev` collect under `## Unreleased`. A release renames
 that heading to its version and date. A pull request into `main` fails CI
 until this file has a section for its version.
 
+## Unreleased
+
+- **Improved:** Tellyscope stops polling your TV while it's in the background. [#172](../../pull/172)
+
 ## 0.10.0 — 2026-10-26
 
 - **New:** Pick a better home screen, install it from the Play Store and switch to it. [#152](../../pull/152)
