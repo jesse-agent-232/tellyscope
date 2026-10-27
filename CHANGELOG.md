@@ -12,7 +12,7 @@ until this file has a section for its version.
 
 ## Unreleased
 
-- **Fixed:** A stopped or turned-off app leaves Running right away, not seconds later. [#PR](../../pull/PR)
+- **Fixed:** A stopped or turned-off app leaves Running right away, not seconds later. [#202](../../pull/202)
 
 ## 0.11.2 — 2026-10-28
 
