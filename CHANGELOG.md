@@ -12,22 +12,21 @@ until this file has a section for its version.
 
 ## Unreleased
 
-- **New:** Debloat shows each app as it turns off, then what worked and what didn't. [#214](../../pull/214)
-- **Fixed:** Tapping a dock app on the Remote vibrates, like the keys do. [#213](../../pull/213)
-
 ## 0.12.0 — 2026-10-28
 
 - **New:** Reset TV, in ⋮: turn your TV back to how it shipped, with one Undo. [#192](../../pull/192)
   - Turns preinstalled apps back on and brings back uninstalled ones; apps the maker shipped off stay off.
   - Makes the TV's own launcher Home again; launchers you installed stay installed.
-- **Fixed:** Reset TV's buttons sit above the navigation bar, not under it. [#207](../../pull/207)
+- **New:** Debloat shows each app as it turns off, then what worked and what didn't. [#214](../../pull/214)
 - **Improved:** The Remote opens as a sheet over your TV and never scrolls. [#198](../../pull/198)
   - Screen off and Restart TV sit beside the handle; the header shows the TV's state.
   - Dock apps get equal, well-spaced slots, so a tap can't hit the wrong app.
   - On short phones, mute and volume move beside the D-pad; while typing, the D-pad shrinks to fit.
+- **Fixed:** Reset TV's buttons sit above the navigation bar, not under it. [#207](../../pull/207)
 - **Fixed:** Turning on an app the TV switched off says why, not a raw error. [#205](../../pull/205)
 - **Fixed:** Make home and Reset TV go straight to the new home screen. [#208](../../pull/208)
 - **Fixed:** After Reset TV, Debloat counts and lists the apps it turned back on. [#209](../../pull/209)
+- **Fixed:** Tapping a dock app on the Remote vibrates, like the keys do. [#213](../../pull/213)
 
 ## 0.11.3 — 2026-10-28
 
