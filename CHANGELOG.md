@@ -12,7 +12,7 @@ until this file has a section for its version.
 
 ## Unreleased
 
-- **Improved:** Debloat says when the list is all done, and what to try next.
+- **Improved:** Debloat says when the list is all done, and what to try next. [#181](../../pull/181)
 - **Improved:** Every dialog uses one style, with the main action filled. [#180](../../pull/180)
 
 ## 0.10.1 — 2026-10-27
