@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Badge
@@ -93,6 +94,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathParser
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.SpanStyle
@@ -461,6 +463,7 @@ private fun AppMenu(state: UiState, actions: DeviceActions) {
     if (forgetting) ForgetDialog(name(device), onForget = { forgetting = false; actions.forget(device.id) }, onDismiss = { forgetting = false })
     if (renaming) RenameDialog(device.nickname.orEmpty(), device.model ?: networkName(device), onSave = { renaming = false; actions.rename(device.id, it) }, onDismiss = { renaming = false })
     val c = MaterialTheme.colorScheme
+    val context = LocalContext.current
     val others = state.device.access?.others.orEmpty().size
     val fresh = state.historyNew
     IconButton(onClick = { open = true }) {
@@ -500,6 +503,7 @@ private fun AppMenu(state: UiState, actions: DeviceActions) {
             Text("Tellyscope", style = MaterialTheme.typography.labelLarge, color = c.onSurfaceVariant, modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp))
             SheetGroup(
                 { MenuRow(Icons.Default.Settings, "Settings") { pick(actions.settings) } },
+                { MenuRow(Icons.Default.Share, Copy.SHARE) { pick { shareTellyscope(context) } } },
                 { MenuRow(Icons.Default.Info, "About & licences") { pick { about = true } } },
             )
             Spacer(Modifier.height(16.dp))

@@ -585,6 +585,9 @@ object Copy {
     const val HISTORY = "History"
     const val ADVANCED_MONITOR = "Advanced monitor"
 
+    /** In the TV menu and in Settings: opens Android's share sheet with the repo link. */
+    const val SHARE = "Share Tellyscope"
+
     /** Under History in the menu, and on top of the History screen: apps Restore everything turns back on. */
     fun stillOff(n: Int) = if (n == 1) "1 app still off" else "$n apps still off"
     fun stillOffTitle(n: Int) = if (n == 1) "1 app Tellyscope turned off is still off" else "$n apps Tellyscope turned off are still off"

@@ -3,6 +3,8 @@
 
 package app.tellyscope.ui
 
+import android.content.Context
+import android.content.Intent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -21,6 +23,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -52,6 +55,7 @@ import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathParser
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -64,8 +68,17 @@ internal const val CLEANYOURTV = "https://github.com/Gathin23/cleanyourtv"
 /** CONTRIBUTING's guide to pointing the app at your own lists. */
 internal val OWN_LISTS_GUIDE = RELEASES.removeSuffix("/releases") + "/blob/main/CONTRIBUTING.md#using-your-own-lists"
 
+/** What Share Tellyscope sends: what it is, then the repo, whose page shows it and how to install. */
+internal val SHARE_TEXT = "Tellyscope: debloat and control your Android TV from your phone. Free, open source, no tracking. $REPO"
+
+/** Android's share sheet with [SHARE_TEXT], so any app the user picks can send it on. */
+internal fun shareTellyscope(context: Context) {
+    val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, SHARE_TEXT)
+    runCatching { context.startActivity(Intent.createChooser(send, null)) }
+}
+
 /**
- * App-wide choices, not tied to one TV: update checks and Report a problem first, then a folded
+ * App-wide choices, not tied to one TV: update checks, Report a problem and Share Tellyscope first, then a folded
  * Advanced with where the debloat lists come from and how to use your own.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -88,6 +101,7 @@ fun SettingsScreen(
     var editing by rememberSaveable { mutableStateOf(false) }
     var advanced by rememberSaveable { mutableStateOf(false) }
     val browser = LocalUriHandler.current
+    val context = LocalContext.current
     val open = { url: String -> runCatching { browser.openUri(url) }; Unit }
     if (editing) SourceDialog(listSource, onSave = { editing = false; onListSource(it) }, onDismiss = { editing = false })
     Scaffold(
@@ -146,6 +160,17 @@ fun SettingsScreen(
                         Column(Modifier.weight(1f)) {
                             Text("Report a problem", style = MaterialTheme.typography.titleSmall)
                             Text("Opens an issue on Tellyscope\u2019s GitHub. You see the text first.", style = MaterialTheme.typography.bodyMedium)
+                        }
+                        Spacer(Modifier.width(16.dp))
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.surface)
+                    Row(Modifier.fillMaxWidth().clickable { shareTellyscope(context) }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Share, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(Modifier.width(16.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(Copy.SHARE, style = MaterialTheme.typography.titleSmall)
+                            Text("Send someone the link to Tellyscope\u2019s GitHub page.", style = MaterialTheme.typography.bodyMedium)
                         }
                         Spacer(Modifier.width(16.dp))
                         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)

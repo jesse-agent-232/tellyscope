@@ -12,6 +12,8 @@ until this file has a section for its version.
 
 ## Unreleased
 
+- **New:** Share Tellyscope, in ⋮ and in Settings, sends a friend the GitHub link.
+
 ## 0.11.0 — 2026-10-27
 
 - **New:** A Home screen card in Tweaks: pick your TV's home screen in one place. [#186](../../pull/186)

@@ -2,6 +2,7 @@
 
 package app.tellyscope
 
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
@@ -106,6 +107,7 @@ import app.tellyscope.ui.ReportKind
 import app.tellyscope.ui.ReportScreen
 import app.tellyscope.ui.ReportUi
 import app.tellyscope.ui.SettingsScreen
+import app.tellyscope.ui.SHARE_TEXT
 import app.tellyscope.data.RELEASES
 import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.platform.LocalUriHandler
@@ -131,6 +133,8 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
@@ -586,7 +590,7 @@ class ScreenshotTest {
         compose.onNodeWithContentDescription("More options").performClick()
         compose.mainClock.advanceTimeBy(1_000)
         // Every group is there: this TV's items, the app's, then Forget. Rename, Forget and About open dialogs.
-        for (i in listOf("Rename this TV", Copy.HISTORY, Copy.ADVANCED_MONITOR, "Settings", "About & licences", "Forget this TV")) compose.onNodeWithText(i).assertHasClickAction()
+        for (i in listOf("Rename this TV", Copy.HISTORY, Copy.ADVANCED_MONITOR, "Settings", Copy.SHARE, "About & licences", "Forget this TV")) compose.onNodeWithText(i).assertHasClickAction()
         compose.onNodeWithText(item).performClick()
         compose.mainClock.advanceTimeBy(1_000)
         return calls
@@ -595,6 +599,21 @@ class ScreenshotTest {
     @Test fun tabs_menuAdvancedOpensAdvanced() = assertEquals(listOf("advanced"), pickFromMenu(Copy.ADVANCED_MONITOR))
     @Test fun tabs_menuHistoryOpensHistory() = assertEquals(listOf("history"), pickFromMenu(Copy.HISTORY))
     @Test fun tabs_menuSettingsOpensSettings() = assertEquals(listOf("settings"), pickFromMenu("Settings"))
+    @Test fun tabs_menuShareOpensShareSheet() {
+        assertEquals(emptyList<String>(), pickFromMenu(Copy.SHARE))
+        assertSharedTellyscope()
+    }
+
+    /** The last activity started is Android's share sheet around a plain-text send of [SHARE_TEXT]. */
+    private fun assertSharedTellyscope() {
+        val chooser = shadowOf(RuntimeEnvironment.getApplication()).nextStartedActivity
+        assertEquals(Intent.ACTION_CHOOSER, chooser.action)
+        @Suppress("DEPRECATION") val send = chooser.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)!!
+        assertEquals(Intent.ACTION_SEND, send.action)
+        assertEquals("text/plain", send.type)
+        assertEquals(SHARE_TEXT, send.getStringExtra(Intent.EXTRA_TEXT))
+        assertTrue(SHARE_TEXT.endsWith(RELEASES.removeSuffix("/releases")))
+    }
 
     private fun settings(opened: MutableList<String> = mutableListOf()) = @Composable {
         val links = object : UriHandler { override fun openUri(uri: String) { opened += uri } }
@@ -619,6 +638,12 @@ class ScreenshotTest {
         assertTrue(opened[1].startsWith("https://github.com/") && opened[1].contains("/tellyscope/blob/main/CONTRIBUTING.md"))
         // It opens the existing source dialog, unchanged.
         compose.onNodeWithText("Use your own debloat lists").assertHasClickAction()
+    }
+
+    @Test fun settings_shareOpensShareSheet() {
+        compose.setContent { TellyscopeTheme(dark = false, dynamic = false) { settings()() } }
+        compose.onNodeWithText(Copy.SHARE).performClick()
+        assertSharedTellyscope()
     }
 
     @Test fun settings_dark() = shot("81_settings", dark = true) { settings()() }
