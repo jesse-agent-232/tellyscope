@@ -13,6 +13,7 @@ until this file has a section for its version.
 ## Unreleased
 
 - **Fixed:** An unpaired TV on wireless debugging asks for the pairing code, not "didn't answer". [#200](../../pull/200)
+- **Improved:** The Share message now says what Tellyscope does, in a friendlier voice. [#197](../../pull/197)
 
 ## 0.11.1 — 2026-10-27
 

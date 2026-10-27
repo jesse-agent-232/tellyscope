@@ -69,7 +69,7 @@ internal const val CLEANYOURTV = "https://github.com/Gathin23/cleanyourtv"
 internal val OWN_LISTS_GUIDE = RELEASES.removeSuffix("/releases") + "/blob/main/CONTRIBUTING.md#using-your-own-lists"
 
 /** What Share Tellyscope sends: what it is, then the repo, whose page shows it and how to install. */
-internal val SHARE_TEXT = "Tellyscope: debloat and control your Android TV from your phone. Free, open source, no tracking. $REPO"
+internal val SHARE_TEXT = "I just found Tellyscope, an open-source app that cleans up your Android TV from your phone: turn off the bloat, install apps and send files, with no root and no PC. Free, no tracking. $REPO"
 
 /** Android's share sheet with [SHARE_TEXT], so any app the user picks can send it on. */
 internal fun shareTellyscope(context: Context) {
