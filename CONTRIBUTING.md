@@ -28,9 +28,12 @@ The per-TV lists behind **Debloat** and the Overview's list card live in the [te
 
 You don't have to trust ours. Fork tellyscope-devices, edit the lists in your fork, and keep `index.json` on schema 1 with each file's sha256 updated. Then in the app open **Settings** (in the ⋮ menu at the top right), open **Advanced** at the bottom, tap **Use your own debloat lists**, and paste the raw address of the folder that holds `index.json`, for example `https://raw.githubusercontent.com/<you>/tellyscope-devices/main/`. Only HTTPS is accepted, and a source that doesn't serve a schema 1 index is refused without changing anything. Switching drops the cached lists. While your source is in use, the review step says where the list came from. The built-in protected list still wins over any list, and **Reset to default** goes back to tellyscope-devices.
 
-## Launchers
+## Bundled lists
 
-[`app/src/main/assets/launchers.json`](app/src/main/assets/launchers.json) lists the third-party launchers Tellyscope knows. Set `"accessibility": true` only for a launcher that keeps Home with its own accessibility service: Make Home offers to turn that service on, and an accessibility service can read the screen. Check the APK's manifest for a service with `BIND_ACCESSIBILITY_SERVICE`, and put the version you checked in `"checked"`. The list ships with the app and is never fetched, so a custom list source can't add to it.
+The lists the app ships with live in [`app/src/main/resources/lists/`](app/src/main/resources/lists/). Change one with a pull request, and the change reaches people with the next release. They are never fetched, so a custom debloat list source can't add to them. Each file is JSON on `"schema": 1`, and `LaunchersTest` checks that every entry reads.
+
+- [`launchers.json`](app/src/main/resources/lists/launchers.json) lists the third-party launchers Tellyscope knows. Set `"accessibility": true` only for a launcher that keeps Home with its own accessibility service: Make Home offers to turn that service on, and an accessibility service can read the screen. Check the APK's manifest for a service with `BIND_ACCESSIBILITY_SERVICE`, and put the version you checked in `"checked"`. A launcher with an `"about"` line is offered in **Install a home screen**, in the file's order; keep that line short and plain.
+- [`labels.json`](app/src/main/resources/lists/labels.json) holds the names shown for common TV apps when the TV can't tell us (old Android, or a maker that blocks it). Add a package to the right group with the name its own APK shows.
 
 ## README screenshots
 

@@ -15,7 +15,13 @@ import org.junit.Assert.assertSame
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
+/** The fallback names come from the bundled `labels.json`, read with Android's org.json: Robolectric. */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35])
 class AppNamesTest {
     @get:Rule val tmp = TemporaryFolder()
 

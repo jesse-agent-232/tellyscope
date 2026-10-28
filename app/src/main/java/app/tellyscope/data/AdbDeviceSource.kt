@@ -85,9 +85,8 @@ class AdbDeviceSource(context: Context) : DeviceSource {
     @Volatile private var paused = false
     private val hits = ConcurrentHashMap<String, ScanHit>()
     private val store = DeviceStore(File(appContext.filesDir, "devices.tsv"))
-    private val launchers by lazy { parseLaunchers(appContext.assets.open("launchers.json").bufferedReader().use { it.readText() }) }
     /** Launchers whose accessibility service a switch may turn on: only those `launchers.json` names. */
-    private val serviceLaunchers by lazy { launchers.filter { it.accessibility }.map { it.pkg }.toSet() }
+    private val serviceLaunchers by lazy { BundledLists.launchers.filter { it.accessibility }.map { it.pkg }.toSet() }
     private val saved = ConcurrentHashMap<String, SavedDevice>()
     /** Remembered TVs that haven't answered since launch: shown offline, not "connecting". */
     private val restoring = ConcurrentHashMap.newKeySet<String>()
@@ -421,7 +420,7 @@ class AdbDeviceSource(context: Context) : DeviceSource {
                 icon = name.icon,
                 removable = p.name in userInstalled,
                 home = p.name == homeOptions?.takeIf { it.default }?.current,
-                listedLauncher = launchers.any { it.pkg == p.name },
+                listedLauncher = BundledLists.launchers.any { it.pkg == p.name },
                 homeInstead = homeOptions?.takeIf { p.name in it.others }?.current,
                 homeFirst = homeOptions?.takeIf { it.current == null && p.name in it.others } != null,
                 answersHome = homeOptions?.let { p.name == it.current || p.name in it.others } == true,
@@ -629,7 +628,7 @@ class AdbDeviceSource(context: Context) : DeviceSource {
 
     override suspend fun openStore(deviceId: String, packageName: String): Boolean {
         // Only a launcher the bundled list names: the Store link is the one thing this opens.
-        if (launchers.none { it.pkg == packageName }) return false
+        if (BundledLists.launchers.none { it.pkg == packageName }) return false
         return Actions(session(deviceId)).openStore(packageName)
     }
 

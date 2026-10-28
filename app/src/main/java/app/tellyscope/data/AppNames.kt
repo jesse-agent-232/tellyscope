@@ -20,10 +20,10 @@ class AppName(val label: String, val icon: ByteArray?, val tileColor: Long? = nu
 /**
  * Real app names and icons per TV. The TV's own labels come from `describe` (the label helper) and
  * are cached in [dir], one file per TV, so the helper only runs again for new or updated apps. When
- * the helper can't run, [KnownLabels] and then a humanised package id stand in, with no icon, and
- * that TV isn't asked again until the app restarts. Each TV's file is read once per launch, off the
- * main thread, and kept: every list after that gets the same icon arrays, so the screen doesn't
- * decode them again.
+ * the helper can't run, the bundled `labels.json` ([BundledLists.labels]) and then a humanised
+ * package id stand in, with no icon, and that TV isn't asked again until the app restarts. Each
+ * TV's file is read once per launch, off the main thread, and kept: every list after that gets the
+ * same icon arrays, so the screen doesn't decode them again.
  */
 class AppNames(private val dir: File) {
     /** One helper run at a time; a second caller then finds the first one's results cached. */
@@ -81,7 +81,7 @@ class AppNames(private val dir: File) {
          * Bundled table first, then a humanised id that keeps the maker: `com.xgimi.assistant` →
          * "XGIMI Assistant", `com.google.android.youtube.tv` → "Youtube".
          */
-        fun fallback(pkg: String): String = KnownLabels[pkg] ?: humanise(pkg)
+        fun fallback(pkg: String): String = BundledLists.labels[pkg] ?: humanise(pkg)
 
         /** What native daemons and system uids are listed as, in place of an app name. */
         const val SYSTEM = "Android system"
