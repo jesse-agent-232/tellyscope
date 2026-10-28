@@ -101,7 +101,7 @@ object SharedLists {
     }
 
     /** A logo's PNG, at four times its size in dp; null until it can be had. */
-    suspend fun logo(name: String): ByteArray? = source?.logo(name) ?: resource("/lists/logos/$name.png")
+    suspend fun logo(name: String): ByteArray? = source?.logo(name)
 
     private fun apply(f: SharedFiles) {
         _state.update { now ->

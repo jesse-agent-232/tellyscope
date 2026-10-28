@@ -8,7 +8,6 @@ import app.tellyscope.data.RemoteButtons
 import app.tellyscope.data.SharedLists
 import app.tellyscope.data.StreamingService
 import app.tellyscope.data.parseStreaming
-import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -18,7 +17,6 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.File
-import javax.imageio.ImageIO
 
 /** org.json is Android's, so this runs under Robolectric. */
 @RunWith(RobolectricTestRunner::class)
@@ -26,20 +24,13 @@ import javax.imageio.ImageIO
 class StreamingTest {
     private val services = SharedLists.streaming
 
-    /** Wholphin's logo is GPL-2.0 only, so this copy leaves it out and its button shows the name. */
-    @Test fun theListReadsWholeAndEveryLogoFits() {
+    @Test fun theListReadsWhole() {
         val text = File("src/test/resources/lists/streaming.json").readText()
         val parsed = parseStreaming(text)
         assertEquals(Regex("\"packages\"").findAll(text).count(), parsed.size) // nothing dropped
         assertEquals(parsed.size, parsed.map { it.name }.toSet().size)
         val pkgs = parsed.flatMap { it.packages }
         assertEquals(pkgs.size, pkgs.toSet().size) // no package belongs to two services
-        assertNull(runBlocking { SharedLists.logo("wholphin") })
-        parsed.filter { it.logo != "wholphin" }.forEach { s ->
-            val png = ImageIO.read(checkNotNull(runBlocking { SharedLists.logo(s.logo) }) { "lists/logos/${s.logo}.png is missing" }.inputStream())
-            // Four times the size in dp, and it has to fit the smallest pill, 80 x 40 dp.
-            assertTrue("${s.logo} is ${png.width}x${png.height}", png.width <= 72 * 4 && png.height <= 30 * 4)
-        }
     }
 
     @Test fun aServiceWithoutAColourOrAPackageIsDropped() {
