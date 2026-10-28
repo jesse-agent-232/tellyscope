@@ -26,14 +26,16 @@ import javax.imageio.ImageIO
 class StreamingTest {
     private val services = SharedLists.streaming
 
-    @Test fun theListReadsWholeAndEveryLogoIsThere() {
+    /** Wholphin's logo is GPL-2.0 only, so this copy leaves it out and its button shows the name. */
+    @Test fun theListReadsWholeAndEveryLogoFits() {
         val text = File("src/test/resources/lists/streaming.json").readText()
         val parsed = parseStreaming(text)
         assertEquals(Regex("\"packages\"").findAll(text).count(), parsed.size) // nothing dropped
         assertEquals(parsed.size, parsed.map { it.name }.toSet().size)
         val pkgs = parsed.flatMap { it.packages }
         assertEquals(pkgs.size, pkgs.toSet().size) // no package belongs to two services
-        parsed.forEach { s ->
+        assertNull(runBlocking { SharedLists.logo("wholphin") })
+        parsed.filter { it.logo != "wholphin" }.forEach { s ->
             val png = ImageIO.read(checkNotNull(runBlocking { SharedLists.logo(s.logo) }) { "lists/logos/${s.logo}.png is missing" }.inputStream())
             // Four times the size in dp, and it has to fit the smallest pill, 80 x 40 dp.
             assertTrue("${s.logo} is ${png.width}x${png.height}", png.width <= 72 * 4 && png.height <= 30 * 4)

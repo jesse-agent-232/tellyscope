@@ -89,10 +89,6 @@ Commons, Simple Icons (https://simpleicons.org) and the services' own
 projects; tellyscope-devices' logos/SOURCES.md lists each one's source and
 licence.
 
-app/src/test/resources/lists/logos/wholphin.png uses the app icon from Wholphin
-(https://github.com/damontecres/Wholphin), licensed under the GNU General
-Public License version 2.
-
 --------------------------------------------------------------------------------
 App icon in app/src/test/resources/dock-icons/ (screenshot tests only, not in
 the app)
