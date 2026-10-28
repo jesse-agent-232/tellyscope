@@ -12,6 +12,7 @@ until this file has a section for its version.
 
 ## Unreleased
 
+- **Improved:** On the Remote, tap outside the text box to close the keyboard. [#222](../../pull/222)
 - **Improved:** Debloat ticks a whole group of apps in one tap, from its heading. [#219](../../pull/219)
   - Debloat no longer lists the TV's own home app, so it can't be turned off there.
 
