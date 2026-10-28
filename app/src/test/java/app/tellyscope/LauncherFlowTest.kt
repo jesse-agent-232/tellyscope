@@ -105,8 +105,13 @@ private class StoreTv : DeviceSource by FakeDeviceSource(FakeDeviceSource.Scenar
     }
 }
 
-/** Install a home screen: the Store wait, its dead ends, and the card's Not now. */
+/**
+ * Install a home screen: the Store wait, its dead ends, and the card's Not now. The picker's
+ * launchers come from the bundled `launchers.json`, read with Android's org.json: Robolectric.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35])
 class LauncherFlowTest {
     private val dispatcher = StandardTestDispatcher()
     private val test = TestScope(dispatcher)
