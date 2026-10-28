@@ -336,8 +336,11 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
                 install = vm::installLauncher,
                 chooseAnother = vm::pickLauncher,
                 switch = vm::switchToLauncher,
+                makeHome = vm::makeHome,
+                open = vm::openLauncher,
                 later = vm::launcherLater,
             ),
+            snackbar = snackbar,
         )
     } else if (debloat && state.device.debloat != null) {
         // Leaving mid-run only closes the screen; the run goes on, and History has each app.

@@ -175,11 +175,16 @@ object Copy {
     const val CHOOSE_HOME = "Choose a home screen"
     const val CHOOSE_HOME_TEXT = "Each one replaces the TV's home screen. Tellyscope opens it in the Play Store on the TV; you install it with the remote."
     const val RECOMMENDED = "Recommended"
+    /** The picker's section for launchers on the TV that Recommended doesn't list. */
+    const val ON_THIS_TV = "On this TV"
+    const val INSTALLED = "Installed"
+    const val HOME_NOW = "Home now"
+    /** Shows a launcher on the TV, from the picker. */
+    const val OPEN = "Open"
     const val USES_SERVICE = "Uses an accessibility service"
     const val NO_SERVICE = "Open source · no accessibility service"
-    /** Under the picker's list, before the bold [MAKE_HOME]: any other launcher works too. */
-    const val OTHER_LAUNCHER = "Prefer another launcher? Install it from the Play Store on your TV, then tap "
-    const val OTHER_LAUNCHER_WHERE = " next to it in Tweaks › $HOME_SCREEN."
+    /** Under the picker's list: any other launcher works too, and comes back as On this TV. */
+    const val OTHER_LAUNCHER = "Prefer another launcher? Install it from the Play Store on your TV, then come back here. It shows up under $ON_THIS_TV."
     const val NOT_AFFILIATED = "Tellyscope isn't affiliated with any of these launchers or their developers."
     const val OPEN_IN_STORE = "Open in Play Store"
     const val INSTALL_HOME = "Install a home screen"
@@ -212,6 +217,8 @@ object Copy {
     const val CHOOSE_ANOTHER = "Choose another"
 
     fun notInstalled(name: String) = "$name isn't installed"
+    /** The Store closed without an install: back on the picker, still chosen. */
+    fun wasntInstalled(name: String) = "$name wasn't installed"
 
     const val NOT_INSTALLED_TEXT =
         "The Play Store closed on the TV before it was installed. If the Store said it isn't available for this TV, choose another launcher."

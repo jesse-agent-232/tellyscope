@@ -16,6 +16,9 @@ until this file has a section for its version.
 - **Improved:** Debloat ticks a whole group of apps in one tap, from its heading. [#219](../../pull/219)
   - Debloat no longer lists the TV's own home app, so it can't be turned off there.
 - **Improved:** Install a home screen offers Projectivy and FLauncher, and says how to use any other launcher. [#223](../../pull/223)
+  - A launcher already on the TV is marked Installed or Home now, with Make Home and Open in place of the Play Store.
+  - Any other launcher on the TV is listed under On this TV.
+  - Closing the Play Store without installing goes back to the picker.
 
 ## 0.12.0 — 2026-10-28
 

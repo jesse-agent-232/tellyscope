@@ -288,10 +288,13 @@ class Actions(private val shell: AdbShell) {
     private fun activitiesIn(brief: String): List<String> =
         brief.lineSequence().map(String::trim).filter { '/' in it && ' ' !in it }.distinct().toList()
 
-    /** TV apps register under LEANBACK_LAUNCHER only; phone-style apps under LAUNCHER. Try both. */
+    /**
+     * TV apps register under LEANBACK_LAUNCHER only; phone-style apps under LAUNCHER. Try both, then
+     * HOME, for a launcher with no icon of its own.
+     */
     private suspend fun open(pkg: String): ActionResult {
         var last = ""
-        for (category in listOf("android.intent.category.LEANBACK_LAUNCHER", "android.intent.category.LAUNCHER")) {
+        for (category in listOf("android.intent.category.LEANBACK_LAUNCHER", "android.intent.category.LAUNCHER", "android.intent.category.HOME")) {
             val r = shell.shell("monkey -p $pkg -c $category 1 2>&1")
             if (r.exitCode == 0 && "No activities found" !in r.output && "aborted" !in r.output) {
                 return ActionResult.Done(undo = null)

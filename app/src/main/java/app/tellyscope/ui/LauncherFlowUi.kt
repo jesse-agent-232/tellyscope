@@ -4,14 +4,18 @@
 
 package app.tellyscope.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -36,6 +40,8 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -43,6 +49,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -57,7 +64,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.tellyscope.data.Action
 import app.tellyscope.data.AppInfo
@@ -81,6 +88,13 @@ internal fun offerChoose(apps: List<AppInfo>) = hasPlayStore(apps) && !hasAddedL
 internal fun offerLauncher(apps: List<AppInfo>, hidden: Boolean) =
     !hidden && offerChoose(apps) && apps.none { it.homeInstead != null || it.homeBack != null }
 
+/** [pkg] on the TV and on, so the picker offers Make Home or Open on it rather than the Store. */
+internal fun installedLauncher(apps: List<AppInfo>, pkg: String) = apps.firstOrNull { it.packageName == pkg && it.enabled }
+
+/** The picker's On this TV: launchers someone added that Recommended doesn't list, the TV's own left out. */
+internal fun otherLaunchers(apps: List<AppInfo>) =
+    apps.filter { a -> a.enabled && a.answersHome && !a.builtInLauncher && RECOMMENDED.none { it.pkg == a.packageName } }
+
 data class LauncherActions(
     val close: () -> Unit = {},
     /** Opens the Store on the TV at that launcher's page, and watches for the install. */
@@ -89,6 +103,10 @@ data class LauncherActions(
     val chooseAnother: (String) -> Unit = {},
     /** Yes on the installed launcher, with its accessibility service or without. */
     val switch: (service: Boolean) -> Unit = {},
+    /** Make Home in the picker, on a launcher already on the TV. */
+    val makeHome: (pkg: String, service: Boolean) -> Unit = { _, _ -> },
+    /** Open in the picker: shows that launcher on the TV. */
+    val open: (String) -> Unit = {},
     val later: () -> Unit = {},
 )
 
@@ -101,24 +119,34 @@ fun LauncherCard(current: String?, onNotNow: () -> Unit, onChoose: () -> Unit) {
 /**
  * Install a home screen, as one full screen: the picker, then the wait while the TV shows the
  * Play Store, then the switch, which ends in the same yes for the accessibility service as Set as
- * default. A TV that didn't open the Store, and a Store closed without installing, each say so.
+ * default. A launcher already on the TV skips the Store: the picker offers Make Home or Open on it.
+ * A TV that didn't open the Store says so; a Store closed without installing goes back to the picker.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LauncherScreen(device: Device, flow: LauncherFlow, apps: List<AppInfo>, actions: LauncherActions) {
+fun LauncherScreen(
+    device: Device,
+    flow: LauncherFlow,
+    apps: List<AppInfo>,
+    actions: LauncherActions,
+    snackbar: SnackbarHostState = remember { SnackbarHostState() },
+) {
     var chosen by rememberSaveable(flow.step, flow.pkg) { mutableStateOf(flow.pkg) }
     var askService by rememberSaveable(flow.step) { mutableStateOf(false) }
     val label = launcherName(flow.pkg)
-    val app = apps.firstOrNull { it.packageName == flow.pkg }
+    val picking = flow.step == LauncherFlow.Step.Pick
+    val app = apps.firstOrNull { it.packageName == if (picking) chosen else flow.pkg }
     val current = app?.let { homeLabel(apps, it) }
+    val switch = { service: Boolean -> if (picking) actions.makeHome(chosen, service) else actions.switch(service) }
     if (askService && app != null && current != null) {
         ServiceDialog(
             app.label, current,
-            onTurnOn = { actions.switch(true) },
-            dismissLabel = Copy.SWITCH_WITHOUT, onOther = { actions.switch(false) }, onDismiss = { askService = false },
+            onTurnOn = { switch(true) },
+            dismissLabel = Copy.SWITCH_WITHOUT, onOther = { switch(false) }, onDismiss = { askService = false },
         )
     }
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
                 title = { Text(if (flow.step == LauncherFlow.Step.Pick) Copy.CHOOSE_HOME else Copy.INSTALL_HOME) },
@@ -132,10 +160,17 @@ fun LauncherScreen(device: Device, flow: LauncherFlow, apps: List<AppInfo>, acti
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 when (flow.step) {
-                    LauncherFlow.Step.Pick -> Button(onClick = { actions.install(chosen) }, contentPadding = ButtonDefaults.ButtonWithIconContentPadding) {
-                        Icon(OpenInNew, contentDescription = null, Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(Copy.OPEN_IN_STORE)
+                    LauncherFlow.Step.Pick -> {
+                        val have = installedLauncher(apps, chosen)
+                        when {
+                            have == null -> IconButtonText(OpenInNew, Copy.OPEN_IN_STORE) { actions.install(chosen) }
+                            // Home now, or a TV that can't take it as Home: only Open.
+                            !have.home && current != null -> {
+                                TextButton(onClick = { actions.open(chosen) }) { Text(Copy.OPEN) }
+                                IconButtonText(Icons.Outlined.Home, Copy.MAKE_HOME) { if (have.homeService) askService = true else switch(false) }
+                            }
+                            else -> IconButtonText(DeviceIcons.Tv, Copy.OPEN) { actions.open(chosen) }
+                        }
                     }
                     LauncherFlow.Step.Waiting -> TextButton(onClick = { actions.install(flow.pkg) }) { Text(Copy.OPEN_STORE_AGAIN) }
                     LauncherFlow.Step.Installed -> {
@@ -166,7 +201,7 @@ fun LauncherScreen(device: Device, flow: LauncherFlow, apps: List<AppInfo>, acti
             }
             val c = MaterialTheme.colorScheme
             when (flow.step) {
-                LauncherFlow.Step.Pick -> Picker(chosen) { chosen = it }
+                LauncherFlow.Step.Pick -> Picker(chosen, apps) { chosen = it }
                 LauncherFlow.Step.Waiting -> {
                     Hero(LauncherIcons.Download, c.secondaryContainer, c.onSecondaryContainer)
                     Headed(Copy.INSTALL_IT, bold(Copy.installItText(label), label, "Install"))
@@ -206,53 +241,106 @@ fun LauncherScreen(device: Device, flow: LauncherFlow, apps: List<AppInfo>, acti
     }
 }
 
-/** The four launchers as one segmented list, one chosen: rounded ends, small gaps, the chosen one filled. */
 @Composable
-private fun Picker(chosen: String, onChoose: (String) -> Unit) {
+private fun IconButtonText(icon: ImageVector, text: String, onClick: () -> Unit) {
+    Button(onClick = onClick, contentPadding = ButtonDefaults.ButtonWithIconContentPadding) {
+        Icon(icon, contentDescription = null, Modifier.size(18.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(text)
+    }
+}
+
+/**
+ * The recommended launchers as one segmented list, one chosen: rounded ends, small gaps, the chosen
+ * one filled. Above them, On this TV lists any other launcher someone added, when there is one.
+ * Rows never move: one on the TV carries an Installed or Home now chip where it stands.
+ */
+@Composable
+private fun Picker(chosen: String, apps: List<AppInfo>, onChoose: (String) -> Unit) {
     val c = MaterialTheme.colorScheme
+    val others = otherLaunchers(apps)
     Text(Copy.CHOOSE_HOME_TEXT, style = MaterialTheme.typography.bodyLarge)
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        if (others.isNotEmpty()) {
+            Text(Copy.ON_THIS_TV, style = MaterialTheme.typography.labelLarge, color = c.primary, modifier = Modifier.padding(bottom = 8.dp))
+            Column(Modifier.selectableGroup().padding(bottom = 20.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                others.forEachIndexed { i, a ->
+                    PickRow(segment(i, others.lastIndex), a.packageName == chosen, a.label, a, vertical = 12.dp, onClick = { onChoose(a.packageName) })
+                }
+            }
+        }
         Text(Copy.RECOMMENDED, style = MaterialTheme.typography.labelLarge, color = c.primary, modifier = Modifier.padding(bottom = 8.dp))
         Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             RECOMMENDED.forEachIndexed { i, l ->
-                val big = 16.dp
-                val small = 4.dp
-                val shape = RoundedCornerShape(
-                    topStart = if (i == 0) big else small, topEnd = if (i == 0) big else small,
-                    bottomStart = if (i == RECOMMENDED.lastIndex) big else small, bottomEnd = if (i == RECOMMENDED.lastIndex) big else small,
-                )
-                val on = l.pkg == chosen
-                Surface(
-                    shape = shape,
-                    color = if (on) c.secondaryContainer else c.surfaceContainer,
-                    modifier = Modifier.fillMaxWidth().selectable(on, role = Role.RadioButton) { onChoose(l.pkg) },
-                ) {
-                    Row(Modifier.padding(start = 16.dp, top = 16.dp, bottom = 16.dp, end = 8.dp)) {
-                        Column(Modifier.weight(1f)) {
-                            Text(l.name, style = MaterialTheme.typography.bodyLarge)
-                            Text(l.about, style = MaterialTheme.typography.bodyMedium, color = c.onSurfaceVariant)
-                            Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(if (l.accessibility) DeviceIcons.Accessibility else LauncherIcons.Code, null, Modifier.size(14.dp), tint = c.onSurfaceVariant)
-                                Spacer(Modifier.width(6.dp))
-                                Text(if (l.accessibility) Copy.USES_SERVICE else Copy.NO_SERVICE, style = MaterialTheme.typography.labelMedium, color = c.onSurfaceVariant)
-                            }
-                        }
-                        RadioButton(selected = on, onClick = null)
+                PickRow(segment(i, RECOMMENDED.lastIndex), l.pkg == chosen, l.name, installedLauncher(apps, l.pkg), onClick = { onChoose(l.pkg) }) {
+                    Text(l.about, style = MaterialTheme.typography.bodyMedium, color = c.onSurfaceVariant)
+                    Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(if (l.accessibility) DeviceIcons.Accessibility else LauncherIcons.Code, null, Modifier.size(14.dp), tint = c.onSurfaceVariant)
+                        Spacer(Modifier.width(6.dp))
+                        Text(if (l.accessibility) Copy.USES_SERVICE else Copy.NO_SERVICE, style = MaterialTheme.typography.labelMedium, color = c.onSurfaceVariant)
                     }
                 }
             }
         }
-        Text(
-            buildAnnotatedString {
-                append(Copy.OTHER_LAUNCHER)
-                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(Copy.MAKE_HOME) }
-                append(Copy.OTHER_LAUNCHER_WHERE)
-            },
-            style = MaterialTheme.typography.bodyMedium,
-            color = c.onSurfaceVariant,
-            modifier = Modifier.padding(top = 12.dp),
-        )
+        Text(Copy.OTHER_LAUNCHER, style = MaterialTheme.typography.bodyMedium, color = c.onSurfaceVariant, modifier = Modifier.padding(top = 12.dp))
         Text(Copy.NOT_AFFILIATED, style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant, modifier = Modifier.padding(top = 12.dp))
+    }
+}
+
+/** Row [i] of a segmented list ending at [last]: the ends rounded, the joins tight. */
+private fun segment(i: Int, last: Int): RoundedCornerShape {
+    val top = if (i == 0) 16.dp else 4.dp
+    val bottom = if (i == last) 16.dp else 4.dp
+    return RoundedCornerShape(topStart = top, topEnd = top, bottomStart = bottom, bottomEnd = bottom)
+}
+
+/** One launcher in the picker: its name, a chip when [have] is on the TV, then [details]. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun PickRow(
+    shape: RoundedCornerShape,
+    on: Boolean,
+    name: String,
+    have: AppInfo?,
+    vertical: Dp = 16.dp,
+    onClick: () -> Unit,
+    details: @Composable () -> Unit = {},
+) {
+    val c = MaterialTheme.colorScheme
+    Surface(
+        shape = shape,
+        color = if (on) c.secondaryContainer else c.surfaceContainer,
+        modifier = Modifier.fillMaxWidth().selectable(on, role = Role.RadioButton, onClick = onClick),
+    ) {
+        Row(Modifier.padding(start = 16.dp, top = vertical, bottom = vertical, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                // The chip drops under the name rather than squeezing it at large font sizes.
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp), itemVerticalAlignment = Alignment.CenterVertically) {
+                    Text(name, style = MaterialTheme.typography.bodyLarge)
+                    have?.let { InstalledChip(home = it.home) }
+                }
+                details()
+            }
+            RadioButton(selected = on, onClick = null)
+        }
+    }
+}
+
+/** Installed, outlined; Home now, filled, so it still stands out on the chosen row. */
+@Composable
+private fun InstalledChip(home: Boolean) {
+    val c = MaterialTheme.colorScheme
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = if (home) c.tertiary else Color.Transparent,
+        contentColor = if (home) c.onTertiary else c.onSurfaceVariant,
+        border = if (home) null else BorderStroke(1.dp, c.outline),
+    ) {
+        Row(Modifier.height(24.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(if (home) Icons.Outlined.Home else Icons.Default.Check, null, Modifier.size(14.dp))
+            Spacer(Modifier.width(4.dp))
+            Text(if (home) Copy.HOME_NOW else Copy.INSTALLED, style = MaterialTheme.typography.labelMedium)
+        }
     }
 }
 

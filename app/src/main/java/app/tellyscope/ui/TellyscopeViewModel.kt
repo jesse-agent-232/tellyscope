@@ -816,8 +816,9 @@ class TellyscopeViewModel(
 
     /**
      * Opens the Play Store on the TV at [pkg]'s page, then checks every few seconds whether it's
-     * installed, or the Store has closed without it. Where the Store didn't open, it keeps
-     * checking while the user searches by hand. After [STORE_WAIT_MS] without it, it stops at [LauncherFlow.Step.Left].
+     * installed, or the Store has closed without it, which goes back to the picker. Where the Store
+     * didn't open, it keeps checking while the user searches by hand. After [STORE_WAIT_MS] without it,
+     * it stops at [LauncherFlow.Step.Left].
      *
      * Known: a Google sign-in or consent screen inside the Store runs as another app
      * (com.google.android.gms), so it can read as leaving the Store and end the wait early.
@@ -827,7 +828,7 @@ class TellyscopeViewModel(
         val id = _state.value.selectedId ?: return
         launcherJob?.cancel()
         val step = { s: LauncherFlow.Step -> updateDevice(id) { it.copy(launcher = it.launcher?.let { _ -> LauncherFlow(s, pkg) }) } }
-        // Already on the TV (picked from Tweaks after a launcher was added): no Store detour.
+        // Already on the TV, installed since the picker was drawn (Open Store again after the wait): no Store detour.
         _state.value.device.apps.firstOrNull { it.packageName == pkg && it.enabled }?.let { have ->
             if (have.homeInstead != null) {
                 step(LauncherFlow.Step.Installed)
@@ -878,7 +879,9 @@ class TellyscopeViewModel(
                     }
                     StoreState.InStore -> seen = true
                     StoreState.Elsewhere -> if (seen) {
-                        step(LauncherFlow.Step.Left)
+                        // The Store closed without it: back to the picker, still chosen, and the snackbar says so.
+                        step(LauncherFlow.Step.Pick)
+                        _notice.value = Copy.wasntInstalled(launcherName(pkg))
                         return@launch
                     }
                 }
@@ -889,10 +892,21 @@ class TellyscopeViewModel(
 
     /** Yes on the installed launcher, with its accessibility service or without; the flow closes and the switch runs. */
     fun switchToLauncher(service: Boolean) {
+        makeHome(_state.value.device.launcher?.pkg ?: return, service)
+    }
+
+    /** Make Home on [pkg], from the picker or after its install: the flow closes and the switch runs. */
+    fun makeHome(pkg: String, service: Boolean) {
         val id = _state.value.selectedId ?: return
-        val pkg = _state.value.device.launcher?.pkg ?: return
+        launcherJob?.cancel()
         updateDevice(id) { it.copy(launcher = null) }
         run(pkg, Action.Home, id = id) { source.makeHome(it, pkg, service) }
+    }
+
+    /** Open in the picker: shows the launcher [pkg] on the TV. The picker stays. */
+    fun openLauncher(pkg: String) {
+        val label = _state.value.device.apps.firstOrNull { it.packageName == pkg }?.label ?: launcherName(pkg)
+        open(pkg, label)
     }
 
     /** Not now on the installed launcher: where to switch later. */
@@ -1801,18 +1815,20 @@ class TellyscopeViewModel(
     }
 
     /** A dock tap: opens the app on the TV, without a history entry. */
-    fun launch(app: Docked) {
+    fun launch(app: Docked) = open(app.packageName, app.label)
+
+    private fun open(pkg: String, label: String) {
         val id = _state.value.selectedId ?: return
         viewModelScope.launch {
             val ok = try {
-                source.launch(id, app.packageName)
+                source.launch(id, pkg)
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
                 _notice.value = Copy.REMOTE_LOST
                 return@launch
             }
-            if (!ok) _notice.value = Copy.cantOpen(app.label)
+            if (!ok) _notice.value = Copy.cantOpen(label)
         }
     }
 
