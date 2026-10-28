@@ -12,6 +12,9 @@ until this file has a section for its version.
 
 ## Unreleased
 
+- **Fixed:** A Remote button's tap ripple stays inside the button. [#228](../../pull/228)
+- **Improved:** The Remote buttons list has more room at its sides. [#228](../../pull/228)
+
 ## 0.13.0 — 2026-10-29
 
 - **Improved:** The Remote's dock is refined: it shows only the streaming buttons you pick. [#224](../../pull/224)
