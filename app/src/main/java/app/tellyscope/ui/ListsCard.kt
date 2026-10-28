@@ -21,13 +21,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.triStateToggleable
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -49,6 +52,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TriStateCheckbox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -58,12 +62,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import app.tellyscope.data.AppInfo
 import app.tellyscope.data.Device
@@ -276,13 +285,33 @@ fun DebloatScreen(
                         Muted(if (showing == null) "Every app left on is one the TV needs." else "Nothing on the list is still on here.")
                     }
                 }
+                // A list's groups are a tree: each heading ticks its whole group. The TV's own apps, with no list, stay flat.
+                val tree = showing != null
                 groups.filter { it.packages.isNotEmpty() }.forEach { g ->
+                    val pkgs = g.packages.map { it.pkg }
                     item(key = "g:" + g.title) {
-                        Text(g.title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 12.dp))
+                        when {
+                            !tree -> Text(g.title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 12.dp))
+                            // The stock home can't go before a new one is set, so it's never ticked in one go.
+                            isLauncher(g.title) -> Column(Modifier.padding(top = 12.dp)) {
+                                Text(g.title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                                Row(Modifier.fillMaxWidth().treeLine(MaterialTheme.colorScheme.outlineVariant, from = 10.dp).padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Box(Modifier.width(Indent), contentAlignment = Alignment.CenterStart) {
+                                        Icon(Icons.Filled.Info, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp).size(16.dp))
+                                    }
+                                    Muted("Set a new home first, then tick these one at a time.")
+                                }
+                            }
+                            else -> GroupRow(g.title, pkgs.count { it in ticked }, pkgs.size) {
+                                ticked = if (pkgs.all { it in ticked }) ticked - pkgs.toSet() else ticked + pkgs
+                            }
+                        }
                     }
-                    items(g.packages, key = { it.pkg }) { p ->
+                    itemsIndexed(g.packages, key = { _, p -> p.pkg }) { i, p ->
                         Row(
-                            Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium)
+                            Modifier.fillMaxWidth()
+                                .then(if (tree) Modifier.treeLine(MaterialTheme.colorScheme.outlineVariant, last = i == g.packages.lastIndex).padding(start = Indent) else Modifier)
+                                .clip(MaterialTheme.shapes.medium)
                                 .clickable { ticked = if (p.pkg in ticked) ticked - p.pkg else ticked + p.pkg },
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
@@ -302,6 +331,54 @@ fun DebloatScreen(
             }
         }
     }
+}
+
+/** How far a group's apps sit in from its heading: a checkbox and its gap, so theirs line up under its title. */
+private val Indent = 32.dp
+
+/** The gap between rows, which a group's line bridges. Matches the list's spacedBy. */
+private val RowGap = 4.dp
+
+private fun isLauncher(title: String) = "launcher" in title.lowercase()
+
+/**
+ * A group's heading: its checkbox ticks every app in it (optional ones too), or unticks them all
+ * once they all are, with a dash while only some are.
+ */
+@Composable
+private fun GroupRow(title: String, on: Int, of: Int, onToggle: () -> Unit) {
+    val state = when (on) {
+        of -> ToggleableState.On
+        0 -> ToggleableState.Off
+        else -> ToggleableState.Indeterminate
+    }
+    Row(
+        Modifier.padding(top = 8.dp).fillMaxWidth().heightIn(min = 48.dp)
+            .treeLine(MaterialTheme.colorScheme.outlineVariant, from = 12.dp)
+            .clip(MaterialTheme.shapes.medium)
+            .triStateToggleable(state, role = Role.Checkbox, onClick = onToggle),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TriStateCheckbox(state, onClick = null)
+        Spacer(Modifier.width(8.dp))
+        Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
+        Text("$on of $of", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 8.dp))
+    }
+}
+
+/**
+ * The line down a group, under the heading's checkbox. A heading's starts [from] below its middle,
+ * clear of the checkbox; an app's bridges the gap above it, runs to its foot (to its middle on the
+ * [last] one) and turns across to its checkbox.
+ */
+private fun Modifier.treeLine(color: Color, last: Boolean = false, from: Dp? = null) = drawBehind {
+    // From the start edge, which is the right one in a right-to-left language.
+    fun at(dx: Dp) = if (layoutDirection == LayoutDirection.Ltr) dx.toPx() else size.width - dx.toPx()
+    val x = at(12.dp)
+    val mid = size.height / 2
+    val stroke = 1.dp.toPx()
+    drawLine(color, Offset(x, from?.let { mid + it.toPx() } ?: -RowGap.toPx()), Offset(x, if (last) mid else size.height), stroke)
+    if (from == null) drawLine(color, Offset(x, mid), Offset(at(Indent - 4.dp), mid), stroke)
 }
 
 /** No list for this TV: send its model and stock apps to cleanyourtv, where the lists come from. */
