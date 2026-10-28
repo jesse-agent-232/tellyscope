@@ -12,7 +12,7 @@ until this file has a section for its version.
 
 ## Unreleased
 
-- **New:** Remote buttons open Netflix, YouTube, Plex and 20 more streaming apps. [#PRNUM](../../pull/PRNUM)
+- **New:** Remote buttons open Netflix, YouTube, Plex and 20 more streaming apps. [#224](../../pull/224)
   - Hold a button, or use ⋮ › Remote buttons, to pick up to three (four on a tablet).
   - Screen off and Restart TV moved into ⋮ at the top of the Remote.
 - **Improved:** On the Remote, tap outside the text box to close the keyboard. [#222](../../pull/222)
