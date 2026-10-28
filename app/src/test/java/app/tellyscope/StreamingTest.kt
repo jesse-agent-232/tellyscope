@@ -25,7 +25,7 @@ class StreamingTest {
     private val services = SharedLists.streaming
 
     @Test fun theListReadsWhole() {
-        val text = File("src/test/resources/lists/streaming.json").readText()
+        val text = File("src/test/resources/fixtures/streaming.json").readText()
         val parsed = parseStreaming(text)
         assertEquals(Regex("\"packages\"").findAll(text).count(), parsed.size) // nothing dropped
         assertEquals(parsed.size, parsed.map { it.name }.toSet().size)

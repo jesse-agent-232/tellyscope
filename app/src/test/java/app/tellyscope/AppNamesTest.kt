@@ -19,7 +19,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** The fallback names come from the bundled `labels.json`, read with Android's org.json: Robolectric. */
+/** The fallback names come from the test fixture `labels.json`, read with Android's org.json: Robolectric. */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class AppNamesTest {
@@ -68,7 +68,7 @@ class AppNamesTest {
         val helper = Helper(fail = true)
         val appNames = AppNames(tmp.root)
         val names = appNames.names("SN1", listOf(netflix, odd), helper::describe)
-        assertEquals("Netflix", names.getValue("com.netflix.ninja").label) // bundled table
+        assertEquals("Netflix", names.getValue("com.netflix.ninja").label) // fixture table
         assertEquals("Example Weatherbox", names.getValue("com.example.weatherbox").label) // humanised id, maker kept
         assertNull(names.getValue("com.netflix.ninja").icon) // letter avatar
         // A refusal isn't retried on every open; the next app start tries again.

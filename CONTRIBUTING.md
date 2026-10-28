@@ -38,7 +38,7 @@ These lists live in tellyscope-devices too, next to the debloat lists, and the a
 
 Which launchers may turn on an accessibility service is not on any list: it's `ACCESSIBILITY_LAUNCHERS` in [`Launchers.kt`](app/src/main/java/app/tellyscope/data/Launchers.kt), because an accessibility service can read the screen. Add one only for a launcher that keeps Home with its own accessibility service: check the APK's manifest for a service with `BIND_ACCESSIBILITY_SERVICE` and put the version you checked next to it. `LaunchersTest` names every such launcher on purpose, so add yours there too and a reviewer sees it.
 
-The tests read a copy of the lists from [`app/src/test/resources/lists/`](app/src/test/resources/lists/); the app itself bundles none.
+The tests use small fixtures in [`app/src/test/resources/fixtures/`](app/src/test/resources/fixtures/) that only check the code: change the real lists in tellyscope-devices, not there. The app itself bundles none.
 
 ## README screenshots
 

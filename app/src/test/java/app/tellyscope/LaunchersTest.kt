@@ -21,7 +21,7 @@ import java.io.File
 @Config(sdk = [35])
 class LaunchersTest {
     @Test fun theListReadsWhole() {
-        val text = File("src/test/resources/lists/launchers.json").readText()
+        val text = File("src/test/resources/fixtures/launchers.json").readText()
         val launchers = parseLaunchers(text)
         assertEquals(Regex("\"package\"").findAll(text).count(), launchers.size) // nothing dropped
         assertEquals(launchers.size, launchers.map { it.pkg }.toSet().size)
@@ -38,7 +38,7 @@ class LaunchersTest {
     }
 
     @Test fun theLabelsReadWhole() {
-        val text = File("src/test/resources/lists/labels.json").readText()
+        val text = File("src/test/resources/fixtures/labels.json").readText()
         val labels = parseLabels(text)
         // Every "key": "text" pair but the group names is a label: none dropped, none listed twice.
         val pairs = Regex("\"[^\"]+\"\\s*:\\s*\"").findAll(text).count()

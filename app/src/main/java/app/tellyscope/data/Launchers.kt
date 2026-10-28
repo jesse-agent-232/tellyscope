@@ -77,7 +77,7 @@ data class Shared(
  * The lists anyone can change without an app release, from the list source next to the debloat
  * lists ([DeviceLists]): the last cached copy at launch, then the source's. A list the source
  * can't give keeps what was there. The app bundles none, so before the first fetch they are empty;
- * a build with `lists/` among its Java resources (the tests) starts from those instead.
+ * a build with `fixtures/` among its Java resources (the tests) starts from those instead.
  */
 object SharedLists {
     private val _state = MutableStateFlow(seed())
@@ -114,9 +114,9 @@ object SharedLists {
     }
 
     private fun seed() = Shared(
-        launchers = resource("/lists/launchers.json")?.let { parseLaunchers(it.decodeToString()) }.orEmpty(),
-        labels = resource("/lists/labels.json")?.let { parseLabels(it.decodeToString()) }.orEmpty(),
-        streaming = resource("/lists/streaming.json")?.let { parseStreaming(it.decodeToString()) }.orEmpty(),
+        launchers = resource("/fixtures/launchers.json")?.let { parseLaunchers(it.decodeToString()) }.orEmpty(),
+        labels = resource("/fixtures/labels.json")?.let { parseLabels(it.decodeToString()) }.orEmpty(),
+        streaming = resource("/fixtures/streaming.json")?.let { parseStreaming(it.decodeToString()) }.orEmpty(),
     )
 
     private fun resource(path: String): ByteArray? =
