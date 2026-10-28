@@ -98,6 +98,7 @@ object Copy {
     const val MAKE_HOME = "Make Home"
     const val GET_LAUNCHER = "Get another launcher"
     const val GET_LAUNCHER_TEXT = "Install one from the Play Store, like Projectivy or FLauncher. Switch back any time."
+    const val GET_PROJECTIVY_TEXT = "Install Projectivy. Switch back any time."
 
     /** The Apps tab's launcher rows: switching lives in the card, this opens it. */
     const val HOME_SETTINGS = "Home screen settings"
@@ -168,10 +169,13 @@ object Copy {
     /** Install a home screen: the Apps tab's card, the picker, the wait for the Store, and its dead ends. */
     const val BETTER_HOME = "Get a better home screen"
 
-    fun betterHomeText(current: String?) =
-        "Swap ${current ?: "the TV's home screen"} for a launcher without ads. Free on the Play Store; switch back any time."
+    /** [fire]: Fire OS, where there's no Play Store and Tellyscope installs it. */
+    fun betterHomeText(current: String?, fire: Boolean = false) =
+        "Swap ${current ?: "the TV's home screen"} for a launcher without ads" +
+            if (fire) "; switch back any time." else ". Free on the Play Store; switch back any time."
 
     const val CHOOSE_ONE = "Choose one"
+    const val INSTALL_ONE = "Install it"
     const val CHOOSE_HOME = "Choose a home screen"
     const val CHOOSE_HOME_TEXT = "Each one replaces the TV's home screen. Tellyscope opens it in the Play Store on the TV; you install it with the remote."
     const val NO_LAUNCHER_LIST = "Couldn't load the list of home screens. Check the phone's internet and try again."
@@ -220,6 +224,29 @@ object Copy {
     fun notInstalled(name: String) = "$name isn't installed"
     /** The Store closed without an install: back on the picker, still chosen. */
     fun wasntInstalled(name: String) = "$name wasn't installed"
+
+    /** Install Projectivy on Fire OS: Tellyscope downloads it from its developer's GitHub and installs it over adb. */
+    const val INSTALL_PROJECTIVY = "Install Projectivy"
+    const val FIRE_INSTALL_TEXT = "A home screen without ads. Tellyscope installs it on the TV for you; there's nothing to do on the TV."
+
+    fun installProjectivyOn(tv: String) = "Install Projectivy on $tv?"
+
+    fun downloadsFrom(name: String, version: String, size: Long) = "Tellyscope downloads $name $version (${bytes(size)}) from:"
+
+    const val SIGNED_CHECK =
+        "and checks it's signed by Projectivy's developer before installing it on the TV. Tellyscope isn't affiliated with Projectivy."
+    const val DOWNLOAD_AND_INSTALL = "Download and install"
+
+    fun downloading(percent: Int) = "Downloading · $percent%"
+
+    fun installingOn(tv: String) = "Installing on $tv…"
+
+    const val NOT_PROJECTIVY = "That download isn't Projectivy"
+    const val NOT_PROJECTIVY_TEXT =
+        "The file from GitHub didn't match Projectivy's package name or its developer's signature, so Tellyscope installed nothing on the TV."
+    const val NO_DOWNLOAD = "Couldn't download Projectivy"
+    const val NO_DOWNLOAD_TEXT = "Check the phone's internet, then try again. Or download it yourself from Projectivy's release page."
+    const val OPEN_DOWNLOAD_PAGE = "Open the download page"
 
     const val NOT_INSTALLED_TEXT =
         "The Play Store closed on the TV before it was installed. If the Store said it isn't available for this TV, choose another launcher."
