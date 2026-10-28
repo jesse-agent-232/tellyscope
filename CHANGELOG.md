@@ -12,6 +12,8 @@ until this file has a section for its version.
 
 ## Unreleased
 
+- **Improved:** Debloat ticks a whole group of apps in one tap, from its heading. [#219](../../pull/219)
+
 ## 0.12.0 — 2026-10-28
 
 - **New:** Reset TV, in ⋮: turn your TV back to how it shipped, with one Undo. [#192](../../pull/192)
