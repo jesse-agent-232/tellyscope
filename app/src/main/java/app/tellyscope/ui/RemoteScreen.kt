@@ -242,7 +242,8 @@ fun RemoteScreen(
     }
     // Set once the D-pad hits its floor, and cleared once there's room for the hint again.
     var tight by remember { mutableStateOf(false) }
-    // While typing, the keyboard needs the room: volume, the hint and the buttons step aside for the D-pad.
+    // While typing, the keyboard needs the room: volume, the hint and the buttons step aside for the D-pad,
+    // and back, home and menu shrink.
     val typing = WindowInsets.isImeVisible
     val focus = LocalFocusManager.current
     // The text box in window coordinates, so a tap on it (or its ⌫ and Send) keeps the keyboard up.
@@ -309,10 +310,14 @@ fun RemoteScreen(
                             ) { Icon(RemoteIcons.VolumeDown, null) }
                         }
                     }
+                    // While typing these shrink so the D-pad keeps its room; 48 dp is still a full touch target.
+                    val side = if (typing) 48.dp else 64.dp
                     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        RoundKey(RemoteKey.BACK, "Back", live, actions.press, Modifier.align(Alignment.CenterStart)) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) }
-                        RoundKey(RemoteKey.HOME, "Home", live, actions.press, size = 80.dp) { Icon(Icons.Outlined.Home, null, Modifier.size(32.dp)) }
-                        RoundKey(RemoteKey.MENU, "Menu", live, actions.press, Modifier.align(Alignment.CenterEnd)) { Icon(Icons.Default.Menu, null) }
+                        RoundKey(RemoteKey.BACK, "Back", live, actions.press, Modifier.align(Alignment.CenterStart), size = side) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) }
+                        RoundKey(RemoteKey.HOME, "Home", live, actions.press, size = if (typing) 56.dp else 80.dp) {
+                            Icon(Icons.Outlined.Home, null, Modifier.size(if (typing) 24.dp else 32.dp))
+                        }
+                        RoundKey(RemoteKey.MENU, "Menu", live, actions.press, Modifier.align(Alignment.CenterEnd), size = side) { Icon(Icons.Default.Menu, null) }
                     }
                     if (!typing && !short) {
                     Spacer(Modifier.height(rowGap))
