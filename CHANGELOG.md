@@ -13,6 +13,7 @@ until this file has a section for its version.
 ## Unreleased
 
 - **Improved:** Debloat ticks a whole group of apps in one tap, from its heading. [#219](../../pull/219)
+  - Debloat no longer lists the TV's own home app, so it can't be turned off there.
 
 ## 0.12.0 — 2026-10-28
 
