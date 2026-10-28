@@ -30,7 +30,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -151,7 +150,7 @@ fun DebloatScreen(
         lists is Suggestions.NoList -> listOf(
             SuggestedGroup(
                 "Apps on this TV",
-                tvApps.filter { it.enabled && it.protectedReason == null }.sortedBy { it.label.lowercase() }
+                tvApps.filter { it.enabled && it.protectedReason == null && !it.builtInLauncher }.sortedBy { it.label.lowercase() }
                     .map { Suggested(it.packageName, it.label, note = null, optional = false, ticked = false) },
             ),
         )
@@ -290,22 +289,9 @@ fun DebloatScreen(
                 groups.filter { it.packages.isNotEmpty() }.forEach { g ->
                     val pkgs = g.packages.map { it.pkg }
                     item(key = "g:" + g.title) {
-                        when {
-                            !tree -> Text(g.title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 12.dp))
-                            // The stock home can't go before a new one is set, so it's never ticked in one go.
-                            isLauncher(g.title) -> Column(Modifier.padding(top = 12.dp)) {
-                                Text(g.title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-                                Row(Modifier.fillMaxWidth().treeLine(MaterialTheme.colorScheme.outlineVariant, from = 10.dp).padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Box(Modifier.width(Indent), contentAlignment = Alignment.CenterStart) {
-                                        Icon(Icons.Filled.Info, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp).size(16.dp))
-                                    }
-                                    Muted("Set a new home first, then tick these one at a time.")
-                                }
-                            }
-                            else -> GroupRow(g.title, pkgs.count { it in ticked }, pkgs.size) {
-                                ticked = if (pkgs.all { it in ticked }) ticked - pkgs.toSet() else ticked + pkgs
-                            }
-                        }
+                        if (tree) GroupRow(g.title, pkgs.count { it in ticked }, pkgs.size) {
+                            ticked = if (pkgs.all { it in ticked }) ticked - pkgs.toSet() else ticked + pkgs
+                        } else Text(g.title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 12.dp))
                     }
                     itemsIndexed(g.packages, key = { _, p -> p.pkg }) { i, p ->
                         Row(
@@ -339,8 +325,6 @@ private val Indent = 32.dp
 /** The gap between rows, which a group's line bridges. Matches the list's spacedBy. */
 private val RowGap = 4.dp
 
-private fun isLauncher(title: String) = "launcher" in title.lowercase()
-
 /**
  * A group's heading: its checkbox ticks every app in it (optional ones too), or unticks them all
  * once they all are, with a dash while only some are.
@@ -354,7 +338,7 @@ private fun GroupRow(title: String, on: Int, of: Int, onToggle: () -> Unit) {
     }
     Row(
         Modifier.padding(top = 8.dp).fillMaxWidth().heightIn(min = 48.dp)
-            .treeLine(MaterialTheme.colorScheme.outlineVariant, from = 12.dp)
+            .treeLine(MaterialTheme.colorScheme.outlineVariant, head = true)
             .clip(MaterialTheme.shapes.medium)
             .triStateToggleable(state, role = Role.Checkbox, onClick = onToggle),
         verticalAlignment = Alignment.CenterVertically,
@@ -367,18 +351,18 @@ private fun GroupRow(title: String, on: Int, of: Int, onToggle: () -> Unit) {
 }
 
 /**
- * The line down a group, under the heading's checkbox. A heading's starts [from] below its middle,
- * clear of the checkbox; an app's bridges the gap above it, runs to its foot (to its middle on the
+ * The line down a group, under the heading's checkbox. A [head]ing's starts just below its
+ * checkbox; an app's bridges the gap above it, runs to its foot (to its middle on the
  * [last] one) and turns across to its checkbox.
  */
-private fun Modifier.treeLine(color: Color, last: Boolean = false, from: Dp? = null) = drawBehind {
+private fun Modifier.treeLine(color: Color, last: Boolean = false, head: Boolean = false) = drawBehind {
     // From the start edge, which is the right one in a right-to-left language.
     fun at(dx: Dp) = if (layoutDirection == LayoutDirection.Ltr) dx.toPx() else size.width - dx.toPx()
     val x = at(12.dp)
     val mid = size.height / 2
     val stroke = 1.dp.toPx()
-    drawLine(color, Offset(x, from?.let { mid + it.toPx() } ?: -RowGap.toPx()), Offset(x, if (last) mid else size.height), stroke)
-    if (from == null) drawLine(color, Offset(x, mid), Offset(at(Indent - 4.dp), mid), stroke)
+    drawLine(color, Offset(x, if (head) mid + 12.dp.toPx() else -RowGap.toPx()), Offset(x, if (last) mid else size.height), stroke)
+    if (!head) drawLine(color, Offset(x, mid), Offset(at(Indent - 4.dp), mid), stroke)
 }
 
 /** No list for this TV: send its model and stock apps to cleanyourtv, where the lists come from. */

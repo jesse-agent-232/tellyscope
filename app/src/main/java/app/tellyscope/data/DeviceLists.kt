@@ -201,8 +201,8 @@ fun parseList(text: String, id: String): DeviceList? = try {
 
 /**
  * The list cut down to this TV: only apps it actually has, still on, and not protected (built in
- * or by the list's keep). Pre-ticked only for non-optional entries on a TV with the SDK the list
- * was tested on. Groups with the same title become one, and an app shows once, in its first group,
+ * or by the list's keep), and never one of the TV's own launchers. Pre-ticked only for
+ * non-optional entries on a TV with the SDK the list was tested on. Groups with the same title become one, and an app shows once, in its first group,
  * since the screen keys rows by title and package.
  */
 fun suggest(list: DeviceList, apps: List<AppInfo>, sdk: Int?): List<SuggestedGroup> {
@@ -211,7 +211,7 @@ fun suggest(list: DeviceList, apps: List<AppInfo>, sdk: Int?): List<SuggestedGro
     val seen = mutableSetOf<String>()
     return list.groups.groupBy { it.title }.map { (title, gs) ->
         SuggestedGroup(title, gs.flatMap { it.packages }.mapNotNull { p ->
-            val app = installed[p.pkg]?.takeIf { it.enabled && it.protectedReason == null && p.pkg !in list.keep }
+            val app = installed[p.pkg]?.takeIf { it.enabled && it.protectedReason == null && !it.builtInLauncher && p.pkg !in list.keep }
             app?.takeIf { seen.add(p.pkg) }?.let { Suggested(p.pkg, it.label, p.note, p.optional, ticked = tick && !p.optional) }
         })
     }.filter { it.packages.isNotEmpty() }
