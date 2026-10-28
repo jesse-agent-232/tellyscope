@@ -62,9 +62,10 @@ internal fun homeMove(app: AppInfo, current: AppInfo?): Action? = when {
 /**
  * The Home screen card at the top of Tweaks: every launcher on the TV, which one Home opens, and
  * the one place to change it. Make Home asks first; only the TV's own launcher is ever turned off.
+ * [fire]: Fire OS ([fireInstall]), where Get another launcher installs Projectivy without a Play Store.
  */
 @Composable
-fun HomeScreenBlock(ui: DeviceUi, actions: DeviceActions) {
+fun HomeScreenBlock(ui: DeviceUi, actions: DeviceActions, fire: Boolean = false) {
     val launchers = homeLaunchers(ui.apps)
     val current = launchers.firstOrNull { it.home }
     val locked = ui.busy != null
@@ -85,10 +86,10 @@ fun HomeScreenBlock(ui: DeviceUi, actions: DeviceActions) {
         }
     }
     // Only before a launcher was added: after that, the rows above are the way to switch.
-    if (launchers.none { !it.system } && hasPlayStore(ui.apps)) {
+    if (launchers.none { !it.system } && (hasPlayStore(ui.apps) || fire)) {
         Column(Modifier.fillMaxWidth().padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(Copy.GET_LAUNCHER, style = MaterialTheme.typography.bodyLarge)
-            Text(Copy.GET_LAUNCHER_TEXT, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(if (fire) Copy.GET_PROJECTIVY_TEXT else Copy.GET_LAUNCHER_TEXT, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             FilledTonalButton(onClick = actions.installLauncher, enabled = !locked) { Text(Copy.GET_LAUNCHER) }
         }
     }

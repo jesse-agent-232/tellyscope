@@ -6,6 +6,7 @@ package app.tellyscope.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,13 +30,16 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
@@ -59,18 +63,24 @@ import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathParser
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.tellyscope.data.Action
 import app.tellyscope.data.AppInfo
 import app.tellyscope.data.Device
+import app.tellyscope.data.PROJECTIVY
+import app.tellyscope.data.PROJECTIVY_RELEASES
+import app.tellyscope.data.isFireOs
+import app.tellyscope.ui.theme.SmallNumber
 
-/** The Play Store's package: a TV without it (Fire TV) gets no card and no Tweaks row. */
+/** The Play Store's package: a TV without it gets no card and no Tweaks row, unless it runs Fire OS ([fireInstall]). */
 const val PLAY_STORE = "com.android.vending"
 
 /**
@@ -83,10 +93,18 @@ internal fun hasPlayStore(apps: List<AppInfo>) = apps.any { it.packageName == PL
 /** A launcher someone added is on the TV, Home or not: one on `launchers.json`, or one they installed that answers Home. */
 internal fun hasAddedLauncher(apps: List<AppInfo>) = apps.any { it.listedLauncher || (it.removable && (it.home || it.answersHome)) }
 
-internal fun offerChoose(apps: List<AppInfo>) = hasPlayStore(apps) && !hasAddedLauncher(apps)
+/**
+ * Fire OS has no Play Store, so Install a home screen offers only Projectivy there, which Tellyscope downloads
+ * from its developer and installs itself. Only while the launcher list ([recommended]) has Projectivy; without it, nothing is offered.
+ */
+internal fun fireInstall(device: Device, apps: List<AppInfo>, recommended: List<Recommended> = RECOMMENDED) =
+    isFireOs(device, apps) && recommended.any { it.pkg == PROJECTIVY }
 
-internal fun offerLauncher(apps: List<AppInfo>, hidden: Boolean) =
-    !hidden && offerChoose(apps) && apps.none { it.homeInstead != null || it.homeBack != null }
+/** [fire]: [fireInstall] holds, so the Play Store isn't needed. */
+internal fun offerChoose(apps: List<AppInfo>, fire: Boolean = false) = (hasPlayStore(apps) || fire) && !hasAddedLauncher(apps)
+
+internal fun offerLauncher(apps: List<AppInfo>, hidden: Boolean, fire: Boolean = false) =
+    !hidden && offerChoose(apps, fire) && apps.none { it.homeInstead != null || it.homeBack != null }
 
 /** [pkg] on the TV and on, so the picker offers Make Home or Open on it rather than the Store. */
 internal fun installedLauncher(apps: List<AppInfo>, pkg: String) = apps.firstOrNull { it.packageName == pkg && it.enabled }
@@ -108,12 +126,21 @@ data class LauncherActions(
     /** Open in the picker: shows that launcher on the TV. */
     val open: (String) -> Unit = {},
     val later: () -> Unit = {},
+    /** Fire OS: Install Projectivy, which reads the latest release for the confirm dialog. Try again does the same. */
+    val fireCheck: () -> Unit = {},
+    /** Fire OS: Download and install in the confirm dialog. */
+    val fireInstall: () -> Unit = {},
+    /** Fire OS: Cancel, Close or OK in a dialog. */
+    val fireDismiss: () -> Unit = {},
 )
 
-/** The Apps tab's card: a launcher without ads, from the Play Store. Not now puts it away on this TV. */
+/** The Apps tab's card: a launcher without ads, from the Play Store ([fire]: Projectivy, installed by Tellyscope). Not now puts it away on this TV. */
 @Composable
-fun LauncherCard(current: String?, onNotNow: () -> Unit, onChoose: () -> Unit) {
-    HomeNoteCard(Icons.Outlined.Home, Copy.BETTER_HOME, Copy.betterHomeText(current), Copy.NOT_NOW, onNotNow, Copy.CHOOSE_ONE, onChoose)
+fun LauncherCard(current: String?, onNotNow: () -> Unit, onChoose: () -> Unit, fire: Boolean = false) {
+    HomeNoteCard(
+        Icons.Outlined.Home, Copy.BETTER_HOME, Copy.betterHomeText(current, fire), Copy.NOT_NOW, onNotNow,
+        if (fire) Copy.INSTALL_ONE else Copy.CHOOSE_ONE, onChoose,
+    )
 }
 
 /**
@@ -121,6 +148,7 @@ fun LauncherCard(current: String?, onNotNow: () -> Unit, onChoose: () -> Unit) {
  * Play Store, then the switch, which ends in the same yes for the accessibility service as Set as
  * default. A launcher already on the TV skips the Store: the picker offers Make Home or Open on it.
  * A TV that didn't open the Store says so; a Store closed without installing goes back to the picker.
+ * On Fire OS ([LauncherFlow.fire]) the picker is Projectivy alone, which Tellyscope downloads and installs.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -138,6 +166,7 @@ fun LauncherScreen(
     val app = apps.firstOrNull { it.packageName == if (picking) chosen else flow.pkg }
     val current = app?.let { homeLabel(apps, it) }
     val switch = { service: Boolean -> if (picking) actions.makeHome(chosen, service) else actions.switch(service) }
+    flow.fire?.let { FireDialog(it, device, actions) }
     if (askService && app != null && current != null) {
         ServiceDialog(
             app.label, current,
@@ -149,7 +178,15 @@ fun LauncherScreen(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = { Text(if (flow.step == LauncherFlow.Step.Pick) Copy.CHOOSE_HOME else Copy.INSTALL_HOME) },
+                title = {
+                    Text(
+                        when {
+                            flow.fire != null -> Copy.INSTALL_PROJECTIVY
+                            flow.step == LauncherFlow.Step.Pick -> Copy.CHOOSE_HOME
+                            else -> Copy.INSTALL_HOME
+                        },
+                    )
+                },
                 navigationIcon = { IconButton(onClick = actions.close) { Icon(Icons.Default.Close, contentDescription = "Close") } },
             )
         },
@@ -160,7 +197,9 @@ fun LauncherScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 when (flow.step) {
-                    LauncherFlow.Step.Pick -> {
+                    LauncherFlow.Step.Pick -> if (flow.fire != null) {
+                        IconButtonText(LauncherIcons.Download, Copy.INSTALL_PROJECTIVY, enabled = flow.fire.step == null) { actions.fireCheck() }
+                    } else {
                         val have = installedLauncher(apps, chosen)
                         when {
                             have == null -> IconButtonText(OpenInNew, Copy.OPEN_IN_STORE) { actions.install(chosen) }
@@ -201,7 +240,7 @@ fun LauncherScreen(
             }
             val c = MaterialTheme.colorScheme
             when (flow.step) {
-                LauncherFlow.Step.Pick -> Picker(chosen, apps) { chosen = it }
+                LauncherFlow.Step.Pick -> if (flow.fire != null) FirePick() else Picker(chosen, apps) { chosen = it }
                 LauncherFlow.Step.Waiting -> {
                     Hero(LauncherIcons.Download, c.secondaryContainer, c.onSecondaryContainer)
                     Headed(Copy.INSTALL_IT, bold(Copy.installItText(label), label, "Install"))
@@ -242,8 +281,8 @@ fun LauncherScreen(
 }
 
 @Composable
-private fun IconButtonText(icon: ImageVector, text: String, onClick: () -> Unit) {
-    Button(onClick = onClick, contentPadding = ButtonDefaults.ButtonWithIconContentPadding) {
+private fun IconButtonText(icon: ImageVector, text: String, enabled: Boolean = true, onClick: () -> Unit) {
+    Button(onClick = onClick, enabled = enabled, contentPadding = ButtonDefaults.ButtonWithIconContentPadding) {
         Icon(icon, contentDescription = null, Modifier.size(18.dp))
         Spacer(Modifier.width(8.dp))
         Text(text)
@@ -285,6 +324,112 @@ private fun Picker(chosen: String, apps: List<AppInfo>, onChoose: (String) -> Un
         Text(Copy.OTHER_LAUNCHER, style = MaterialTheme.typography.bodyMedium, color = c.onSurfaceVariant, modifier = Modifier.padding(top = 12.dp))
         Text(Copy.NOT_AFFILIATED, style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant, modifier = Modifier.padding(top = 12.dp))
     }
+}
+
+/** Fire OS's picker: Projectivy alone, about it as the picker says it, and nothing to do on the TV. */
+@Composable
+private fun FirePick() {
+    val c = MaterialTheme.colorScheme
+    Text(Copy.FIRE_INSTALL_TEXT, style = MaterialTheme.typography.bodyLarge, color = c.onSurfaceVariant)
+    val l = RECOMMENDED.firstOrNull { it.pkg == PROJECTIVY } ?: return
+    Surface(shape = MaterialTheme.shapes.large, color = c.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp)) {
+            Text(l.name, style = MaterialTheme.typography.bodyLarge)
+            Text(l.about, style = MaterialTheme.typography.bodyMedium, color = c.onSurfaceVariant)
+            Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(if (l.accessibility) DeviceIcons.Accessibility else LauncherIcons.Code, null, Modifier.size(14.dp), tint = c.onSurfaceVariant)
+                Spacer(Modifier.width(6.dp))
+                Text(if (l.accessibility) Copy.USES_SERVICE else Copy.NO_SERVICE, style = MaterialTheme.typography.labelMedium, color = c.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+/**
+ * Fire OS's install, one dialog per [FireInstall.Step]: where it downloads from, the link opening that release
+ * page on the phone, then the download and the install with no way out, then what went wrong.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun FireDialog(f: FireInstall, device: Device, actions: LauncherActions) {
+    val step = f.step?.takeIf { it != FireInstall.Step.Checking } ?: return
+    val c = MaterialTheme.colorScheme
+    val uri = LocalUriHandler.current
+    val label = launcherName(PROJECTIVY)
+    val release = f.release
+    val failed = step == FireInstall.Step.NotProjectivy || step == FireInstall.Step.NoDownload || step == FireInstall.Step.Refused
+    AlertDialog(
+        onDismissRequest = {},
+        properties = Sticky,
+        icon = if (failed) ({ Icon(Icons.Default.Warning, null) }) else null,
+        title = {
+            Text(
+                when (step) {
+                    FireInstall.Step.Confirm -> Copy.installProjectivyOn(name(device))
+                    FireInstall.Step.NotProjectivy -> Copy.NOT_PROJECTIVY
+                    FireInstall.Step.NoDownload -> Copy.NO_DOWNLOAD
+                    FireInstall.Step.Refused -> "Couldn't install $label"
+                    else -> label
+                },
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                when (step) {
+                    FireInstall.Step.Confirm -> if (release != null) {
+                        Text(Copy.downloadsFrom(label, release.version, release.size), style = MaterialTheme.typography.bodyMedium)
+                        Row(Modifier.clickable(role = Role.Button) { uri.openUri(release.page) }, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Icon(OpenInNew, null, Modifier.size(18.dp), tint = c.primary)
+                            Text(
+                                release.page.removePrefix("https://"),
+                                style = MaterialTheme.typography.bodyMedium.copy(textDecoration = TextDecoration.Underline),
+                                color = c.primary,
+                            )
+                        }
+                        Text(Copy.SIGNED_CHECK, style = MaterialTheme.typography.bodyMedium)
+                    }
+                    FireInstall.Step.Downloading, FireInstall.Step.Installing -> {
+                        Column {
+                            Text(PROJECTIVY, style = SmallNumber, color = c.onSurfaceVariant)
+                            release?.let { Text("Version ${it.version} · ${Copy.bytes(it.size)}", style = SmallNumber, color = c.onSurfaceVariant) }
+                            Text("from " + PROJECTIVY_RELEASES.removePrefix("https://").removeSuffix("/releases"), style = SmallNumber, color = c.onSurfaceVariant)
+                        }
+                        val p = f.progress?.fraction
+                        // Past the last byte the TV is still unpacking: no bar stuck at 100%.
+                        if (p != null && p < 1f) LinearWavyProgressIndicator(progress = { p }, Modifier.fillMaxWidth())
+                        else LinearWavyProgressIndicator(Modifier.fillMaxWidth())
+                        Text(
+                            if (step == FireInstall.Step.Downloading) Copy.downloading(((p ?: 0f) * 100).toInt()) else Copy.installingOn(name(device)),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Text(Copy.INSTALL_KEEP_OPEN, style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant)
+                    }
+                    FireInstall.Step.NotProjectivy -> Text(Copy.NOT_PROJECTIVY_TEXT, style = MaterialTheme.typography.bodyMedium)
+                    FireInstall.Step.NoDownload -> Text(Copy.NO_DOWNLOAD_TEXT, style = MaterialTheme.typography.bodyMedium)
+                    FireInstall.Step.Refused -> Text(f.error.orEmpty(), style = MaterialTheme.typography.bodyMedium)
+                    FireInstall.Step.Checking -> Unit
+                }
+            }
+        },
+        confirmButton = {
+            when (step) {
+                FireInstall.Step.Confirm -> Button(onClick = actions.fireInstall) { Text(Copy.DOWNLOAD_AND_INSTALL) }
+                FireInstall.Step.NotProjectivy, FireInstall.Step.NoDownload -> Button(onClick = actions.fireCheck) { Text(Copy.TRY_AGAIN) }
+                FireInstall.Step.Refused -> Button(onClick = actions.fireDismiss) { Text("OK") }
+                else -> Unit
+            }
+        },
+        dismissButton = {
+            when (step) {
+                FireInstall.Step.Confirm -> TextButton(onClick = actions.fireDismiss) { Text("Cancel") }
+                FireInstall.Step.NotProjectivy -> TextButton(onClick = actions.fireDismiss) { Text("Close") }
+                FireInstall.Step.NoDownload -> TextButton(onClick = { actions.fireDismiss(); uri.openUri(release?.page ?: PROJECTIVY_RELEASES) }) {
+                    Text(Copy.OPEN_DOWNLOAD_PAGE)
+                }
+                else -> Unit
+            }
+        },
+    )
 }
 
 /** Row [i] of a segmented list ending at [last]: the ends rounded, the joins tight. */

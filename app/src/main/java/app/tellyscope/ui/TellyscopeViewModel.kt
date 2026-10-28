@@ -32,8 +32,12 @@ import app.tellyscope.data.Dock
 import app.tellyscope.data.Docked
 import app.tellyscope.data.HistoryEntry
 import app.tellyscope.data.KeyHaptics
+import app.tellyscope.data.LauncherDownload
+import app.tellyscope.data.LauncherRelease
 import app.tellyscope.data.NetworkInfo
 import app.tellyscope.data.NotAnApp
+import app.tellyscope.data.NotProjectivy
+import app.tellyscope.data.PROJECTIVY
 import app.tellyscope.data.PhoneStorage
 import app.tellyscope.data.PickedApp
 import app.tellyscope.data.RemoteButtons
@@ -166,8 +170,23 @@ data class ResetUi(
  * opens at its page ([Step.Waiting], or [Step.NoStore] when the Store didn't open and the user
  * searches by hand), then switch to it ([Step.Installed]). [Step.Left]: the Store closed first.
  */
-data class LauncherFlow(val step: Step = Step.Pick, val pkg: String = RECOMMENDED.first().pkg) {
+data class LauncherFlow(val step: Step = Step.Pick, val pkg: String = RECOMMENDED.first().pkg, val fire: FireInstall? = null) {
     enum class Step { Pick, Waiting, NoStore, Left, Installed }
+}
+
+/**
+ * Install Projectivy on Fire OS ([fireInstall]), on [LauncherFlow.Step.Pick] in place of the picker: there's no
+ * Play Store, so Tellyscope reads the latest release ([Step.Checking]), asks ([Step.Confirm]), downloads and
+ * checks it ([Step.Downloading]), installs it over adb ([Step.Installing]), then moves to [LauncherFlow.Step.Installed].
+ * A null [step] is the screen with no dialog. [error] is the TV's refusal, for [Step.Refused].
+ */
+data class FireInstall(
+    val step: Step? = null,
+    val release: LauncherRelease? = null,
+    val progress: Progress? = null,
+    val error: String? = null,
+) {
+    enum class Step { Checking, Confirm, Downloading, Installing, NotProjectivy, NoDownload, Refused }
 }
 
 /**
@@ -349,6 +368,8 @@ class TellyscopeViewModel(
     private val historySeen: SeenBook? = null,
     /** This build and phone, for reports. */
     private val appFacts: AppFacts = AppFacts("unknown", "unknown phone"),
+    /** Projectivy from its developer's GitHub, for Fire OS. */
+    private val launcherDownload: LauncherDownload? = null,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(UiState(now = clock()))
@@ -792,11 +813,83 @@ class TellyscopeViewModel(
     /** Opens Install a home screen on its picker; not before the launcher list has been downloaded once. */
     fun openLauncherFlow() {
         val id = _state.value.selectedId ?: return
+        if (_state.value.selected?.let { fireInstall(it, _state.value.device.apps) } == true) {
+            updateDevice(id) { it.copy(launcher = LauncherFlow(pkg = PROJECTIVY, fire = FireInstall())) }
+            return
+        }
         if (RECOMMENDED.isEmpty()) {
             _notice.value = Copy.NO_LAUNCHER_LIST
             return
         }
         updateDevice(id) { it.copy(launcher = LauncherFlow()) }
+    }
+
+    private fun setFire(id: String, f: (FireInstall) -> FireInstall) =
+        updateDevice(id) { d -> d.copy(launcher = d.launcher?.let { l -> l.fire?.let { l.copy(fire = f(it)) } }) }
+
+    /** Install Projectivy on Fire OS: reads the latest release, for the confirm dialog to show where it comes from. */
+    fun checkProjectivy() {
+        val id = _state.value.selectedId ?: return
+        val download = launcherDownload ?: return
+        launcherJob?.cancel()
+        setFire(id) { FireInstall(FireInstall.Step.Checking) }
+        launcherJob = viewModelScope.launch {
+            val release = try {
+                download.latest()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                return@launch setFire(id) { FireInstall(FireInstall.Step.NoDownload) }
+            }
+            setFire(id) { FireInstall(FireInstall.Step.Confirm, release) }
+        }
+    }
+
+    /**
+     * Download and install: fetches the APK, which must be Projectivy signed by its developer, then installs it
+     * over adb like any sideload. Nothing reaches the TV unless the check passes.
+     */
+    fun installProjectivy() {
+        val id = _state.value.selectedId ?: return
+        val download = launcherDownload ?: return
+        val release = _state.value.device.launcher?.fire?.takeIf { it.step == FireInstall.Step.Confirm }?.release ?: return
+        launcherJob?.cancel()
+        setFire(id) { it.copy(step = FireInstall.Step.Downloading, progress = null) }
+        launcherJob = viewModelScope.launch {
+            val app = try {
+                download.fetch(release) { p -> setFire(id) { it.copy(progress = p) } }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: NotProjectivy) {
+                return@launch setFire(id) { it.copy(step = FireInstall.Step.NotProjectivy) }
+            } catch (_: Exception) {
+                return@launch setFire(id) { it.copy(step = FireInstall.Step.NoDownload) }
+            }
+            setFire(id) { it.copy(step = FireInstall.Step.Installing, progress = null) }
+            val result = try {
+                source.install(id, app.files, app.info, allowDowngrade = false) { p -> setFire(id) { it.copy(progress = p) } }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                return@launch setFire(id) { it.copy(step = FireInstall.Step.Refused, error = Copy.SIDELOAD_LOST) }
+            }
+            when (result) {
+                InstallResult.Done -> launcherInstalled(id, PROJECTIVY) { step ->
+                    updateDevice(id) { it.copy(launcher = it.launcher?.copy(step = step)) }
+                }
+                is InstallResult.Refused -> setFire(id) {
+                    it.copy(step = FireInstall.Step.Refused, error = Copy.installRefused(result.reason, launcherName(PROJECTIVY)))
+                }
+            }
+        }
+    }
+
+    /** Cancel, Close or OK on a Fire OS dialog: back to the screen. Not while the install runs. */
+    fun dismissProjectivy() {
+        val id = _state.value.selectedId ?: return
+        if (_state.value.device.launcher?.fire?.step == FireInstall.Step.Installing) return
+        launcherJob?.cancel()
+        setFire(id) { FireInstall() }
     }
 
     /** Not now on the Apps tab's card: it stays away on this TV, and Tweaks keeps the way in. */
@@ -815,6 +908,8 @@ class TellyscopeViewModel(
 
     fun closeLauncherFlow() {
         val id = _state.value.selectedId ?: return
+        // An install under way finishes; cutting it off could leave the TV half done.
+        if (_state.value.device.launcher?.fire?.step == FireInstall.Step.Installing) return
         launcherJob?.cancel()
         updateDevice(id) { it.copy(launcher = null) }
     }
@@ -864,24 +959,7 @@ class TellyscopeViewModel(
                     return@repeat // a dropped read: the next one tells
                 }
                 when (now) {
-                    StoreState.Installed -> {
-                        val apps = try {
-                            source.apps(id)
-                        } catch (e: CancellationException) {
-                            throw e
-                        } catch (_: Exception) {
-                            null
-                        }
-                        apps?.let { a -> updateDevice(id) { it.copy(apps = a) } }
-                        // No way to offer it as Home (the TV asks each time): say where to find it instead.
-                        if (apps?.firstOrNull { it.packageName == pkg }?.homeInstead == null) {
-                            updateDevice(id) { it.copy(launcher = null) }
-                            _notice.value = Copy.launcherInstalled(launcherName(pkg))
-                        } else {
-                            step(LauncherFlow.Step.Installed)
-                        }
-                        return@launch
-                    }
+                    StoreState.Installed -> return@launch launcherInstalled(id, pkg, step)
                     StoreState.InStore -> seen = true
                     StoreState.Elsewhere -> if (seen) {
                         // The Store closed without it: back to the picker, still chosen, and the snackbar says so.
@@ -892,6 +970,25 @@ class TellyscopeViewModel(
                 }
             }
             step(LauncherFlow.Step.Left)
+        }
+    }
+
+    /** [pkg] is now on the TV: rereads the apps, then on to Make it the home screen. */
+    private suspend fun launcherInstalled(id: String, pkg: String, step: (LauncherFlow.Step) -> Unit) {
+        val apps = try {
+            source.apps(id)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null
+        }
+        apps?.let { a -> updateDevice(id) { it.copy(apps = a) } }
+        // No way to offer it as Home (the TV asks each time): say where to find it instead.
+        if (apps?.firstOrNull { it.packageName == pkg }?.homeInstead == null) {
+            updateDevice(id) { it.copy(launcher = null) }
+            _notice.value = Copy.launcherInstalled(launcherName(pkg))
+        } else {
+            step(LauncherFlow.Step.Installed)
         }
     }
 

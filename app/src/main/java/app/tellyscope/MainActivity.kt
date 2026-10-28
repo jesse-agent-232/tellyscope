@@ -42,6 +42,7 @@ import app.tellyscope.adb.AppFacts
 import app.tellyscope.adb.Connector
 import app.tellyscope.adb.StatsProfile
 import app.tellyscope.data.AdbDeviceSource
+import app.tellyscope.data.AndroidLauncherDownload
 import app.tellyscope.data.AndroidPhoneStorage
 import app.tellyscope.data.Device
 import app.tellyscope.data.DeviceState
@@ -126,6 +127,7 @@ class MainActivity : ComponentActivity() {
                                         gates = FoldBook(File(filesDir, "gates.properties")),
                                         historySeen = SeenBook(File(filesDir, "history-seen.properties")),
                                         appFacts = AppFacts(installedVersion(), "${Build.MANUFACTURER} ${Build.MODEL}, Android ${Build.VERSION.RELEASE}"),
+                                        launcherDownload = if (scenario != null) null else AndroidLauncherDownload(applicationContext),
                                     )
                                 }
                             },
@@ -339,6 +341,9 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
                 makeHome = vm::makeHome,
                 open = vm::openLauncher,
                 later = vm::launcherLater,
+                fireCheck = vm::checkProjectivy,
+                fireInstall = vm::installProjectivy,
+                fireDismiss = vm::dismissProjectivy,
             ),
             snackbar = snackbar,
         )

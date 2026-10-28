@@ -15,6 +15,8 @@ until this file has a section for its version.
 - **Fixed:** A Remote button's tap ripple stays inside the button. [#228](../../pull/228)
 - **Improved:** The Remote buttons list has more room at its sides. [#228](../../pull/228)
 - **Improved:** While you type on the Remote, back, home and menu shrink to give the D-pad room. [#229](../../pull/229)
+- **New:** On Fire TV, Install a home screen downloads and installs Projectivy for you. [#232](../../pull/232)
+  - It comes from Projectivy's GitHub releases, and is checked against its developer's signature first.
 
 ## 0.13.0 — 2026-10-29
 
