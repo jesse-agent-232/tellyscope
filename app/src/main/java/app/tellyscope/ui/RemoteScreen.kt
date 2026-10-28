@@ -103,10 +103,15 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
@@ -125,6 +130,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import app.tellyscope.adb.RemoteKey
 import app.tellyscope.data.AppInfo
 import app.tellyscope.data.DeviceState
@@ -231,6 +238,10 @@ fun RemoteScreen(
     var tight by remember { mutableStateOf(false) }
     // While typing, the keyboard needs the room: volume, the hint and the dock step aside for the D-pad.
     val typing = WindowInsets.isImeVisible
+    val focus = LocalFocusManager.current
+    // The text box in window coordinates, so a tap on it (or its ⌫ and Send) keeps the keyboard up.
+    var field by remember { mutableStateOf(Rect.Zero) }
+    var origin by remember { mutableStateOf(Offset.Zero) }
     val rowGap = if (tight || typing) 12.dp else 20.dp
     val short = LocalConfiguration.current.screenHeightDp < SHORT_PHONE_DP
 
@@ -239,7 +250,21 @@ fun RemoteScreen(
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         dragHandle = { HandleRow(screenControl, screenOff, live, showTip = state.screenOffTip, actions, onRestart = { confirmReboot = true }) },
     ) {
-        Box(Modifier.fillMaxSize()) {
+        // A tap anywhere else puts the keyboard away once the finger lifts, so nothing moves under a
+        // press; the key that was tapped still does its job. Watched on the way down, never consumed.
+        Box(
+            Modifier.fillMaxSize()
+                .onGloballyPositioned { origin = it.positionInWindow() }
+                .pointerInput(typing) {
+                    if (!typing) return@pointerInput
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                        if (field.contains(origin + down.position)) return@awaitEachGesture
+                        waitForUpOrCancellation(PointerEventPass.Initial)
+                        focus.clearFocus()
+                    }
+                },
+        ) {
             Column(
                 Modifier.fillMaxSize().padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -299,7 +324,10 @@ fun RemoteScreen(
                     }
                     // Twice the usual gap, so a thumb aiming at a volume key doesn't land in the text box.
                     Spacer(Modifier.height(if (typing) rowGap else 24.dp))
-                    Keyboard(live, actions.type, actions.press, hint = !tight && !typing)
+                    Keyboard(
+                        live, actions.type, actions.press, hint = !tight && !typing,
+                        modifier = Modifier.onGloballyPositioned { field = it.boundsInWindow() },
+                    )
                 } }
                 // Under the keys, out of a thumb's way.
                 if (!typing) {
@@ -449,7 +477,13 @@ private fun KeySurface(
 /** [hint] off on a screen too short for it; an error still shows. */
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
-private fun Keyboard(enabled: Boolean, type: (String) -> String?, press: suspend (RemoteKey) -> Boolean, hint: Boolean = true) {
+private fun Keyboard(
+    enabled: Boolean,
+    type: (String) -> String?,
+    press: suspend (RemoteKey) -> Boolean,
+    hint: Boolean = true,
+    modifier: Modifier = Modifier,
+) {
     var text by rememberSaveable { mutableStateOf("") }
     var error by rememberSaveable { mutableStateOf<String?>(null) }
     fun send() {
@@ -479,7 +513,7 @@ private fun Keyboard(enabled: Boolean, type: (String) -> String?, press: suspend
                 }
             }
         },
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
     )
 }
 
