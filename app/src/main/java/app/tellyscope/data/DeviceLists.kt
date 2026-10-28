@@ -14,7 +14,10 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
 
-/** Where the per-TV debloat lists live: the tellyscope-devices repo, built from cleanyourtv. */
+/**
+ * Where the per-TV debloat lists live, with the launcher, app name and streaming lists and the
+ * Remote's logos: the tellyscope-devices repo.
+ */
 const val LISTS_BASE = "https://raw.githubusercontent.com/man15h/tellyscope-devices/main/"
 
 /** One row of `index.json`. [match] is null for lists nobody has matched to a TV yet. */
@@ -95,7 +98,16 @@ fun merge(maker: String, lists: List<DeviceList>): DeviceList = DeviceList(
     },
 )
 
-data class ListIndex(val commit: String?, val devices: List<ListEntry>)
+/** A file the index names outside `devices/`, checked against [sha256] like a device file. */
+data class ListFile(val file: String, val sha256: String)
+
+/** [lists] by name (`launchers`, `labels`, `streaming`) and [logos] by logo name; empty on an index from before they moved here. */
+data class ListIndex(
+    val commit: String?,
+    val devices: List<ListEntry>,
+    val lists: Map<String, ListFile> = emptyMap(),
+    val logos: Map<String, ListFile> = emptyMap(),
+)
 
 data class ListPackage(val pkg: String, val note: String?, val optional: Boolean)
 
@@ -141,6 +153,8 @@ sealed interface Suggestions {
 /** Same rule tellyscope-devices checks; a name goes into a `pm` shell line. */
 internal val PACKAGE = Regex("[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z0-9_]+)+")
 private val FILE = Regex("devices/[A-Za-z0-9][A-Za-z0-9._-]*\\.json")
+private val LIST_FILE = Regex("lists/[a-z]+\\.json")
+private val LOGO_FILE = Regex("logos/[a-z0-9]+\\.png")
 private val SHA256 = Regex("[0-9a-f]{64}")
 private const val SCHEMA = 1
 
@@ -154,7 +168,10 @@ fun matches(rule: Map<String, List<String>>?, props: Map<String, String?>): Bool
         values.any { it.equals(actual, ignoreCase = true) }
     }
 
-/** Null unless it is a schema 1 index. Entries with a missing field, bad file name or checksum are dropped. */
+/**
+ * Null unless it is a schema 1 index. Entries with a missing field, bad file name or checksum are
+ * dropped, in `devices`, `lists` and `logos` alike.
+ */
 fun parseIndex(text: String): ListIndex? = try {
     val o = jsonObject(text)
     if (o.optInt("schema") != SCHEMA) null else ListIndex(
@@ -171,9 +188,21 @@ fun parseIndex(text: String): ListIndex? = try {
                 sha256 = d.getString("sha256"),
             ).takeIf { FILE.matches(it.file) && SHA256.matches(it.sha256) }
         },
+        lists = o.files("lists", LIST_FILE),
+        logos = o.files("logos", LOGO_FILE),
     )
 } catch (_: org.json.JSONException) {
     null
+}
+
+/** The `{name: {file, sha256}}` map under [key], without entries whose file isn't [pattern] or whose checksum can't be one. */
+private fun JSONObject.files(key: String, pattern: Regex): Map<String, ListFile> {
+    val o = optJSONObject(key) ?: return emptyMap()
+    return o.keys().asSequence().mapNotNull { k ->
+        val f = o.optJSONObject(k) ?: return@mapNotNull null
+        val file = ListFile(f.optString("file"), f.optString("sha256"))
+        (k to file).takeIf { pattern.matches(file.file) && SHA256.matches(file.sha256) }
+    }.toMap()
 }
 
 /**
@@ -218,8 +247,8 @@ fun suggest(list: DeviceList, apps: List<AppInfo>, sdk: Int?): List<SuggestedGro
 }
 
 /**
- * Fetches and caches the index and device files under [dir]. A failed fetch falls back to the
- * cache; a device file is only used (and cached) when its sha256 matches the index. Hand picks
+ * Fetches and caches the index, device files, lists and logos under [dir]. A failed fetch falls
+ * back to the cache; a file is only used (and cached) when its sha256 matches the index. Hand picks
  * are remembered per [historyKey].
  */
 class DeviceLists(
@@ -254,6 +283,8 @@ class DeviceLists(
         withContext(Dispatchers.IO) {
             File(dir, "index.json").delete()
             File(dir, "devices").deleteRecursively()
+            File(dir, "lists").deleteRecursively()
+            File(dir, "logos").deleteRecursively()
             dir.mkdirs()
             if (text != null) File(dir, "index.json").writeText(text)
             synchronized(this@DeviceLists) {
@@ -279,12 +310,41 @@ class DeviceLists(
     }
 
     /** The device file for [entry], from cache or the network. Null when the bytes don't match its sha256. */
-    suspend fun list(entry: ListEntry): DeviceList? = withContext(Dispatchers.IO) {
-        val cache = File(dir, entry.file) // lists/devices/<id>.json, apart from index.json
-        val bytes = cache.takeIf { it.exists() }?.readBytes()?.takeIf { sha256(it) == entry.sha256 }
-            ?: attempt { fetch(base + entry.file) }?.takeIf { sha256(it) == entry.sha256 }
+    suspend fun list(entry: ListEntry): DeviceList? =
+        file(entry.file, entry.sha256)?.let { parseList(it.decodeToString(), entry.id) }
+
+    /**
+     * The launcher, app name and streaming lists the index names, each from cache or the network.
+     * One that can't be had is null in [SharedFiles], so the caller keeps what it has.
+     */
+    suspend fun shared(): SharedFiles {
+        val lists = index()?.lists.orEmpty()
+        suspend fun get(name: String) = lists[name]?.let { file(it.file, it.sha256) }?.decodeToString()
+        return SharedFiles(get("launchers"), get("labels"), get("streaming"))
+    }
+
+    /** The lists as last cached, without the network, for the moment before [shared] answers. */
+    suspend fun cachedShared(): SharedFiles = withContext(Dispatchers.IO) {
+        fun read(name: String) = File(dir, "lists/$name.json").takeIf { it.exists() }?.readText()
+        SharedFiles(read("launchers"), read("labels"), read("streaming"))
+    }
+
+    /**
+     * A logo's PNG by the name `streaming.json` gives it; null when the index has none or it can't be
+     * had. Uses the index already read, never fetching it: offline, every button on screen asking at
+     * once would queue one network timeout each behind [lock].
+     */
+    suspend fun logo(name: String): ByteArray? {
+        val known = index ?: withContext(Dispatchers.IO) { File(dir, "index.json").takeIf { it.exists() }?.readText()?.let(::parseIndex) }
+        return known?.logos?.get(name)?.let { file(it.file, it.sha256) }
+    }
+
+    /** [path] under [dir] when its bytes match [sha], else fetched from [base] and cached if they do. */
+    private suspend fun file(path: String, sha: String): ByteArray? = withContext(Dispatchers.IO) {
+        val cache = File(dir, path) // lists/devices/<id>.json and the like, apart from index.json
+        cache.takeIf { it.exists() }?.readBytes()?.takeIf { sha256(it) == sha }
+            ?: attempt { fetch(base + path) }?.takeIf { sha256(it) == sha }
                 ?.also { cache.parentFile?.mkdirs(); cache.writeBytes(it) }
-        bytes?.let { parseList(it.decodeToString(), entry.id) }
     }
 
     /**
@@ -323,6 +383,9 @@ class DeviceLists(
         null
     }
 }
+
+/** The raw text of each shared list; null for one not available. */
+data class SharedFiles(val launchers: String?, val labels: String?, val streaming: String?)
 
 enum class SourceResult { Ok, NotHttps, Unreachable, NotAList }
 

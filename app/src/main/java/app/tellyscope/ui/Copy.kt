@@ -174,6 +174,7 @@ object Copy {
     const val CHOOSE_ONE = "Choose one"
     const val CHOOSE_HOME = "Choose a home screen"
     const val CHOOSE_HOME_TEXT = "Each one replaces the TV's home screen. Tellyscope opens it in the Play Store on the TV; you install it with the remote."
+    const val NO_LAUNCHER_LIST = "Couldn't load the list of home screens. Check the phone's internet and try again."
     const val RECOMMENDED = "Recommended"
     /** The picker's section for launchers on the TV that Recommended doesn't list. */
     const val ON_THIS_TV = "On this TV"

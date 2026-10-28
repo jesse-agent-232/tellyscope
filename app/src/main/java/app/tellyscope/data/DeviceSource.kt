@@ -88,7 +88,7 @@ interface DeviceSource {
     /** Puts away the TV page's card about [packageName]'s service being off, until the next switch. */
     suspend fun dismissServiceNote(deviceId: String, packageName: String) {}
 
-    /** Opens the Play Store on the TV at [packageName]'s page, a launcher from the bundled list; false when it didn't open. */
+    /** Opens the Play Store on the TV at [packageName]'s page, a launcher from `launchers.json`; false when it didn't open. */
     suspend fun openStore(deviceId: String, packageName: String): Boolean = false
 
     /** Whether [packageName] is installed yet, and if not, whether the Store is still on screen. */

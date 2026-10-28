@@ -85,8 +85,8 @@ class AdbDeviceSource(context: Context) : DeviceSource {
     @Volatile private var paused = false
     private val hits = ConcurrentHashMap<String, ScanHit>()
     private val store = DeviceStore(File(appContext.filesDir, "devices.tsv"))
-    /** Launchers whose accessibility service a switch may turn on: only those `launchers.json` names. */
-    private val serviceLaunchers by lazy { BundledLists.launchers.filter { it.accessibility }.map { it.pkg }.toSet() }
+    /** Launchers whose accessibility service a switch may turn on: only the built-in ones. */
+    private val serviceLaunchers = ACCESSIBILITY_LAUNCHERS.keys
     private val saved = ConcurrentHashMap<String, SavedDevice>()
     /** Remembered TVs that haven't answered since launch: shown offline, not "connecting". */
     private val restoring = ConcurrentHashMap.newKeySet<String>()
@@ -116,6 +116,7 @@ class AdbDeviceSource(context: Context) : DeviceSource {
 
     init {
         Connector.init(File(appContext.filesDir, "adbkey.pem"))
+        scope.launch(Dispatchers.IO) { SharedLists.load(lists) }
     }
 
     /** Remembered TVs reconnect in the background from launch; [known] waits for the file read. */
@@ -360,6 +361,8 @@ class AdbDeviceSource(context: Context) : DeviceSource {
     override fun pause(paused: Boolean) {
         this.paused = paused
         links.values.forEach { it.gate.paused.value = paused }
+        // Back in front: lists that couldn't be downloaded at launch get another go.
+        if (!paused) scope.launch(Dispatchers.IO) { SharedLists.refresh() }
     }
 
     /**
@@ -420,7 +423,7 @@ class AdbDeviceSource(context: Context) : DeviceSource {
                 icon = name.icon,
                 removable = p.name in userInstalled,
                 home = p.name == homeOptions?.takeIf { it.default }?.current,
-                listedLauncher = BundledLists.launchers.any { it.pkg == p.name },
+                listedLauncher = SharedLists.launchers.any { it.pkg == p.name },
                 homeInstead = homeOptions?.takeIf { p.name in it.others }?.current,
                 homeFirst = homeOptions?.takeIf { it.current == null && p.name in it.others } != null,
                 answersHome = homeOptions?.let { p.name == it.current || p.name in it.others } == true,
@@ -627,8 +630,8 @@ class AdbDeviceSource(context: Context) : DeviceSource {
     override suspend fun history(deviceId: String): List<HistoryEntry> = book.entries(key(deviceId))
 
     override suspend fun openStore(deviceId: String, packageName: String): Boolean {
-        // Only a launcher the bundled list names: the Store link is the one thing this opens.
-        if (BundledLists.launchers.none { it.pkg == packageName }) return false
+        // Only a launcher the list names: the Store link is the one thing this opens.
+        if (SharedLists.launchers.none { it.pkg == packageName }) return false
         return Actions(session(deviceId)).openStore(packageName)
     }
 
@@ -826,7 +829,10 @@ class AdbDeviceSource(context: Context) : DeviceSource {
 
     override suspend fun setListSource(url: String?) {
         when (lists.setSource(url)) {
-            SourceResult.Ok -> keep.clear() // the old source's keep entries
+            SourceResult.Ok -> {
+                keep.clear() // the old source's keep entries
+                scope.launch(Dispatchers.IO) { SharedLists.load(lists, fresh = true) }
+            }
             SourceResult.NotHttps -> throw IllegalStateException("the address has to start with https://")
             SourceResult.Unreachable -> throw IllegalStateException("couldn't reach that address. Check it and the phone's internet")
             SourceResult.NotAList -> throw IllegalStateException(NOT_A_LIST)

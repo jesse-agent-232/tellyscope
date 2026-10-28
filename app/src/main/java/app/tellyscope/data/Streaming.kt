@@ -5,10 +5,10 @@ package app.tellyscope.data
 import org.json.JSONObject
 
 /**
- * A streaming service the Remote can have a button for, from the bundled `lists/streaming.json`.
+ * A streaming service the Remote can have a button for, from `streaming.json`.
  * [packages] are its TV apps, the usual one first; a button opens the first one the TV has.
  * [color] is the pill's brand colour in both themes, a gradient towards [color2] when there is one.
- * [logo] names `lists/logos/<logo>.png`. [dark] fills the pill instead in dark mode, for a brand
+ * [logo] names `logos/<logo>.png` ([SharedLists.logo]). [dark] fills the pill instead in dark mode, for a brand
  * colour that would sink into the sheet; the logo turns white or black on it.
  */
 data class StreamingService(

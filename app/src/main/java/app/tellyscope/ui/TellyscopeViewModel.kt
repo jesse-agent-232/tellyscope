@@ -789,9 +789,13 @@ class TellyscopeViewModel(
         }
     }
 
-    /** Opens Install a home screen on its picker. */
+    /** Opens Install a home screen on its picker; not before the launcher list has been downloaded once. */
     fun openLauncherFlow() {
         val id = _state.value.selectedId ?: return
+        if (RECOMMENDED.isEmpty()) {
+            _notice.value = Copy.NO_LAUNCHER_LIST
+            return
+        }
         updateDevice(id) { it.copy(launcher = LauncherFlow()) }
     }
 

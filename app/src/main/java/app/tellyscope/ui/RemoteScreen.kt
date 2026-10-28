@@ -72,10 +72,12 @@ import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -130,12 +132,13 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalDensity
 import android.graphics.BitmapFactory
-import app.tellyscope.data.BundledLists
+import app.tellyscope.data.SharedLists
 import app.tellyscope.data.RemoteButtons
 import app.tellyscope.data.StreamingService
 import app.tellyscope.adb.RemoteKey
@@ -339,7 +342,7 @@ fun RemoteScreen(
                 if (!typing) {
                     Spacer(Modifier.height(if (tight) 8.dp else 16.dp))
                     CompositionLocalProvider(LocalKeyHaptics provides state.keyHaptics) {
-                        ButtonsRow(RemoteButtons.shown(state.device.dock, BundledLists.streaming, cap), state.device.apps, live, actions, onEdit = { editing = true })
+                        ButtonsRow(RemoteButtons.shown(state.device.dock, SharedLists.state.collectAsState().value.streaming, cap), state.device.apps, live, actions, onEdit = { editing = true })
                     }
                 }
             }
@@ -759,7 +762,10 @@ private fun ServicePill(s: StreamingService, modifier: Modifier = Modifier) {
     val c = MaterialTheme.colorScheme
     val dark = c.surface.luminance() < 0.5f
     val look = RemoteButtons.look(s, c.surfaceContainerLow.toArgb().toLong() and 0xFFFFFFFF, dark)
-    val logo = remember(s.logo) { BundledLists.logo(s.logo)?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }?.asImageBitmap() }
+    // The name stands in until the logo is downloaded, or for good when it can't be.
+    val logo = produceState<ImageBitmap?>(null, s.logo) {
+        value = SharedLists.logo(s.logo)?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }?.asImageBitmap()
+    }.value
     val fill = look.fill2?.let { Brush.linearGradient(listOf(Color(look.fill), Color(it))) } ?: SolidColor(Color(look.fill))
     Box(
         modifier
@@ -788,7 +794,7 @@ private fun ServicePill(s: StreamingService, modifier: Modifier = Modifier) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ButtonsSheet(dock: List<Docked>, apps: List<AppInfo>, cap: Int, setDock: (List<Docked>) -> Unit, onDismiss: () -> Unit) {
-    val services = BundledLists.streaming
+    val services = SharedLists.state.collectAsState().value.streaming
     val ticked = dock.mapNotNull { RemoteButtons.serviceOf(it, services) }.distinct()
     val rest = RemoteButtons.choices(services, apps) - ticked.toSet()
     val toggle = { s: StreamingService -> setDock(RemoteButtons.toggle(dock, s, services, cap, apps)) }

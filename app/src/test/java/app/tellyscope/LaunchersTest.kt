@@ -2,8 +2,9 @@
 
 package app.tellyscope
 
-import app.tellyscope.data.BundledLists
+import app.tellyscope.data.ACCESSIBILITY_LAUNCHERS
 import app.tellyscope.data.KnownLauncher
+import app.tellyscope.data.SharedLists
 import app.tellyscope.data.parseLabels
 import app.tellyscope.data.parseLaunchers
 import app.tellyscope.ui.RECOMMENDED
@@ -19,30 +20,31 @@ import java.io.File
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class LaunchersTest {
-    @Test fun theBundledListReadsWhole() {
-        val text = File("src/main/resources/lists/launchers.json").readText()
+    @Test fun theListReadsWhole() {
+        val text = File("src/test/resources/lists/launchers.json").readText()
         val launchers = parseLaunchers(text)
         assertEquals(Regex("\"package\"").findAll(text).count(), launchers.size) // nothing dropped
         assertEquals(launchers.size, launchers.map { it.pkg }.toSet().size)
-        assertEquals(
-            setOf("com.spocky.projengmenu", "com.overdevs.at4k", "com.spauldhaliwal.dispatch"),
-            launchers.filter { it.accessibility }.map { it.pkg }.toSet(),
-        )
+    }
+
+    /** Named here on purpose, so a reviewer sees any launcher that gets to turn on an accessibility service. */
+    @Test fun onlyTheBuiltInLaunchersMayTurnOnAnAccessibilityService() {
+        assertEquals(setOf("com.spocky.projengmenu", "com.overdevs.at4k", "com.spauldhaliwal.dispatch"), ACCESSIBILITY_LAUNCHERS.keys)
     }
 
     @Test fun theRecommendedOnesAreTheLaunchersWithAnAboutLineInFileOrder() {
-        assertEquals(BundledLists.launchers.filter { it.about != null }.map { it.pkg }, RECOMMENDED.map { it.pkg })
+        assertEquals(SharedLists.launchers.filter { it.about != null }.map { it.pkg }, RECOMMENDED.map { it.pkg })
         assertTrue(RECOMMENDED.isNotEmpty()) // the picker opens on the first one
     }
 
-    @Test fun theBundledLabelsReadWhole() {
-        val text = File("src/main/resources/lists/labels.json").readText()
+    @Test fun theLabelsReadWhole() {
+        val text = File("src/test/resources/lists/labels.json").readText()
         val labels = parseLabels(text)
         // Every "key": "text" pair but the group names is a label: none dropped, none listed twice.
         val pairs = Regex("\"[^\"]+\"\\s*:\\s*\"").findAll(text).count()
         assertEquals(pairs - Regex("\"name\"\\s*:").findAll(text).count(), labels.size)
         assertEquals("Android System", labels["android"])
-        assertEquals("Netflix", BundledLists.labels["com.netflix.ninja"])
+        assertEquals("Netflix", SharedLists.labels["com.netflix.ninja"])
     }
 
     @Test fun badLabelsAreDroppedAndOnlySchemaOneCounts() {
@@ -56,6 +58,7 @@ class LaunchersTest {
         assertTrue(parseLabels("{").isEmpty())
     }
 
+    /** A list from someone's fork can't grant an accessibility service: only [ACCESSIBILITY_LAUNCHERS] can. */
     @Test fun badEntriesAreDroppedAndOnlySchemaOneCounts() {
         val text = """{"schema":1,"launchers":[
             {"package":"com.good.launcher","name":"Good","accessibility":true},
@@ -63,7 +66,8 @@ class LaunchersTest {
             {"name":"No package"},
             "not an object"
         ]}"""
-        assertEquals(listOf(KnownLauncher("com.good.launcher", "Good", true, null)), parseLaunchers(text))
+        assertEquals(listOf(KnownLauncher("com.good.launcher", "Good")), parseLaunchers(text))
+        assertTrue(parseLaunchers(text).none { it.accessibility })
         assertTrue(parseLaunchers(text.replace("\"schema\":1", "\"schema\":2")).isEmpty())
         assertTrue(parseLaunchers("{").isEmpty())
     }
