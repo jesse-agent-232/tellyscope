@@ -260,8 +260,8 @@ fun RemoteScreen(
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
                         if (field.contains(origin + down.position)) return@awaitEachGesture
-                        waitForUpOrCancellation(PointerEventPass.Initial)
-                        focus.clearFocus()
+                        // Null when something else took the gesture, a drag of the sheet: leave the keyboard be.
+                        if (waitForUpOrCancellation(PointerEventPass.Initial) != null) focus.clearFocus()
                     }
                 },
         ) {
