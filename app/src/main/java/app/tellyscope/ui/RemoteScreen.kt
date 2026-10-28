@@ -8,6 +8,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
@@ -710,15 +711,21 @@ private fun ButtonsRow(buttons: List<StreamingService>, apps: List<AppInfo>, ena
     }
 }
 
-/** One streaming button: its pill, 40 dp tall in a 48 dp tall target. Its name is for TalkBack. */
+/**
+ * One streaming button: its pill, 40 dp tall in a 48 dp tall target. Its name is for TalkBack.
+ * The ripple is drawn on the pill, inside its shape, not across the whole target.
+ */
 @Composable
 private fun ServiceButton(s: StreamingService, enabled: Boolean, onOpen: () -> Unit, onHold: () -> Unit, modifier: Modifier = Modifier) {
     val haptic = LocalHapticFeedback.current
     val haptics = LocalKeyHaptics.current
+    val interactions = remember { MutableInteractionSource() }
     Box(
         modifier
             .fillMaxHeight()
             .combinedClickable(
+                interactionSource = interactions,
+                indication = null,
                 enabled = enabled,
                 role = Role.Button,
                 onClickLabel = Copy.OPEN_ON_TV,
@@ -729,7 +736,7 @@ private fun ServiceButton(s: StreamingService, enabled: Boolean, onOpen: () -> U
             .semantics { contentDescription = s.name },
         contentAlignment = Alignment.Center,
     ) {
-        ServicePill(s, Modifier.fillMaxWidth().height(40.dp))
+        ServicePill(s, Modifier.fillMaxWidth().height(40.dp), interactions)
     }
 }
 
@@ -758,7 +765,7 @@ private fun AddButtons(enabled: Boolean, onClick: () -> Unit, modifier: Modifier
  * [RemoteButtons.look] against the sheet behind it.
  */
 @Composable
-private fun ServicePill(s: StreamingService, modifier: Modifier = Modifier) {
+private fun ServicePill(s: StreamingService, modifier: Modifier = Modifier, interactions: InteractionSource? = null) {
     val c = MaterialTheme.colorScheme
     val dark = c.surface.luminance() < 0.5f
     val look = RemoteButtons.look(s, c.surfaceContainerLow.toArgb().toLong() and 0xFFFFFFFF, dark)
@@ -771,7 +778,8 @@ private fun ServicePill(s: StreamingService, modifier: Modifier = Modifier) {
         modifier
             .clip(CircleShape)
             .background(fill)
-            .then(if (look.outline) Modifier.border(1.dp, c.outline, CircleShape) else Modifier),
+            .then(if (look.outline) Modifier.border(1.dp, c.outline, CircleShape) else Modifier)
+            .then(if (interactions != null) Modifier.indication(interactions, ripple()) else Modifier),
         contentAlignment = Alignment.Center,
     ) {
         if (logo != null) {
@@ -805,7 +813,7 @@ private fun ButtonsSheet(dock: List<Docked>, apps: List<AppInfo>, cap: Int, setD
     var dragY by remember { mutableFloatStateOf(0f) }
     val rowPx = with(LocalDensity.current) { SHEET_ROW.toPx() }
     ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 8.dp)) {
+        Column(Modifier.padding(horizontal = 32.dp).padding(bottom = 8.dp)) {
             Text(Copy.REMOTE_BUTTONS, style = MaterialTheme.typography.titleLarge)
             Text(Copy.buttonsHint(cap), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -849,7 +857,7 @@ private fun ButtonsSheet(dock: List<Docked>, apps: List<AppInfo>, cap: Int, setD
                         s.group,
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 4.dp),
+                        modifier = Modifier.padding(start = 32.dp, end = 32.dp, top = 16.dp, bottom = 4.dp),
                     )
                 }
                 key(s.name) { ServiceRow(s, checked = false, enabled = ticked.size < cap, onToggle = { toggle(s) }) }
@@ -876,7 +884,7 @@ private fun ServiceRow(
             .height(SHEET_ROW)
             .toggleable(checked, enabled = enabled, role = Role.Checkbox, onValueChange = { onToggle() })
             .alpha(if (enabled) 1f else 0.38f)
-            .padding(start = 12.dp, end = 12.dp),
+            .padding(start = 20.dp, end = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Checkbox(checked, onCheckedChange = null, enabled = enabled, modifier = Modifier.size(48.dp))
