@@ -57,6 +57,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import app.tellyscope.data.Action
 import app.tellyscope.data.AppInfo
@@ -241,6 +242,16 @@ private fun Picker(chosen: String, onChoose: (String) -> Unit) {
                 }
             }
         }
+        Text(
+            buildAnnotatedString {
+                append(Copy.OTHER_LAUNCHER)
+                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(Copy.MAKE_HOME) }
+                append(Copy.OTHER_LAUNCHER_WHERE)
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            color = c.onSurfaceVariant,
+            modifier = Modifier.padding(top = 12.dp),
+        )
         Text(Copy.NOT_AFFILIATED, style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant, modifier = Modifier.padding(top = 12.dp))
     }
 }

@@ -177,6 +177,9 @@ object Copy {
     const val RECOMMENDED = "Recommended"
     const val USES_SERVICE = "Uses an accessibility service"
     const val NO_SERVICE = "Open source · no accessibility service"
+    /** Under the picker's list, before the bold [MAKE_HOME]: any other launcher works too. */
+    const val OTHER_LAUNCHER = "Prefer another launcher? Install it from the Play Store on your TV, then tap "
+    const val OTHER_LAUNCHER_WHERE = " next to it in Tweaks › $HOME_SCREEN."
     const val NOT_AFFILIATED = "Tellyscope isn't affiliated with any of these launchers or their developers."
     const val OPEN_IN_STORE = "Open in Play Store"
     const val INSTALL_HOME = "Install a home screen"
