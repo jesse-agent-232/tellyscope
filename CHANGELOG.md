@@ -12,7 +12,7 @@ until this file has a section for its version.
 
 ## Unreleased
 
-- **Improved:** Streaming services, launchers and app names come from tellyscope-devices, so new ones arrive without an app update. Your own list source can change them too. [#PR](../../pull/PR)
+- **Improved:** Streaming services, launchers and app names come from tellyscope-devices, so new ones arrive without an app update. Your own list source can change them too. [#225](../../pull/225)
 - **New:** Remote buttons open Netflix, YouTube, Plex and 20 more streaming apps. [#224](../../pull/224)
   - Hold a button, or use ⋮ › Remote buttons, to pick up to three (four on a tablet).
   - Screen off and Restart TV moved into ⋮ at the top of the Remote.
