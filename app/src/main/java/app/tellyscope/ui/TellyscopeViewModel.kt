@@ -36,6 +36,7 @@ import app.tellyscope.data.NetworkInfo
 import app.tellyscope.data.NotAnApp
 import app.tellyscope.data.PhoneStorage
 import app.tellyscope.data.PickedApp
+import app.tellyscope.data.RemoteButtons
 import app.tellyscope.data.ResetApp
 import app.tellyscope.data.ResetFailure
 import app.tellyscope.data.ResetPart
@@ -1814,8 +1815,16 @@ class TellyscopeViewModel(
         viewModelScope.launch { source.setDock(id, dock) }
     }
 
-    /** A dock tap: opens the app on the TV, without a history entry. */
-    fun launch(app: Docked) = open(app.packageName, app.label)
+    /** A Remote button: opens the app on the TV, without a history entry. */
+    fun launch(app: Docked) {
+        // An empty list hasn't been read yet, so the TV gets to try.
+        val apps = _state.value.device.apps
+        if (apps.isNotEmpty() && apps.none { it.packageName == app.packageName }) {
+            _notice.value = Copy.notOnTv(app.label)
+            return
+        }
+        open(app.packageName, app.label)
+    }
 
     private fun open(pkg: String, label: String) {
         val id = _state.value.selectedId ?: return
@@ -1832,8 +1841,12 @@ class TellyscopeViewModel(
         }
     }
 
-    /** An app uninstalled, here or on the TV itself, leaves the dock, and the snackbar says so. */
+    /**
+     * An app uninstalled, here or on the TV itself, takes its button off the Remote, and the snackbar
+     * says so. Not in the alpha, where any service can have a button.
+     */
     private suspend fun pruneDock(id: String, apps: List<AppInfo>) {
+        if (RemoteButtons.ANY_SERVICE) return
         val (kept, gone) = Dock.prune(source.dock(id), apps)
         if (gone.isEmpty()) return
         source.setDock(id, kept)

@@ -66,6 +66,11 @@ fun parseLabels(text: String): Map<String, String> = try {
 object BundledLists {
     val launchers: List<KnownLauncher> by lazy { parseLaunchers(read("launchers.json")) }
     val labels: Map<String, String> by lazy { parseLabels(read("labels.json")) }
+    val streaming: List<StreamingService> by lazy { parseStreaming(read("streaming.json")) }
+
+    /** A service's logo, a PNG at four times its size in dp; null if it isn't bundled. */
+    fun logo(name: String): ByteArray? =
+        BundledLists::class.java.getResourceAsStream("/lists/logos/$name.png")?.use { it.readBytes() }
 
     private fun read(name: String): String =
         checkNotNull(BundledLists::class.java.getResourceAsStream("/lists/$name")) { "lists/$name isn't bundled" }

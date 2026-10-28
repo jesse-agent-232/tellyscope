@@ -30,10 +30,11 @@ You don't have to trust ours. Fork tellyscope-devices, edit the lists in your fo
 
 ## Bundled lists
 
-The lists the app ships with live in [`app/src/main/resources/lists/`](app/src/main/resources/lists/). Change one with a pull request, and the change reaches people with the next release. They are never fetched, so a custom debloat list source can't add to them. Each file is JSON on `"schema": 1`, and `LaunchersTest` checks that every entry reads.
+The lists the app ships with live in [`app/src/main/resources/lists/`](app/src/main/resources/lists/). Change one with a pull request, and the change reaches people with the next release. They are never fetched, so a custom debloat list source can't add to them. Each file is JSON on `"schema": 1`, and `LaunchersTest` or `StreamingTest` checks that every entry reads.
 
 - [`launchers.json`](app/src/main/resources/lists/launchers.json) lists the third-party launchers Tellyscope knows. Set `"accessibility": true` only for a launcher that keeps Home with its own accessibility service: Make Home offers to turn that service on, and an accessibility service can read the screen. Check the APK's manifest for a service with `BIND_ACCESSIBILITY_SERVICE`, and put the version you checked in `"checked"`. `LaunchersTest` names every such launcher on purpose, so add yours there too and a reviewer sees it. A launcher with an `"about"` line is offered in **Install a home screen**, in the file's order; keep that line short and plain.
 - [`labels.json`](app/src/main/resources/lists/labels.json) holds the names shown for common TV apps when the TV can't tell us (old Android, or a maker that blocks it). Add a package to the right group with the name its own APK shows.
+- [`streaming.json`](app/src/main/resources/lists/streaming.json) lists the streaming services the Remote can have a button for, by group. Each has its `"packages"` (the usual TV app first), a `"color"` as `#RRGGBB` (with `"color2"` for a gradient) and a `"logo"`: a transparent PNG at four times its size in dp, in [`lists/logos/`](app/src/main/resources/lists/logos/), at most 72 × 30 dp. Add `"dark"` only when the colour is under 3:1 against the dark sheet; the pill fills with it in dark mode. `StreamingTest` checks every entry, logo and dark fill. The logos are their owners' trademarks, so add the source of a new one to [NOTICE](NOTICE).
 
 ## README screenshots
 

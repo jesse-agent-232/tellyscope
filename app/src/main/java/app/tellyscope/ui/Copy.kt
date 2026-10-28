@@ -518,25 +518,18 @@ object Copy {
     fun restartLost(name: String) = "Still can't reach $name"
     fun backOnline(name: String) = "Back online. $name reconnected."
 
-    // Dock
+    // Remote buttons
 
-    const val ADD_TO_DOCK = "Add to dock"
-    const val DOCK_EMPTY = "Dock up to four TV apps, one tap to open."
-    const val DOCK_PICK_TITLE = "Add an app to the dock"
-    const val DOCK_PICK_HINT = "Tap an app to add it."
-    const val DOCK_ADDED = "Added"
-    const val DOCK_NO_APPS = "Still reading the TV's apps. Open this again in a moment."
-    const val DOCK_CHANGE = "Change app"
-    const val DOCK_REMOVE = "Remove from dock"
-    const val DOCK_REORDER = "Keep holding and move to reorder"
+    const val REMOTE_BUTTONS = "Remote buttons"
+    const val MORE = "More options"
 
-    fun dockPickFrom(name: String) = "Apps installed on $name"
-    fun dockSwap(label: String) = "Put another app in $label's place"
+    fun buttonsHint(cap: Int) = "Pick up to $cap. Drag to set the order. To pick another, untick one first."
+    fun notOnTv(name: String) = "$name isn't on this TV. Install it from the Play Store on the TV."
     fun cantOpen(label: String) = "The TV couldn't open $label. If it's turned off, turn it on in Apps."
 
     fun leftDock(labels: List<String>) =
-        if (labels.size == 1) "${labels[0]} was uninstalled, so it left the dock."
-        else "${labels.size} apps were uninstalled, so they left the dock."
+        if (labels.size == 1) "${labels[0]} was uninstalled, so its button left the Remote."
+        else "${labels.size} apps were uninstalled, so their buttons left the Remote."
 
     fun restarting(minutes: Long) =
         if (minutes < 3) "Tellyscope reconnects on its own when the TV is back, usually within a couple of minutes."

@@ -11,6 +11,7 @@ import app.tellyscope.data.DeviceState
 import app.tellyscope.data.Docked
 import app.tellyscope.data.FakeDeviceSource
 import app.tellyscope.data.HistoryEntry
+import app.tellyscope.data.RemoteButtons
 import app.tellyscope.data.ScanHit
 import app.tellyscope.data.ScanKind
 import app.tellyscope.data.Snapshot
@@ -126,13 +127,13 @@ class RestartAndDockTest {
         assertNull(vm.state.value.restarting["tv"])
     }
 
-    @Test fun anAppUninstalledOnTheTvLeavesTheDock() = with(test) {
-        tv.dock = listOf(Docked("com.youtube", "YouTube"), Docked("org.smarttube", "SmartTube"), Docked("com.kodi", "Kodi"))
-        tv.apps = listOf(app("com.youtube", "YouTube"), app("com.kodi", "Kodi", enabled = false))
+    @Test fun anUninstalledAppKeepsItsButtonInTheAlpha() = with(test) {
+        assertTrue(RemoteButtons.ANY_SERVICE)
+        tv.dock = listOf(Docked("com.youtube", "YouTube"), Docked("org.smarttube", "SmartTube"))
+        tv.apps = listOf(app("com.youtube", "YouTube"))
         start()
-        assertEquals(listOf("YouTube", "Kodi"), vm.state.value.device.dock.map { it.label })
-        assertEquals(listOf("YouTube", "Kodi"), tv.dock.map { it.label })
-        assertEquals(Copy.leftDock(listOf("SmartTube")), vm.notice.value)
+        assertEquals(listOf("YouTube", "SmartTube"), vm.state.value.device.dock.map { it.label })
+        assertEquals(listOf("YouTube", "SmartTube"), tv.dock.map { it.label })
     }
 
     @Test fun aDockTapOpensTheAppWithoutHistory() = with(test) {
@@ -145,6 +146,15 @@ class RestartAndDockTest {
         vm.launch(Docked("com.kodi", "Kodi"))
         runCurrent()
         assertEquals(Copy.cantOpen("Kodi"), vm.notice.value)
+    }
+
+    @Test fun aButtonForAnAppNotOnTheTvSaysSoWithoutTrying() = with(test) {
+        tv.apps = listOf(app("com.youtube", "YouTube"))
+        start()
+        vm.launch(Docked("com.netflix.ninja", "Netflix"))
+        runCurrent()
+        assertEquals(Copy.notOnTv("Netflix"), vm.notice.value)
+        assertEquals(emptyList<String>(), tv.launched)
     }
 
     @Test fun theDockIsSavedPerTv() = with(test) {
