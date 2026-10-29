@@ -30,6 +30,7 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -127,13 +128,14 @@ class RestartAndDockTest {
         assertNull(vm.state.value.restarting["tv"])
     }
 
-    @Test fun anUninstalledAppKeepsItsButtonInTheAlpha() = with(test) {
-        assertTrue(RemoteButtons.ANY_SERVICE)
+    @Test fun anAppUninstalledOnTheTvLeavesTheDock() = with(test) {
+        assertFalse(RemoteButtons.ANY_SERVICE)
         tv.dock = listOf(Docked("com.youtube", "YouTube"), Docked("org.smarttube", "SmartTube"))
         tv.apps = listOf(app("com.youtube", "YouTube"))
         start()
-        assertEquals(listOf("YouTube", "SmartTube"), vm.state.value.device.dock.map { it.label })
-        assertEquals(listOf("YouTube", "SmartTube"), tv.dock.map { it.label })
+        assertEquals(listOf("YouTube"), vm.state.value.device.dock.map { it.label })
+        assertEquals(listOf("YouTube"), tv.dock.map { it.label })
+        assertEquals(Copy.leftDock(listOf("SmartTube")), vm.notice.value)
     }
 
     @Test fun aDockTapOpensTheAppWithoutHistory() = with(test) {

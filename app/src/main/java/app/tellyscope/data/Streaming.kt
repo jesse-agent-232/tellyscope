@@ -58,10 +58,10 @@ fun parseStreaming(text: String): List<StreamingService> = try {
 /** The Remote's row of streaming buttons, kept apart from the screen so it can be tested on its own. */
 object RemoteButtons {
     /**
-     * Alpha: every service can be picked, installed or not, and a button stays when its app isn't on
+     * True: every service can be picked, installed or not, and a button stays when its app isn't on
      * the TV, so the whole list can be tried on one TV. False: the picker lists only what the TV has.
      */
-    const val ANY_SERVICE = true
+    const val ANY_SERVICE = false
 
     /** Three buttons fit a phone; 600 dp and wider, a foldable or tablet, fits four. */
     fun cap(widthDp: Int): Int = if (widthDp >= 600) Dock.MAX else 3
