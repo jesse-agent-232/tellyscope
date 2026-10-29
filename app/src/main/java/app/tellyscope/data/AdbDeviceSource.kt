@@ -807,10 +807,7 @@ class AdbDeviceSource(context: Context) : DeviceSource {
                 errors += "the TV kept ${labelOf(to.substringBefore('/'))} as the home screen"
             } else p[ResetRecord.SERVICE]?.let { if (!actions.grant(it)) errors += serviceNotOn(name) }
         }
-        // Fire OS: Home never moved, only the service went off.
-        if (p[ResetRecord.TO] == null) p[ResetRecord.SERVICE]?.let {
-            if (!actions.grant(it)) errors += serviceNotOn(labelOf(it.substringBefore('/')))
-        }
+        if (undoFireResetHome(actions, p) == false) errors += serviceNotOn(labelOf(p.getValue(ResetRecord.SERVICE).substringBefore('/')))
         val ownHome = p[ResetRecord.TO]?.substringBefore('/')?.takeIf { homeLeft }
         suspend fun each(pkgs: List<String>, change: suspend (String) -> Unit) = pkgs.filter { pkg ->
             if (pkg == ownHome) return@filter true
@@ -1218,8 +1215,9 @@ internal suspend fun switchHome(
 /**
  * Fire OS's Home: it refuses to turn Amazon's launcher off and won't keep another default, but [pkg]'s
  * accessibility service takes the Home key, and opens of Amazon's launcher, on its own. So only the
- * service goes on and Amazon's launcher stays as it is. Recorded as a home with nothing to replace:
- * "service" when this turned it on, so Undo turns it off and does nothing else.
+ * service goes on and Amazon's launcher stays as it is, then [pkg] opens, so the TV shows it without
+ * a Home press. Recorded as a home with nothing to replace: "service" when this turned it on, so
+ * Undo turns it off and does nothing else.
  */
 internal suspend fun fireServiceHome(
     actions: Actions,
@@ -1230,10 +1228,20 @@ internal suspend fun fireServiceHome(
 ): HistoryEntry {
     if (!withService) throw IllegalStateException(fireNeedsService(label(pkg)))
     val service = actions.homeService(pkg) ?: throw IllegalStateException("${label(pkg)} has no accessibility service")
-    if (actions.serviceOn(service)) return record(emptyMap())
-    if (!actions.grant(service)) throw IllegalStateException(fireServiceNotOn(label(pkg)))
-    return record(mapOf("service" to service))
+    val previous = if (actions.serviceOn(service)) emptyMap()
+    else if (actions.grant(service)) mapOf("service" to service)
+    else throw IllegalStateException(fireServiceNotOn(label(pkg)))
+    // Amazon's launcher isn't stopped: it stays the default, and the service sends Home on from it.
+    val left = actions.homeActivity(pkg)?.let { actions.handOff(null, it) }
+    return record(previous).also { left?.let { throw ActionFailed(notShown(label(pkg), it.reason), it.output) } }
 }
+
+/**
+ * Undo of a reset's Home on Fire OS, where Home never moved and only the launcher's service went
+ * off: [previous]'s service goes back on. Null when the reset recorded no such step.
+ */
+internal suspend fun undoFireResetHome(actions: Actions, previous: Map<String, String?>): Boolean? =
+    previous[ResetRecord.SERVICE]?.takeIf { previous[ResetRecord.TO] == null }?.let { actions.grant(it) }
 
 /**
  * On Fire OS, the launcher of [launchers] whose accessibility service is on, and that service: it

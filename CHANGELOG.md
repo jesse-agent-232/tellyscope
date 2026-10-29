@@ -12,6 +12,7 @@ until this file has a section for its version.
 
 ## Unreleased
 
+- **Fixed:** On Fire TV, making Projectivy Home now opens it straight away, without a Home press. [#263](../../pull/263)
 - **Fixed:** On Fire TV, Reset TV now puts Amazon's launcher back when Projectivy holds Home, by turning its accessibility service off. Undo turns it back on. [#263](../../pull/263)
 
 ## 0.13.0 — 2026-10-29
