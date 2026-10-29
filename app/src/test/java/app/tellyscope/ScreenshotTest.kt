@@ -49,6 +49,7 @@ import app.tellyscope.data.AppInfo
 import app.tellyscope.data.Docked
 import app.tellyscope.data.AppNames
 import app.tellyscope.data.Device
+import app.tellyscope.data.DeviceLists
 import app.tellyscope.data.DeviceState
 import app.tellyscope.data.FakeDeviceSource
 import app.tellyscope.data.HistoryEntry
@@ -58,6 +59,7 @@ import app.tellyscope.data.TvTweaks
 import app.tellyscope.data.ListEntry
 import app.tellyscope.data.PickedApp
 import app.tellyscope.data.ScanHit
+import app.tellyscope.data.SharedLists
 import app.tellyscope.data.ScanKind
 import app.tellyscope.data.ScanProgress
 import app.tellyscope.data.Suggested
@@ -131,8 +133,10 @@ import com.github.takahirom.roborazzi.captureRoboImage
 import com.github.takahirom.roborazzi.captureScreenRoboImage
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.IOException
 import java.io.RandomAccessFile
 import java.nio.file.Files
+import java.security.MessageDigest
 import kotlin.random.Random
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -1141,7 +1145,30 @@ class ScreenshotTest {
      */
     private fun realIcon(pkg: String): ByteArray? = javaClass.classLoader?.getResourceAsStream("dock-icons/$pkg.png")?.use { it.readBytes() }
 
-    @Test fun remote_dockFull() {
+    /**
+     * [body] with the Remote's lists offline but holding these services' real logos, as on a phone
+     * that has downloaded them; test resources only (see NOTICE). The lists go back to none after.
+     */
+    private fun withLogos(vararg names: String, body: () -> Unit) {
+        fun sha256(b: ByteArray) = MessageDigest.getInstance("SHA-256").digest(b).joinToString("") { "%02x".format(it) }
+        val offline: suspend (String) -> ByteArray = { throw IOException("offline") }
+        val dir = Files.createTempDirectory("logos").toFile()
+        val logos = names.joinToString { n ->
+            val png = javaClass.classLoader!!.getResourceAsStream("streaming-logos/$n.png")!!.use { it.readBytes() }
+            File(dir, "logos").mkdirs()
+            File(dir, "logos/$n.png").writeBytes(png)
+            """"$n": {"file": "logos/$n.png", "sha256": "${sha256(png)}"}"""
+        }
+        File(dir, "index.json").writeText("""{"schema": 1, "devices": [], "logos": {$logos}}""")
+        runBlocking { SharedLists.load(DeviceLists(dir, offline)) }
+        try { body() } finally {
+            runBlocking { SharedLists.load(DeviceLists(Files.createTempDirectory("none").toFile(), offline)) }
+            dir.deleteRecursively()
+        }
+    }
+
+    // The README's Remote: a full row of streaming buttons, with their logos.
+    @Test fun remote_dockFull() = withLogos("youtube", "netflix", "jellyfin") {
         val three = docked + Docked("org.jellyfin.androidtv", "Jellyfin")
         shot("12_remote_dock_full", screen = true) { RemoteScreen(remoteState(apps = three), RemoteActions()) }
         // A full row has no Remote buttons pill.
