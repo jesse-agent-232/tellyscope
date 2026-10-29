@@ -9,6 +9,12 @@ package app.tellyscope.data
 object Changelog {
     const val ASSET = "CHANGELOG.md"
 
+    /**
+     * The pull request on the main repo. The file's own links are relative, so GitHub resolves them
+     * against whichever fork shows it: only the number is kept.
+     */
+    fun pullUrl(pr: Int) = RELEASES.removeSuffix("/releases") + "/pull/$pr"
+
     enum class Kind(val label: String) { New("New"), Improved("Improved"), Fixed("Fixed") }
 
     /** One change. [pr] is the pull request it links to, if any; [details] are its indented points. */

@@ -5,6 +5,7 @@ package app.tellyscope
 import app.tellyscope.data.Changelog
 import app.tellyscope.data.Changelog.Change
 import app.tellyscope.data.Changelog.Kind
+import app.tellyscope.data.RELEASES
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -46,6 +47,11 @@ class ChangelogTest {
             releases[0].changes,
         )
         assertEquals(listOf(Change(Kind.Improved, "The Remote opens as a sheet.", 198)), releases[1].changes)
+    }
+
+    @Test fun aPullRequestOpensOnTheMainRepo() {
+        assertEquals(RELEASES.removeSuffix("/releases") + "/pull/249", Changelog.pullUrl(249))
+        assertTrue(Changelog.pullUrl(249).endsWith("/tellyscope/pull/249"))
     }
 
     @Test fun aHeadingWithoutADateStillCounts() {
