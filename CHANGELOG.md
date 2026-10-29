@@ -12,13 +12,6 @@ until this file has a section for its version.
 
 ## Unreleased
 
-- **New:** On Fire TV, Install a home screen downloads and installs Projectivy for you. [#232](../../pull/232)
-  - It comes from Projectivy's GitHub releases, and is checked against its developer's signature first.
-- **Improved:** While you type on the Remote, back, home and menu shrink to give the D-pad room. [#229](../../pull/229)
-- **Fixed:** A Remote button's tap ripple stays inside the button. [#228](../../pull/228)
-- **Improved:** The Remote buttons list has more room at its sides. [#228](../../pull/228)
-- **Improved:** Lists and logos are checked before use, so a bad list source is refused. [#226](../../pull/226)
-
 ## 0.13.0 — 2026-10-29
 
 - **Improved:** The Remote's dock is refined: it shows only the streaming buttons you pick. [#224](../../pull/224)
@@ -35,6 +28,12 @@ until this file has a section for its version.
   - A launcher already on the TV is marked Installed or Home now, with Make Home and Open in place of the Play Store.
   - Any other launcher on the TV is listed under On this TV.
   - Closing the Play Store without installing goes back to the picker.
+- **New:** On Fire TV, Install a home screen downloads and installs Projectivy for you. [#232](../../pull/232)
+  - It comes from Projectivy's GitHub releases, and is checked against its developer's signature first.
+- **Improved:** While you type on the Remote, back, home and menu shrink to give the D-pad room. [#229](../../pull/229)
+- **Fixed:** A Remote button's tap ripple stays inside the button. [#228](../../pull/228)
+- **Improved:** The Remote buttons list has more room at its sides. [#228](../../pull/228)
+- **Improved:** Lists and logos are checked before use, so a bad list source is refused. [#226](../../pull/226)
 
 ## 0.12.0 — 2026-10-28
 
