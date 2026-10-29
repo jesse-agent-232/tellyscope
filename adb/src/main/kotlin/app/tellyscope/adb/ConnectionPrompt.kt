@@ -99,7 +99,7 @@ class ConnectionPrompt(private val shell: AdbShell) {
 
         private val FOCUS = Regex("mCurrentFocus|mFocusedWindow")
         /** Fire OS's alert is a window of the system itself, `android`, with no activity. */
-        private val ALERT_FOCUS = Regex("mCurrentFocus=Window\\{\\S+ u\\d+ android}")
+        private val ALERT_FOCUS = Regex("mCurrentFocus=Window\\{\\S+ u\\d+ android\\}")
         /** [ALERT_FOCUS] for the TV's grep, in the call that sends the key. */
         private const val ALERT_FOCUS_SH = "mCurrentFocus=Window{[^ ]* u[0-9]* android}"
         /** Its OK button, the one id that says it's the remote alert and not some other system window. */
