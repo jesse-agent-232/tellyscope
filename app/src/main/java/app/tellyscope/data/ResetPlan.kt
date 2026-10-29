@@ -8,8 +8,9 @@ data class ResetApp(val packageName: String, val label: String)
 /**
  * Home's part of a reset: [to], the TV's own launcher, is Home again in place of [from], a launcher
  * the user added. [service]: [from] holds Home with an accessibility service, which goes off.
+ * [serviceOnly]: Fire OS, where [to] stays the default and the service alone holds Home for [from].
  */
-data class ResetHome(val from: String, val fromLabel: String, val to: String, val toLabel: String, val service: Boolean = false)
+data class ResetHome(val from: String, val fromLabel: String, val to: String, val toLabel: String, val service: Boolean = false, val serviceOnly: Boolean = false)
 
 /**
  * What Reset TV found on the TV before anything changes: preinstalled apps to [turnOn] and to
@@ -47,6 +48,6 @@ internal object ResetRecord {
 
     fun list(previous: Map<String, String?>?, key: String) = previous?.get(key)?.split(',')?.filter { it.isNotEmpty() }.orEmpty()
 
-    /** How many changes [previous] holds: each app, plus Home. */
-    fun changes(previous: Map<String, String?>?) = list(previous, ON).size + list(previous, BACK).size + (if (previous?.get(TO) != null) 1 else 0)
+    /** How many changes [previous] holds: each app, plus Home (on Fire OS, only its service). */
+    fun changes(previous: Map<String, String?>?) = list(previous, ON).size + list(previous, BACK).size + (if (previous?.get(TO) != null || previous?.get(SERVICE) != null) 1 else 0)
 }
