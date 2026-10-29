@@ -807,7 +807,7 @@ class AdbDeviceSource(context: Context) : DeviceSource {
                 errors += "the TV kept ${labelOf(to.substringBefore('/'))} as the home screen"
             } else p[ResetRecord.SERVICE]?.let { if (!actions.grant(it)) errors += serviceNotOn(name) }
         }
-        if (undoFireResetHome(actions, p) == false) errors += serviceNotOn(labelOf(p.getValue(ResetRecord.SERVICE).substringBefore('/')))
+        if (undoFireResetHome(actions, p) == false) errors += serviceNotOn(labelOf(p[ResetRecord.SERVICE].orEmpty().substringBefore('/')))
         val ownHome = p[ResetRecord.TO]?.substringBefore('/')?.takeIf { homeLeft }
         suspend fun each(pkgs: List<String>, change: suspend (String) -> Unit) = pkgs.filter { pkg ->
             if (pkg == ownHome) return@filter true
@@ -1228,7 +1228,7 @@ internal suspend fun fireServiceHome(
 ): HistoryEntry {
     if (!withService) throw IllegalStateException(fireNeedsService(label(pkg)))
     val service = actions.homeService(pkg) ?: throw IllegalStateException("${label(pkg)} has no accessibility service")
-    val previous = if (actions.serviceOn(service)) emptyMap()
+    val previous: Map<String, String?> = if (actions.serviceOn(service)) emptyMap()
     else if (actions.grant(service)) mapOf("service" to service)
     else throw IllegalStateException(fireServiceNotOn(label(pkg)))
     // Amazon's launcher isn't stopped: it stays the default, and the service sends Home on from it.
