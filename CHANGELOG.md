@@ -12,6 +12,15 @@ until this file has a section for its version.
 
 ## Unreleased
 
+- **New:** Who has access shows the TV's Allow prompt, and answers it from the phone. [#253](../../pull/253)
+  - A computer waiting on that prompt shows as Waiting, not as connected.
+  - Keys allowed while Tellyscope wasn't watching are marked New.
+- **Improved:** On Fire TV, installing Projectivy is one screen, step by step. [#253](../../pull/253)
+  - When the download fails, pick the file you downloaded yourself; it's checked the same way.
+  - Stopping a download asks first; the TV can't be left half installed.
+- **Improved:** Install apps and Projectivy's file picker open in Downloads, showing only apps. [#253](../../pull/253)
+- **Fixed:** Projectivy's download works when GitHub limits lookups from your network. [#253](../../pull/253)
+
 ## 0.13.0 — 2026-10-29
 
 - **New:** Remote buttons open Netflix, YouTube, Plex and 20 more streaming apps. [#224](../../pull/224)

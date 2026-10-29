@@ -2,6 +2,7 @@
 
 package app.tellyscope
 
+import android.net.Uri
 import androidx.lifecycle.viewModelScope
 import app.tellyscope.adb.ApkInfo
 import app.tellyscope.adb.InstallResult
@@ -25,6 +26,8 @@ import app.tellyscope.data.Snapshot
 import app.tellyscope.data.Suggestions
 import app.tellyscope.data.isFireOs
 import app.tellyscope.data.isProjectivy
+import app.tellyscope.data.latestTag
+import app.tellyscope.data.pageApk
 import app.tellyscope.data.parseRelease
 import app.tellyscope.ui.FireInstall
 import app.tellyscope.ui.LauncherFlow
@@ -111,6 +114,10 @@ private class FakeDownload(var signedByDeveloper: Boolean = true) : LauncherDown
         fetched++
         if (!signedByDeveloper) throw NotProjectivy()
         return PickedApp(listOf(File("projectivy.apk")), ApkInfo(PROJECTIVY, 97, release.version), "Projectivy Launcher")
+    }
+    override suspend fun open(uri: Uri): PickedApp {
+        if (!signedByDeveloper) throw NotProjectivy()
+        return PickedApp(listOf(File("projectivy.apk")), ApkInfo(PROJECTIVY, 97, "4.72"), "Projectivy Launcher")
     }
 }
 
@@ -255,5 +262,34 @@ class FireOsTest {
         assertEquals(LauncherFlow.Step.Pick, v.state.value.device.launcher?.step)
         assertNull(v.state.value.device.launcher?.fire)
         assertEquals(0, download.fetched)
+    }
+
+    @Test fun whenTheApiIsLimitedTheReleasePageGivesTheTagAndItsOneApk() {
+        assertEquals(TAG, latestTag(PAGE))
+        assertNull(latestTag("https://github.com/someone/miproja1/releases/tag/$TAG"))
+        assertNull(latestTag(null))
+        val link = APK.removePrefix("https://github.com")
+        assertEquals(APK, pageApk("""<a href="$link" rel="nofollow">x</a><a href="$link">x</a>""", TAG))
+        assertNull(pageApk("""<a href="$link">a</a><a href="${link.replace(".apk", "-b.apk")}">b</a>""", TAG))
+        assertNull(pageApk("""<a href="${link.replace("/$TAG/", "/4.70/")}">old</a>""", TAG))
+    }
+
+    @Test fun aPickedFileIsCheckedThenInstalled() = with(test) {
+        val v = opened()
+        v.pickedProjectivy(Uri.parse("content://downloads/1"))
+        runCurrent()
+        assertEquals(listOf(PROJECTIVY), source.installs.map { it.packageName })
+        assertEquals(LauncherFlow.Step.Installed, v.state.value.device.launcher?.step)
+    }
+
+    @Test fun aPickedFileThatIsntProjectivyInstallsNothing() = with(test) {
+        download.signedByDeveloper = false
+        val v = opened()
+        v.pickedProjectivy(Uri.parse("content://downloads/1"))
+        runCurrent()
+        assertTrue(source.installs.isEmpty())
+        val fire = v.state.value.device.launcher?.fire
+        assertEquals(FireInstall.Step.NotProjectivy, fire?.step)
+        assertEquals(true, fire?.picked)
     }
 }

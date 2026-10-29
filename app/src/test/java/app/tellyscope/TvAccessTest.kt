@@ -92,4 +92,27 @@ class TvAccessTest {
         assertEquals(setOf(other), book["serial-1"])
         assertTrue(book["192.0.2.20"].isEmpty())
     }
+
+    @Test fun aConnectionWhoseAllowPromptIsUpIsWaitingNotAWarning() {
+        val a = TvAccess.of(listOf(AdbClient(phone, 1), AdbClient(other, 2)), listOf(phoneKey), setOf(phone), "192.0.2.20", emptySet(), "AA", pending = "CC")
+        assertEquals(Who.Waiting, a.connected!!.first { it.address == other }.who)
+        assertFalse(a.warning)
+    }
+
+    @Test fun anAllowedKeyOrASecondComputerIsNeverHiddenAsWaiting() {
+        val allowed = TvAccess.of(listOf(AdbClient(other, 2)), listOf(phoneKey, laptop), setOf(phone), "192.0.2.20", emptySet(), "AA", pending = "BB")
+        assertTrue(allowed.warning)
+        val two = TvAccess.of(listOf(AdbClient(other, 2), AdbClient("192.0.2.99", 3)), listOf(phoneKey), setOf(phone), "192.0.2.20", emptySet(), "AA", pending = "CC")
+        assertEquals(2, two.others.size)
+    }
+
+    @Test fun aKeyAllowedWhileTellyscopeWasntWatchingIsNew() {
+        fun keys(known: Set<String>?, watched: Set<String> = emptySet()) =
+            TvAccess.of(emptyList(), listOf(phoneKey, laptop), setOf(phone), "192.0.2.20", emptySet(), "AA", known = known, watched = watched).allowed!!
+        assertTrue(keys(known = setOf("AA")).single { it.fingerprint == "BB" }.new)
+        // First look at this TV: what's there is known. Allowed from Tellyscope's own prompt: known too.
+        assertTrue(keys(known = null).none { it.new })
+        assertTrue(keys(known = setOf("AA"), watched = setOf("BB")).none { it.new })
+        assertTrue(keys(known = emptySet()).none { it.phone && it.new })
+    }
 }
