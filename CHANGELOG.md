@@ -12,8 +12,8 @@ until this file has a section for its version.
 
 ## Unreleased
 
-- **Fixed:** On Fire TV, Make Home sets Projectivy as Home through its accessibility service. [#PR](../../pull/PR)
-- **Fixed:** The Projectivy install dialog on Fire TV closes when the install finishes. [#PR](../../pull/PR)
+- **Fixed:** On Fire TV, Make Home sets Projectivy as Home through its accessibility service. [#235](../../pull/235)
+- **Fixed:** The Projectivy install dialog on Fire TV closes when the install finishes. [#235](../../pull/235)
 
 ## 0.13.0 — 2026-10-29
 
