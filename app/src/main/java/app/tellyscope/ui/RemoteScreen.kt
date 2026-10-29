@@ -245,7 +245,6 @@ fun RemoteScreen(
     // While typing, the keyboard needs the room: volume, the hint and the buttons step aside for the D-pad,
     // and back, home and menu shrink.
     val typing = WindowInsets.isImeVisible
-    val focus = LocalFocusManager.current
     // The text box in window coordinates, so a tap on it (or its ⌫ and Send) keeps the keyboard up.
     var field by remember { mutableStateOf(Rect.Zero) }
     var origin by remember { mutableStateOf(Offset.Zero) }
@@ -259,6 +258,8 @@ fun RemoteScreen(
         onDismissRequest = actions.back,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     ) {
+        // The sheet is its own window, so the text box's focus lives here, not in the screen's.
+        val focus = LocalFocusManager.current
         // A tap anywhere else puts the keyboard away once the finger lifts, so nothing moves under a
         // press; the key that was tapped still does its job. Watched on the way down, never consumed.
         Box(
