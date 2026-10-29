@@ -691,10 +691,16 @@ class AdbDeviceSource(context: Context) : DeviceSource {
         // Home is a launcher the user added: the TV's own takes it back, the one a switch replaced first.
         val added = options?.takeIf { it.default }?.current?.takeIf { it !in system }
         val to = added?.let { homeBackTarget(it, book.entries(key(deviceId)), own) }?.pkg?.takeIf { it in system } ?: own.firstOrNull()
+        // Fire OS keeps Amazon's launcher the default; a launcher whose service is on holds Home instead.
+        val held = if (added == null && fireOs(deviceId, FIRE_TV_LAUNCHER in system)) Actions(shell).fireServiceHolder(serviceLaunchers)?.first else null
         ResetPlan(
             turnOn = scan.turnOn.map { ResetApp(it, labelOf(it)) },
             bringBack = scan.bringBack.map { ResetApp(it, labelOf(it)) },
-            home = if (added != null && to != null) ResetHome(added, labelOf(added), to, labelOf(to), service = added in serviceLaunchers) else null,
+            home = when {
+                added != null && to != null -> ResetHome(added, labelOf(added), to, labelOf(to), service = added in serviceLaunchers)
+                held != null -> ResetHome(held, labelOf(held), FIRE_TV_LAUNCHER, labelOf(FIRE_TV_LAUNCHER), service = true, serviceOnly = true)
+                else -> null
+            },
             shippedOff = scan.shippedOff.size,
             ownHome = (options?.current?.takeIf { it in system } ?: to ?: own.firstOrNull())?.let(::labelOf),
         )
@@ -755,6 +761,13 @@ class AdbDeviceSource(context: Context) : DeviceSource {
      * and the entry already holds the move.
      */
     private suspend fun resetHome(actions: Actions, home: ResetHome): Pair<Map<String, String?>, String?> {
+        if (home.serviceOnly) {
+            // On Try again the service may be off already: nothing left to record.
+            val service = actions.homeService(home.from)?.takeIf { actions.serviceOn(it) } ?: return emptyMap<String, String?>() to null
+            if (!actions.setService(service, false)) throw IllegalStateException(fireServiceNotOff(home.fromLabel))
+            val left = actions.currentHome()?.let { actions.handOff(home.from, it) }?.let { notShown(home.toLabel, it.reason) }
+            return mapOf(ResetRecord.SERVICE to service) to left
+        }
         val moved: Map<String, String?> = if (actions.currentHome()?.substringBefore('/') == home.to) emptyMap()
         else when (val r = actions.homeBack(home.to)) {
             is HomeResult.Switched -> listOfNotNull(ResetRecord.FROM to r.from, ResetRecord.TO to r.to).toMap()
@@ -793,6 +806,10 @@ class AdbDeviceSource(context: Context) : DeviceSource {
                 homeLeft = true
                 errors += "the TV kept ${labelOf(to.substringBefore('/'))} as the home screen"
             } else p[ResetRecord.SERVICE]?.let { if (!actions.grant(it)) errors += serviceNotOn(name) }
+        }
+        // Fire OS: Home never moved, only the service went off.
+        if (p[ResetRecord.TO] == null) p[ResetRecord.SERVICE]?.let {
+            if (!actions.grant(it)) errors += serviceNotOn(labelOf(it.substringBefore('/')))
         }
         val ownHome = p[ResetRecord.TO]?.substringBefore('/')?.takeIf { homeLeft }
         suspend fun each(pkgs: List<String>, change: suspend (String) -> Unit) = pkgs.filter { pkg ->

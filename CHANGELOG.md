@@ -12,6 +12,8 @@ until this file has a section for its version.
 
 ## Unreleased
 
+- **Fixed:** On Fire TV, Reset TV now puts Amazon's launcher back when Projectivy holds Home, by turning its accessibility service off. Undo turns it back on.
+
 ## 0.13.0 — 2026-10-29
 
 - **New:** Remote buttons open Netflix, YouTube, Plex and 20 more streaming apps. [#224](../../pull/224)

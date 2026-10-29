@@ -284,4 +284,10 @@ class HistoryBookTest {
         assertEquals("Reset TV · 1 change", left.label)
         assertEquals(1, ResetRecord.changes(left.previous))
     }
+
+    @Test fun fireResetCountsTheServiceAsHome() {
+        // Fire OS: Home stays Amazon's launcher, so only the launcher's service is recorded.
+        val previous = mapOf(ResetRecord.ON to "a.b", ResetRecord.SERVICE to "g.h/.HomeService")
+        assertEquals(2, ResetRecord.changes(previous))
+    }
 }
