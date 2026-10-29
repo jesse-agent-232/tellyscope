@@ -1446,7 +1446,7 @@ class TellyscopeViewModel(
     }
 
     /**
-     * Press OK on the TV, on a prompt under Fire OS's remote alert: one OK, sent only while the alert has focus.
+     * Press OK on the TV, on a prompt under Fire OS's remote alert: one Back, sent only while the alert has focus.
      * Then a fresh read, so the prompt itself, with its fingerprint, takes over without waiting for the next check.
      */
     fun closeAlert() {
