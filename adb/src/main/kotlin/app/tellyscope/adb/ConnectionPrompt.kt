@@ -38,12 +38,12 @@ class ConnectionPrompt(private val shell: AdbShell) {
      * False when nothing was sent.
      */
     suspend fun closeAlert(): Boolean {
-        if (!alertOnTop()) return false
+        if (!alertOnTop(windows())) return false
         return shell.shell("dumpsys window | grep -q '$ALERT_FOCUS_SH' && input keyevent $KEY_BACK").exitCode == 0
     }
 
     /** A system prompt is up but a bare `android` window holds focus, and that window is Amazon's alert. */
-    private suspend fun alertOnTop(windows: String = windows()): Boolean {
+    private suspend fun alertOnTop(windows: String): Boolean {
         if (focused(windows) != null || !waiting(windows) || !ALERT_FOCUS.containsMatchIn(windows)) return false
         return isAlert(dump())
     }
