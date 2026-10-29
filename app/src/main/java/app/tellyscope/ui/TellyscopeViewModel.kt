@@ -874,8 +874,9 @@ class TellyscopeViewModel(
                 return@launch setFire(id) { it.copy(step = FireInstall.Step.Refused, error = Copy.SIDELOAD_LOST) }
             }
             when (result) {
+                // The install dialog closes with it: Installing would keep it up, and Close and Cancel wait on that.
                 InstallResult.Done -> launcherInstalled(id, PROJECTIVY) { step ->
-                    updateDevice(id) { it.copy(launcher = it.launcher?.copy(step = step)) }
+                    updateDevice(id) { it.copy(launcher = it.launcher?.copy(step = step, fire = FireInstall())) }
                 }
                 is InstallResult.Refused -> setFire(id) {
                     it.copy(step = FireInstall.Step.Refused, error = Copy.installRefused(result.reason, launcherName(PROJECTIVY)))

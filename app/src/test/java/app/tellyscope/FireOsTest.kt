@@ -209,6 +209,8 @@ class FireOsTest {
         runCurrent()
         assertEquals(listOf(PROJECTIVY), source.installs.map { it.packageName })
         assertEquals(LauncherFlow.Step.Installed, v.state.value.device.launcher?.step)
+        // The install dialog closed with it: left on Installing, it covered the switch and nothing could close it.
+        assertNull(v.state.value.device.launcher?.fire?.step)
     }
 
     @Test fun aWrongSignatureInstallsNothing() = with(test) {

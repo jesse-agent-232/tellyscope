@@ -258,7 +258,8 @@ fun LauncherScreen(
                 LauncherFlow.Step.Installed -> {
                     Hero(Icons.Default.Check, c.secondaryContainer, c.onSecondaryContainer)
                     val explain = if (app != null && current != null && app.homeInstead != null) {
-                        " " + Copy.explainHome(app.label, app.packageName, current, app.homeInstead, app.homeService)
+                        " " + if (flow.fire != null) Copy.explainFireHome(app.label, app.packageName, current)
+                        else Copy.explainHome(app.label, app.packageName, current, app.homeInstead, app.homeService)
                     } else {
                         ""
                     }

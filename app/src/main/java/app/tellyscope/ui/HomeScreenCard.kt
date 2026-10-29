@@ -98,7 +98,7 @@ fun HomeScreenBlock(ui: DeviceUi, actions: DeviceActions, fire: Boolean = false)
     when (action) {
         Action.Uninstall -> if (app != null) UninstallDialog(app, onUninstall = actions.confirm, onDismiss = actions.cancel, enabled = !locked)
         Action.Home, Action.HomeBack -> if (app != null && homeMove(app, current) == action) {
-            MakeHomeDialog(app, action, current, ui.apps, locked, actions)
+            MakeHomeDialog(app, action, current, ui.apps, locked, actions, fire)
         } else {
             // A switch whose target changed meanwhile (turned off in Debloat, say) has nothing left to ask.
             LaunchedEffect(pkg, action) { actions.cancel() }
@@ -173,7 +173,7 @@ private fun LauncherRow(app: AppInfo, move: Action?, locked: Boolean, onMove: (A
  * accessibility service gets its own yes for that next, never as a side effect of this one.
  */
 @Composable
-private fun MakeHomeDialog(app: AppInfo, action: Action, current: AppInfo?, apps: List<AppInfo>, locked: Boolean, actions: DeviceActions) {
+private fun MakeHomeDialog(app: AppInfo, action: Action, current: AppInfo?, apps: List<AppInfo>, locked: Boolean, actions: DeviceActions, fire: Boolean) {
     val replaced = homeLabel(apps, app)
     val asks = action == Action.Home && app.homeService
     var askService by remember(app.packageName) { mutableStateOf(false) }
@@ -188,6 +188,7 @@ private fun MakeHomeDialog(app: AppInfo, action: Action, current: AppInfo?, apps
     val currentService = current != null && current.homeService && !current.homeServiceOff
     val text = when {
         action == Action.HomeBack && current != null -> Copy.explainLeave(app.label, off = !app.enabled, current.label, currentService, service = false)
+        fire && action == Action.Home && app.homeService && current != null -> Copy.explainFireHome(app.label, app.packageName, current.label)
         current != null && !current.system -> Copy.explainLeave(app.label, off = false, current.label, currentService, app.homeService)
         replaced != null && app.homeInstead != null -> Copy.explainReplace(app.label, replaced, app.homeInstead, app.homeService)
         else -> Copy.explainFirstHome(app.label, app.packageName, app.homeService)

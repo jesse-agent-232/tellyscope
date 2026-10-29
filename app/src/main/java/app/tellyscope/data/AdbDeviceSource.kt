@@ -544,7 +544,13 @@ class AdbDeviceSource(context: Context) : DeviceSource {
     private suspend fun switchHome(deviceId: String, packageName: String, undoing: Long?, withService: Boolean): HistoryEntry {
         fireHomes -= deviceId
         val key = key(deviceId)
-        return switchHome(Actions(session(deviceId)), packageName, withService, serviceLaunchers, ::labelOf, ::reasonText) { pkg, undo, previous ->
+        val actions = Actions(session(deviceId))
+        if (packageName in serviceLaunchers && (deviceKind(device(deviceId)) == DeviceKind.FireTv || actions.installed(FIRE_TV_LAUNCHER))) {
+            return fireServiceHome(actions, packageName, withService, ::labelOf) { previous ->
+                book.record(key, System.currentTimeMillis(), Action.Home, packageName, labelOf(packageName), Action.Enable.takeIf { previous.isNotEmpty() }, undoing, previous)
+            }
+        }
+        return switchHome(actions, packageName, withService, serviceLaunchers, ::labelOf, ::reasonText) { pkg, undo, previous ->
             book.record(key, System.currentTimeMillis(), Action.Home, pkg, labelOf(packageName), undo, undoing, previous)
         }
     }
@@ -1150,6 +1156,26 @@ internal suspend fun switchHome(
 }
 
 /**
+ * Fire OS's Home: it refuses to turn Amazon's launcher off and won't keep another default, but [pkg]'s
+ * accessibility service takes the Home key, and opens of Amazon's launcher, on its own. So only the
+ * service goes on and Amazon's launcher stays as it is. Recorded as a home with nothing to replace:
+ * "service" when this turned it on, so Undo turns it off and does nothing else.
+ */
+internal suspend fun fireServiceHome(
+    actions: Actions,
+    pkg: String,
+    withService: Boolean,
+    label: (String) -> String,
+    record: (previous: Map<String, String?>) -> HistoryEntry,
+): HistoryEntry {
+    if (!withService) throw IllegalStateException(fireNeedsService(label(pkg)))
+    val service = actions.homeService(pkg) ?: throw IllegalStateException("${label(pkg)} has no accessibility service")
+    if (actions.serviceOn(service)) return record(emptyMap())
+    if (!actions.grant(service)) throw IllegalStateException(fireServiceNotOn(label(pkg)))
+    return record(mapOf("service" to service))
+}
+
+/**
  * Turns accessibility [service] on, only for a launcher in [ACCESSIBILITY_LAUNCHERS]. Every path that
  * turns one on comes here, so neither a fetched list nor a saved record can name another; false
  * for any other, as for a TV that refused.
@@ -1176,6 +1202,11 @@ private fun serviceNotOn(app: String) =
 
 /** Home moved, but the old launcher didn't close or [app] didn't open: [why] is [HandOffFailed.reason]. */
 private fun notShown(app: String, why: String) = "$app is Home now, but $why"
+
+/** Fire OS, after No to the service: without it, Home can't open [app]. */
+private fun fireNeedsService(app: String) = "on Fire TV, Home can only open $app through its accessibility service, so nothing changed"
+
+private fun fireServiceNotOn(app: String) = "the TV didn't turn on $app's accessibility service, so nothing changed"
 
 private fun serviceNotOff(app: String) =
     "switched back, but $app's accessibility service is still on. Turn it off in the TV's Settings → Accessibility"
