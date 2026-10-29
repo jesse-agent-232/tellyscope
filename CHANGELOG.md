@@ -34,6 +34,7 @@ until this file has a section for its version.
 - **Fixed:** A Remote button's tap ripple stays inside the button. [#228](../../pull/228)
 - **Improved:** The Remote buttons list has more room at its sides. [#228](../../pull/228)
 - **Improved:** Lists and logos are checked before use, so a bad list source is refused. [#226](../../pull/226)
+- **Improved:** Find your TV counts down to its next look every 10 seconds, and has a Rescan button. [#234](../../pull/234)
 
 ## 0.12.0 — 2026-10-28
 

@@ -240,6 +240,7 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
         if (st == DeviceState.Online || (st == DeviceState.NotAllowed && loggedOutAt == null)) rejoinId = null
     }
 
+    LaunchedEffect(adding) { vm.addingTv(adding) }
     if (state.selected == null || adding) {
         BackHandler(enabled = adding) { adding = false }
         ScanScreen(

@@ -64,6 +64,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -94,6 +95,8 @@ data class ScanUi(
     val noLan: Boolean = false,
     val hits: List<ScanHit> = emptyList(),
     val rows: Map<String, RowState> = emptyMap(),
+    /** Nothing found yet: when the next scan starts by itself. Null while a scan runs or once a TV turns up. */
+    val nextScanAt: Long? = null,
 ) {
     /** Off Wi-Fi with nothing found: the scan screen asks the user to join one instead of listing. */
     val offWifi get() = noLan && hits.isEmpty()
@@ -344,6 +347,9 @@ const val ANSWERING = "request"
 /** How often Install a home screen asks the TV whether the launcher is in yet. */
 const val STORE_POLL_MS = 3_000L
 
+/** An empty scan starts again after this long, unless Rescan is tapped first. */
+const val RESCAN_EVERY_MS = 10_000L
+
 /** How long it keeps asking before it says the launcher didn't arrive. */
 const val STORE_WAIT_MS = 10 * 60_000L
 
@@ -403,6 +409,10 @@ class TellyscopeViewModel(
     private val typed = mutableMapOf<String, Int>()
 
     private var scanJob: Job? = null
+    /** Rescan tapped while an empty scan waits: cuts the wait short. */
+    private val scanNow = Channel<Unit>(Channel.CONFLATED)
+    /** The add flow is open over a selected TV, so an empty scan keeps looking there too. */
+    private var addingTv = false
     private var sideloadJob: Job? = null
     /** File copies by TV: each dialog shows only on its own TV's page, and its Cancel stops only that copy. */
     private val transferJobs = mutableMapOf<String, Job>()
@@ -510,10 +520,14 @@ class TellyscopeViewModel(
             scanOnResume = true
             return
         }
-        if (scanJob?.isActive == true) return
+        if (scanJob?.isActive == true) {
+            if (_state.value.scan.nextScanAt != null) scanNow.trySend(Unit)
+            return
+        }
         scanJob = viewModelScope.launch {
-            // Empty scan with no TV open: the guide is on screen; keep looking so the user never has to
-            // press anything. The retry stays in this job, as rescan() from here would see it still active.
+            // Empty scan with the guide on screen: keep looking so the user never has to press anything.
+            // The retry stays in this job, as rescan() from here would see it still active.
+            val done = { _state.value.let { it.scan.hits.isNotEmpty() || (it.selected != null && !addingTv) } }
             while (true) {
                 _state.update { it.copy(scan = it.scan.copy(scanning = true, noLan = false)) }
                 source.scan().collect { e ->
@@ -532,10 +546,24 @@ class TellyscopeViewModel(
                     }
                 }
                 _state.update { it.copy(scan = it.scan.copy(scanning = false)) }
-                if (_state.value.let { it.scan.hits.isNotEmpty() || it.selected != null }) break
-                delay(15_000)
+                if (done()) break
+                scanNow.tryReceive() // drops a tap that raced the last wait's timeout
+                _state.update { it.copy(scan = it.scan.copy(nextScanAt = clock() + RESCAN_EVERY_MS)) }
+                try {
+                    withTimeoutOrNull(RESCAN_EVERY_MS) { scanNow.receive() }
+                } finally {
+                    _state.update { it.copy(scan = it.scan.copy(nextScanAt = null)) }
+                }
+                if (done()) break
             }
         }
+    }
+
+    /** The add flow opened or closed over a selected TV. Closed, an empty scan stops waiting to look again. */
+    fun addingTv(open: Boolean) {
+        addingTv = open
+        if (open) rescan()
+        else if (_state.value.let { it.selected != null && it.scan.nextScanAt != null }) scanJob?.cancel()
     }
 
     fun connect(hit: ScanHit) {
