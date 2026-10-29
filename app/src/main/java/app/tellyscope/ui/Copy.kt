@@ -140,6 +140,11 @@ object Copy {
         if (service) append("\n\nNext, you choose whether to turn on its accessibility service.")
     }
 
+    /** Fire OS: Amazon's launcher can't be turned off or replaced, so [app]'s accessibility service holds Home instead. */
+    fun explainFireHome(app: String, pkg: String, current: String) =
+        "Makes Home open $app ($pkg) through its accessibility service. Fire OS won't let $current be turned off or replaced, " +
+            "so it stays on and nothing else changes. Undo in History turns the service off.\n\nNext, you choose whether to turn on its accessibility service."
+
     /** No default home and no launcher of the TV's own on: nothing is turned off, so Undo can only turn its service off. */
     fun explainFirstHome(app: String, pkg: String, service: Boolean = false) = buildString {
         append("Makes $app ($pkg) open when you press Home. The TV has no default home screen now, and nothing else is turned off.")
