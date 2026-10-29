@@ -308,8 +308,30 @@ class LauncherScreenTest {
         val installs = mutableListOf<String>()
         compose.setContent { LauncherScreen(tv, LauncherFlow(), listOf(store, stock), LauncherActions(install = { installs += it })) }
         compose.onNodeWithText("FLauncher").performScrollTo().performClick() // under the bottom bar on a small screen
-        compose.onNodeWithText(Copy.OPEN_IN_STORE).performClick()
+        compose.onNodeWithText(Copy.GET_FROM_STORE).performClick()
         assertEquals(listOf(FLAUNCHER), installs)
+    }
+
+    @Test fun theStoreComesFirstAndOnlyAPinnedLauncherDownloadsDirectly() {
+        val installs = mutableListOf<String>()
+        var downloads = 0
+        compose.setContent {
+            LauncherScreen(tv, LauncherFlow(pkg = PROJECTIVY), listOf(store, stock), LauncherActions(install = { installs += it }, fireCheck = { downloads++ }), direct = true)
+        }
+        compose.onNodeWithText(Copy.STORE_RECOMMENDED).assertExists()
+        compose.onNodeWithText(Copy.DOWNLOAD_DIRECTLY).performClick()
+        compose.onNodeWithText(Copy.GET_FROM_STORE).performClick()
+        assertEquals(1, downloads)
+        assertEquals(listOf(PROJECTIVY), installs)
+        compose.onNodeWithText("FLauncher").performScrollTo().performClick()
+        compose.onNodeWithText(Copy.DOWNLOAD_DIRECTLY).assertDoesNotExist()
+        compose.onNodeWithText(Copy.GET_FROM_STORE).assertExists()
+    }
+
+    @Test fun withoutADownloadOnlyTheStoreIsOffered() {
+        compose.setContent { LauncherScreen(tv, LauncherFlow(pkg = PROJECTIVY), listOf(store, stock), LauncherActions()) }
+        compose.onNodeWithText(Copy.DOWNLOAD_DIRECTLY).assertDoesNotExist()
+        compose.onNodeWithText(Copy.STORE_RECOMMENDED).assertDoesNotExist()
     }
 
     @Test fun theStoreDidntOpenOffersAnotherOrARetry() {
@@ -333,7 +355,7 @@ class LauncherScreenTest {
             LauncherScreen(tv, LauncherFlow(pkg = FLAUNCHER), listOf(store, stock, flauncher), LauncherActions(makeHome = { p, s -> homes += p to s }, open = { opens += it }))
         }
         compose.onNodeWithText(Copy.INSTALLED).assertExists()
-        compose.onNodeWithText(Copy.OPEN_IN_STORE).assertDoesNotExist()
+        compose.onNodeWithText(Copy.GET_FROM_STORE).assertDoesNotExist()
         compose.onNodeWithText(Copy.OPEN).performClick()
         compose.onNodeWithText(Copy.MAKE_HOME).performClick()
         assertEquals(listOf(FLAUNCHER), opens)

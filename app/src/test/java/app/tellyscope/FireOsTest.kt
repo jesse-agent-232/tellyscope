@@ -85,16 +85,16 @@ private fun release(
     assets.joinToString { (name, url) -> """{"name": "$name", "browser_download_url": "$url", "size": $size}""" }
 }]}"""
 
-/** A Fire TV with no Play Store, which takes whatever Tellyscope installs. */
-private class FireTv : DeviceSource by FakeDeviceSource(FakeDeviceSource.Scenario.Empty, clock = { 0L }) {
+/** A Fire TV with no Play Store, which takes whatever Tellyscope installs; or [tv] with [own] on it. */
+private class FireTv(val tv: Device = amazon, val own: List<AppInfo> = listOf(fireHome)) : DeviceSource by FakeDeviceSource(FakeDeviceSource.Scenario.Empty, clock = { 0L }) {
     val installs = mutableListOf<ApkInfo>()
     var refuse: InstallResult? = null
 
-    override suspend fun known() = listOf(amazon)
+    override suspend fun known() = listOf(tv)
     override fun live(deviceId: String): Flow<Snapshot> = emptyFlow()
     override suspend fun suggestions(deviceId: String, apps: suspend () -> List<AppInfo>) = Suggestions.Unavailable
     override suspend fun history(deviceId: String) = emptyList<HistoryEntry>()
-    override suspend fun apps(deviceId: String) = listOf(fireHome) +
+    override suspend fun apps(deviceId: String) = own +
         if (installs.isEmpty()) emptyList() else listOf(AppInfo(PROJECTIVY, "Projectivy Launcher", null, false, true, null, "1.0", homeInstead = FIRE_TV_LAUNCHER, homeService = true))
 
     override suspend fun install(deviceId: String, apks: List<File>, apk: ApkInfo, allowDowngrade: Boolean, onProgress: (Progress) -> Unit): InstallResult {
@@ -121,7 +121,7 @@ private class FakeDownload(var signedByDeveloper: Boolean = true) : LauncherDown
 class FireOsTest {
     private val dispatcher = StandardTestDispatcher()
     private val test = TestScope(dispatcher)
-    private val source = FireTv()
+    private var source = FireTv()
     private val download = FakeDownload()
     private var vm: TellyscopeViewModel? = null
 
@@ -224,5 +224,36 @@ class FireOsTest {
         assertTrue(source.installs.isEmpty())
         assertEquals(FireInstall.Step.NotProjectivy, v.state.value.device.launcher?.fire?.step)
         assertEquals(LauncherFlow.Step.Pick, v.state.value.device.launcher?.step)
+    }
+
+    @Test fun withThePlayStoreDownloadDirectlyWarnsFirstThenInstalls() = with(test) {
+        source = FireTv(androidTv, listOf(store, tvHome))
+        val v = opened()
+        assertNull(v.state.value.device.launcher?.fire)
+        assertTrue(v.directDownload)
+
+        v.checkProjectivy()
+        runCurrent()
+        val warning = v.state.value.device.launcher?.fire
+        assertEquals(FireInstall.Step.Confirm, warning?.step)
+        assertEquals(true, warning?.store)
+        assertTrue(source.installs.isEmpty())
+
+        v.installProjectivy()
+        runCurrent()
+        assertEquals(listOf(PROJECTIVY), source.installs.map { it.packageName })
+        assertEquals(LauncherFlow.Step.Installed, v.state.value.device.launcher?.step)
+        assertNull(v.state.value.device.launcher?.fire)
+    }
+
+    @Test fun cancellingTheWarningGoesBackToThePicker() = with(test) {
+        source = FireTv(androidTv, listOf(store, tvHome))
+        val v = opened()
+        v.checkProjectivy()
+        runCurrent()
+        v.dismissProjectivy()
+        assertEquals(LauncherFlow.Step.Pick, v.state.value.device.launcher?.step)
+        assertNull(v.state.value.device.launcher?.fire)
+        assertEquals(0, download.fetched)
     }
 }

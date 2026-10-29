@@ -175,6 +175,9 @@ data class ResetUi(
  */
 data class LauncherFlow(val step: Step = Step.Pick, val pkg: String = RECOMMENDED.first().pkg, val fire: FireInstall? = null) {
     enum class Step { Pick, Waiting, NoStore, Left, Installed }
+
+    /** Fire OS: Projectivy alone, with no Play Store; not Download directly beside the Store ([FireInstall.store]). */
+    val fireOs get() = fire != null && !fire.store
 }
 
 /**
@@ -182,12 +185,15 @@ data class LauncherFlow(val step: Step = Step.Pick, val pkg: String = RECOMMENDE
  * Play Store, so Tellyscope reads the latest release ([Step.Checking]), asks ([Step.Confirm]), downloads and
  * checks it ([Step.Downloading]), installs it over adb ([Step.Installing]), then moves to [LauncherFlow.Step.Installed].
  * A null [step] is the screen with no dialog. [error] is the TV's refusal, for [Step.Refused].
+ * [store]: Download directly on a TV with the Play Store, from the picker ([downloadable]); its dialogs offer the
+ * Store instead, and closing one goes back to the picker.
  */
 data class FireInstall(
     val step: Step? = null,
     val release: LauncherRelease? = null,
     val progress: Progress? = null,
     val error: String? = null,
+    val store: Boolean = false,
 ) {
     enum class Step { Checking, Confirm, Downloading, Installing, NotProjectivy, NoDownload, Refused }
 }
@@ -855,21 +861,28 @@ class TellyscopeViewModel(
     private fun setFire(id: String, f: (FireInstall) -> FireInstall) =
         updateDevice(id) { d -> d.copy(launcher = d.launcher?.let { l -> l.fire?.let { l.copy(fire = f(it)) } }) }
 
-    /** Install Projectivy on Fire OS: reads the latest release, for the confirm dialog to show where it comes from. */
+    /** Download directly is offered beside the Play Store: there's a way to download, as on Fire OS. */
+    val directDownload get() = launcherDownload != null
+
+    /**
+     * Install Projectivy on Fire OS, or Download directly in the picker: reads the latest release, for the
+     * confirm dialog to show where it comes from.
+     */
     fun checkProjectivy() {
         val id = _state.value.selectedId ?: return
         val download = launcherDownload ?: return
+        val store = _state.value.device.launcher?.let { it.fire?.store ?: true } ?: return
         launcherJob?.cancel()
-        setFire(id) { FireInstall(FireInstall.Step.Checking) }
+        updateDevice(id) { d -> d.copy(launcher = d.launcher?.copy(pkg = PROJECTIVY, fire = FireInstall(FireInstall.Step.Checking, store = store))) }
         launcherJob = viewModelScope.launch {
             val release = try {
                 download.latest()
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
-                return@launch setFire(id) { FireInstall(FireInstall.Step.NoDownload) }
+                return@launch setFire(id) { FireInstall(FireInstall.Step.NoDownload, store = store) }
             }
-            setFire(id) { FireInstall(FireInstall.Step.Confirm, release) }
+            setFire(id) { FireInstall(FireInstall.Step.Confirm, release, store = store) }
         }
     }
 
@@ -904,7 +917,7 @@ class TellyscopeViewModel(
             when (result) {
                 // The install dialog closes with it: Installing would keep it up, and Close and Cancel wait on that.
                 InstallResult.Done -> launcherInstalled(id, PROJECTIVY) { step ->
-                    updateDevice(id) { it.copy(launcher = it.launcher?.copy(step = step, fire = FireInstall())) }
+                    updateDevice(id) { it.copy(launcher = it.launcher?.let { l -> l.copy(step = step, fire = if (l.fire?.store == true) null else FireInstall()) }) }
                 }
                 is InstallResult.Refused -> setFire(id) {
                     it.copy(step = FireInstall.Step.Refused, error = Copy.installRefused(result.reason, launcherName(PROJECTIVY)))
@@ -913,12 +926,12 @@ class TellyscopeViewModel(
         }
     }
 
-    /** Cancel, Close or OK on a Fire OS dialog: back to the screen. Not while the install runs. */
+    /** Cancel, Close or OK on a Fire OS dialog: back to the screen, or to the picker after Download directly. Not while the install runs. */
     fun dismissProjectivy() {
         val id = _state.value.selectedId ?: return
         if (_state.value.device.launcher?.fire?.step == FireInstall.Step.Installing) return
         launcherJob?.cancel()
-        setFire(id) { FireInstall() }
+        updateDevice(id) { d -> d.copy(launcher = d.launcher?.let { l -> l.copy(fire = if (l.fire?.store == true) null else FireInstall()) }) }
     }
 
     /** Not now on the Apps tab's card: it stays away on this TV, and Tweaks keeps the way in. */
