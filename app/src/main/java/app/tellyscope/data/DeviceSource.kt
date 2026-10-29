@@ -214,6 +214,9 @@ interface DeviceSource {
      */
     suspend fun answerRequest(deviceId: String, request: ConnectionRequest, allow: Boolean, always: Boolean): Boolean
 
+    /** Presses OK once on Fire OS's remote alert over that prompt ([ConnectionRequest.behindAlert]). False when nothing was sent. */
+    suspend fun closeAlert(deviceId: String): Boolean
+
     /** What a report says about the TV: model, Android, the apps it came with. Throws if it's gone. */
     suspend fun facts(deviceId: String): TvFacts
 

@@ -958,6 +958,8 @@ class AdbDeviceSource(context: Context) : DeviceSource {
     override suspend fun answerRequest(deviceId: String, request: ConnectionRequest, allow: Boolean, always: Boolean) =
         ConnectionPrompt(session(deviceId)).answer(request, allow, always)
 
+    override suspend fun closeAlert(deviceId: String) = ConnectionPrompt(session(deviceId)).closeAlert()
+
     override suspend fun facts(deviceId: String) = TvFacts.read(session(deviceId))
 
     override suspend fun access(deviceId: String): TvAccess {

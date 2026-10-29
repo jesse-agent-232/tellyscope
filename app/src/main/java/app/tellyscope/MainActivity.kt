@@ -418,6 +418,7 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
                 screenshot = { saveScreenshot.launch(Copy.screenshotName(System.currentTimeMillis())) },
                 answerRequest = vm::answerRequest,
                 dismissRequest = vm::dismissRequest,
+                closeAlert = vm::closeAlert,
                 foldSystem = vm::foldSystem,
                 showStats = vm::showStats,
                 whoHasAccess = { access = true },
