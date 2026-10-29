@@ -260,8 +260,8 @@ fun RemoteScreen(
     ) {
         // The sheet is its own window, so the text box's focus lives here, not in the screen's.
         val focus = LocalFocusManager.current
-        // A tap anywhere else puts the keyboard away once the finger lifts, so nothing moves under a
-        // press; the key that was tapped still does its job. Watched on the way down, never consumed.
+        // A tap on empty space puts the keyboard away once the finger lifts. Keys and buttons consume
+        // their lift, so the D-pad can move through results with the keyboard still up. Never consumed here.
         Box(
             Modifier.fillMaxSize()
                 .onGloballyPositioned { origin = it.positionInWindow() }
@@ -270,8 +270,8 @@ fun RemoteScreen(
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
                         if (field.contains(origin + down.position)) return@awaitEachGesture
-                        // Null when something else took the gesture, a drag of the sheet: leave the keyboard be.
-                        if (waitForUpOrCancellation(PointerEventPass.Initial) != null) focus.clearFocus()
+                        // Null when something else took the lift (a key, a button, a drag of the sheet): leave the keyboard be.
+                        if (waitForUpOrCancellation(PointerEventPass.Final) != null) focus.clearFocus()
                     }
                 },
         ) {
@@ -485,7 +485,8 @@ private fun KeySurface(
                     if (haptics) haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
                     var held = true
                     scope.launch { repeatWhileHeld(key, { held }, press = press) }
-                    waitForUpOrCancellation()
+                    // Consumed so the Remote knows a key took the tap and keeps the keyboard up.
+                    waitForUpOrCancellation()?.consume()
                     held = false
                     interactions.tryEmit(PressInteraction.Release(p))
                 }
