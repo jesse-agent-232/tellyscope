@@ -12,21 +12,18 @@ until this file has a section for its version.
 
 ## Unreleased
 
-- **New:** Who has access shows the TV's Allow prompt, and answers it from the phone. [#253](../../pull/253)
-  - A computer waiting on that prompt shows as Waiting, not as connected.
-  - Keys allowed while Tellyscope wasn't watching are marked New.
-- **Improved:** On Fire TV, installing Projectivy is one screen, step by step. [#253](../../pull/253)
-  - When the download fails, pick the file you downloaded yourself; it's checked the same way.
-  - Stopping a download asks first; the TV can't be left half installed.
-- **Improved:** Install apps and Projectivy's file picker open in Downloads, showing only apps. [#253](../../pull/253)
-- **Fixed:** Projectivy's download works when GitHub limits lookups from your network. [#253](../../pull/253)
-
 ## 0.13.0 — 2026-10-29
 
 - **New:** Remote buttons open Netflix, YouTube, Plex and 20 more streaming apps. [#224](../../pull/224)
-- **New:** On Fire TV, Install a home screen downloads and installs Projectivy for you. [#232](../../pull/232)
+- **New:** On Fire TV, Install a home screen downloads and installs Projectivy for you. [#232](../../pull/232) [#253](../../pull/253)
   - It comes from Projectivy's GitHub releases, and is checked against its developer's signature first.
+  - One screen shows each step: download, check, install. Stopping a download asks first.
+  - It still downloads when GitHub limits lookups from your network.
+  - If the download fails, pick the file you downloaded yourself; it's checked the same way.
 - **New:** On Android TV, Projectivy can also be downloaded directly, after a warning. [#236](../../pull/236)
+- **New:** Who has access shows the TV's Allow prompt, and answers it from the phone. [#253](../../pull/253)
+  - A computer waiting on that prompt shows as Waiting, not as connected.
+  - Keys allowed while Tellyscope wasn't watching are marked New.
 - **Improved:** The Remote's dock is refined: it shows only the streaming buttons you pick. [#224](../../pull/224)
   - Hold a button, or use ⋮ › Remote buttons, to pick up to three (four on a tablet).
   - Docked apps that aren't one of these services no longer show on the Remote.
@@ -45,6 +42,7 @@ until this file has a section for its version.
 - **Improved:** Lists and logos are checked before use, so a bad list source is refused. [#226](../../pull/226)
 - **Improved:** Find your TV counts down to its next look every 10 seconds, and has a Rescan button. [#234](../../pull/234)
 - **Improved:** Switching TVs shows each TV's apps and debloat list straight away, while fresh ones load. [#242](../../pull/242)
+- **Improved:** Install apps opens its file picker in Downloads, showing only apps. [#253](../../pull/253)
 - **Fixed:** On Fire TV, Make Home sets Projectivy as Home through its accessibility service. [#235](../../pull/235)
 - **Fixed:** On Fire TV, a debugging prompt hidden behind the remote alert shows on the phone. [#237](../../pull/237)
 - **Fixed:** On Fire TV, Remote buttons and Apps › Open now open the app. [#248](../../pull/248)
