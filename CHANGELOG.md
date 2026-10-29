@@ -12,6 +12,8 @@ until this file has a section for its version.
 
 ## Unreleased
 
+- **Fixed:** The app no longer closes when you open or switch to a TV. [#241](../../pull/241)
+
 ## 0.13.0 — 2026-10-29
 
 - **Improved:** The Remote's dock is refined: it shows only the streaming buttons you pick. [#224](../../pull/224)
