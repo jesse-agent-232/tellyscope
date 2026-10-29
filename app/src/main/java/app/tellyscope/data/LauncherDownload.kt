@@ -4,6 +4,7 @@ package app.tellyscope.data
 
 import android.content.Context
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import androidx.core.content.pm.PackageInfoCompat
 import app.tellyscope.adb.ApkInfo
@@ -48,12 +49,30 @@ fun parseRelease(json: String): LauncherRelease? = runCatching {
     val url = apk?.getString("browser_download_url")
     val size = apk?.getLong("size") ?: 0L
     LauncherRelease(tag, r.getString("html_url"), url.orEmpty(), size).takeIf {
-        !r.optBoolean("draft") && !r.optBoolean("prerelease") &&
-            it.page == "$PROJECTIVY_RELEASES/tag/$tag" &&
-            it.apk.startsWith("$PROJECTIVY_RELEASES/download/$tag/") &&
-            size in 1..MAX_APK_BYTES
+        !r.optBoolean("draft") && !r.optBoolean("prerelease") && it.valid()
     }
 }.getOrNull()
+
+/** On Projectivy's own repo, its one APK served from that release, and about the right size. */
+private fun LauncherRelease.valid() =
+    page == "$PROJECTIVY_RELEASES/tag/$version" && apk.startsWith("$PROJECTIVY_RELEASES/download/$version/") && size in 1..MAX_APK_BYTES
+
+/** The tag github.com's `releases/latest` redirects to, from its Location; null for anywhere else. */
+fun latestTag(location: String?): String? =
+    location?.removePrefix("$PROJECTIVY_RELEASES/tag/")?.takeIf { it != location && it.isNotEmpty() && '/' !in it && '?' !in it }
+
+/** The release page's one APK, from its asset list's links: the full URL, or null unless there is exactly one. */
+fun pageApk(html: String, tag: String): String? {
+    val path = PROJECTIVY_RELEASES.removePrefix("https://github.com") + "/download/$tag/"
+    return Regex("href=\"(${Regex.escape(path)}[^\"/?#]+\\.apk)\"").findAll(html).map { it.groupValues[1] }.distinct()
+        .singleOrNull()?.let { "https://github.com$it" }
+}
+
+/**
+ * GitHub's API turned the lookup down: it allows 60 an hour per network without a login. [until] is
+ * when it takes them again, epoch millis, when it said.
+ */
+class RateLimited(val until: Long?) : IOException("rate-limited")
 
 /** Projectivy, signed only by its developer: [signers] are the SHA-256s of the APK's certificates. */
 fun isProjectivy(packageName: String, signers: Set<String>) =
@@ -69,14 +88,67 @@ interface LauncherDownload {
 
     /** Downloads [release]'s APK and checks it. Throws [NotProjectivy], or IOException on a failed download. */
     suspend fun fetch(release: LauncherRelease, onProgress: (Progress) -> Unit): PickedApp
+
+    /** A file the user downloaded and picked, checked the same way. Throws [NotProjectivy], or IOException when it can't be read. */
+    suspend fun open(uri: Uri): PickedApp
 }
 
 class AndroidLauncherDownload(context: Context) : LauncherDownload {
     private val ctx = context.applicationContext
     private val dir get() = File(ctx.cacheDir, "launcher")
 
-    override suspend fun latest(): LauncherRelease =
-        parseRelease(download(PROJECTIVY_LATEST).decodeToString()) ?: throw IOException("no Projectivy release")
+    /**
+     * From GitHub's API, or, when that is rate-limited, from the release page it links to, which isn't.
+     * Throws [RateLimited] only when the page didn't answer either.
+     */
+    override suspend fun latest(): LauncherRelease = withContext(Dispatchers.IO) {
+        val limited = try {
+            return@withContext parseRelease(api()) ?: throw IOException("no Projectivy release")
+        } catch (e: RateLimited) {
+            e
+        }
+        runCatching { fromPage() }.getOrNull() ?: throw limited
+    }
+
+    private fun api(): String {
+        val c = URL(PROJECTIVY_LATEST).openConnection() as HttpURLConnection
+        c.connectTimeout = 10_000
+        c.readTimeout = 10_000
+        try {
+            val code = c.responseCode
+            if ((code == 403 || code == 429) && c.getHeaderField("x-ratelimit-remaining") == "0") {
+                throw RateLimited(c.getHeaderField("x-ratelimit-reset")?.toLongOrNull()?.times(1000))
+            }
+            if (code != 200) throw IOException("HTTP $code")
+            return c.inputStream.use { it.readBytes() }.decodeToString()
+        } finally {
+            c.disconnect()
+        }
+    }
+
+    /** `releases/latest` redirects to the tag, whose asset list names the APK; its size comes from the download's own length. */
+    private suspend fun fromPage(): LauncherRelease? {
+        val c = URL("$PROJECTIVY_RELEASES/latest").openConnection() as HttpURLConnection
+        c.instanceFollowRedirects = false
+        c.connectTimeout = 10_000
+        c.readTimeout = 10_000
+        val tag = try {
+            latestTag(c.takeIf { it.responseCode in 301..302 }?.getHeaderField("Location"))
+        } finally {
+            c.disconnect()
+        } ?: return null
+        val apk = pageApk(download("$PROJECTIVY_RELEASES/expanded_assets/$tag").decodeToString(), tag) ?: return null
+        val head = URL(apk).openConnection() as HttpURLConnection
+        head.requestMethod = "HEAD"
+        head.connectTimeout = 10_000
+        head.readTimeout = 10_000
+        val size = try {
+            head.contentLengthLong.takeIf { head.responseCode == 200 } ?: return null
+        } finally {
+            head.disconnect()
+        }
+        return LauncherRelease(tag, "$PROJECTIVY_RELEASES/tag/$tag", apk, size).takeIf { it.valid() }
+    }
 
     override suspend fun fetch(release: LauncherRelease, onProgress: (Progress) -> Unit): PickedApp = withContext(Dispatchers.IO) {
         dir.deleteRecursively()
@@ -104,6 +176,28 @@ class AndroidLauncherDownload(context: Context) : LauncherDownload {
             }
         } finally {
             c.disconnect()
+        }
+        read(file)
+    }
+
+    override suspend fun open(uri: Uri): PickedApp = withContext(Dispatchers.IO) {
+        dir.deleteRecursively()
+        dir.mkdirs()
+        val file = File(dir, "projectivy.apk")
+        val input = ctx.contentResolver.openInputStream(uri) ?: throw IOException("can't read $uri")
+        input.use { s ->
+            file.outputStream().use { out ->
+                val buf = ByteArray(64 * 1024)
+                var done = 0L
+                while (true) {
+                    ensureActive()
+                    val n = s.read(buf).takeIf { it >= 0 } ?: break
+                    done += n
+                    // Far past Projectivy's size: some other file, never read whole.
+                    if (done > MAX_APK_BYTES) throw NotProjectivy()
+                    out.write(buf, 0, n)
+                }
+            }
         }
         read(file)
     }

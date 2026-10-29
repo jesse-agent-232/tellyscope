@@ -40,6 +40,7 @@ import app.tellyscope.data.NotProjectivy
 import app.tellyscope.data.PROJECTIVY
 import app.tellyscope.data.PhoneStorage
 import app.tellyscope.data.PickedApp
+import app.tellyscope.data.RateLimited
 import app.tellyscope.data.RemoteButtons
 import app.tellyscope.data.ResetApp
 import app.tellyscope.data.ResetFailure
@@ -184,9 +185,11 @@ data class LauncherFlow(val step: Step = Step.Pick, val pkg: String = RECOMMENDE
  * Install Projectivy on Fire OS ([fireInstall]), on [LauncherFlow.Step.Pick] in place of the picker: there's no
  * Play Store, so Tellyscope reads the latest release ([Step.Checking]), asks ([Step.Confirm]), downloads and
  * checks it ([Step.Downloading]), installs it over adb ([Step.Installing]), then moves to [LauncherFlow.Step.Installed].
- * A null [step] is the screen with no dialog. [error] is the TV's refusal, for [Step.Refused].
- * [store]: Download directly on a TV with the Play Store, from the picker ([downloadable]); its dialogs offer the
+ * A null [step] is the picker with nothing started. [error] is the TV's refusal, for [Step.Refused].
+ * [store]: Download directly on a TV with the Play Store, from the picker ([downloadable]); its steps offer the
  * Store instead, and closing one goes back to the picker.
+ * After [Step.NoDownload] the user can download it themselves and pick the file ([picked]): [Step.Reading] checks
+ * it, then it installs the same way. [until]: GitHub refused the lookup until then, epoch millis, not the network.
  */
 data class FireInstall(
     val step: Step? = null,
@@ -194,8 +197,12 @@ data class FireInstall(
     val progress: Progress? = null,
     val error: String? = null,
     val store: Boolean = false,
+    val picked: Boolean = false,
+    val until: Long? = null,
+    /** The APK's size once it's downloaded or picked, for the steps' first line. */
+    val size: Long? = null,
 ) {
-    enum class Step { Checking, Confirm, Downloading, Installing, NotProjectivy, NoDownload, Refused }
+    enum class Step { Checking, Confirm, Downloading, Reading, Installing, NotProjectivy, NoDownload, Refused }
 }
 
 /**
@@ -897,6 +904,8 @@ class TellyscopeViewModel(
                 download.latest()
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: RateLimited) {
+                return@launch setFire(id) { FireInstall(FireInstall.Step.NoDownload, store = store, until = e.until) }
             } catch (_: Exception) {
                 return@launch setFire(id) { FireInstall(FireInstall.Step.NoDownload, store = store) }
             }
@@ -913,7 +922,7 @@ class TellyscopeViewModel(
         val download = launcherDownload ?: return
         val release = _state.value.device.launcher?.fire?.takeIf { it.step == FireInstall.Step.Confirm }?.release ?: return
         launcherJob?.cancel()
-        setFire(id) { it.copy(step = FireInstall.Step.Downloading, progress = null) }
+        setFire(id) { it.copy(step = FireInstall.Step.Downloading, progress = null, picked = false, size = null, until = null) }
         launcherJob = viewModelScope.launch {
             val app = try {
                 download.fetch(release) { p -> setFire(id) { it.copy(progress = p) } }
@@ -924,27 +933,56 @@ class TellyscopeViewModel(
             } catch (_: Exception) {
                 return@launch setFire(id) { it.copy(step = FireInstall.Step.NoDownload) }
             }
-            setFire(id) { it.copy(step = FireInstall.Step.Installing, progress = null) }
-            val result = try {
-                source.install(id, app.files, app.info, allowDowngrade = false) { p -> setFire(id) { it.copy(progress = p) } }
+            installFetched(id, app)
+        }
+    }
+
+    /**
+     * Pick the downloaded file, after Couldn't download: the file the user picked, checked like the download,
+     * then installed the same way. Nothing reaches the TV unless it's Projectivy signed by its developer.
+     */
+    fun pickedProjectivy(uri: Uri) {
+        val id = _state.value.selectedId ?: return
+        val download = launcherDownload ?: return
+        if (_state.value.device.launcher?.fire == null) return
+        launcherJob?.cancel()
+        setFire(id) { it.copy(step = FireInstall.Step.Reading, picked = true, progress = null, size = null) }
+        launcherJob = viewModelScope.launch {
+            val app = try {
+                download.open(uri)
             } catch (e: CancellationException) {
                 throw e
+            } catch (_: NotProjectivy) {
+                return@launch setFire(id) { it.copy(step = FireInstall.Step.NotProjectivy) }
             } catch (_: Exception) {
-                return@launch setFire(id) { it.copy(step = FireInstall.Step.Refused, error = Copy.SIDELOAD_LOST) }
+                return@launch setFire(id) { it.copy(step = FireInstall.Step.Refused, error = Copy.CANT_READ_FILE) }
             }
-            when (result) {
-                // The install dialog closes with it: Installing would keep it up, and Close and Cancel wait on that.
-                InstallResult.Done -> launcherInstalled(id, PROJECTIVY) { step ->
-                    updateDevice(id) { it.copy(launcher = it.launcher?.let { l -> l.copy(step = step, fire = if (l.fire?.store == true) null else FireInstall()) }) }
-                }
-                is InstallResult.Refused -> setFire(id) {
-                    it.copy(step = FireInstall.Step.Refused, error = Copy.installRefused(result.reason, launcherName(PROJECTIVY)))
-                }
+            installFetched(id, app)
+        }
+    }
+
+    /** Projectivy, downloaded or picked and checked, onto the TV over adb like any sideload. */
+    private suspend fun installFetched(id: String, app: PickedApp) {
+        setFire(id) { it.copy(step = FireInstall.Step.Installing, progress = null, size = app.sizeBytes) }
+        val result = try {
+            source.install(id, app.files, app.info, allowDowngrade = false) { p -> setFire(id) { it.copy(progress = p) } }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            return setFire(id) { it.copy(step = FireInstall.Step.Refused, error = Copy.SIDELOAD_LOST) }
+        }
+        when (result) {
+            // The steps close with it: Installing would keep them up, and Close waits on that.
+            InstallResult.Done -> launcherInstalled(id, PROJECTIVY) { step ->
+                updateDevice(id) { it.copy(launcher = it.launcher?.let { l -> l.copy(step = step, fire = if (l.fire?.store == true) null else FireInstall()) }) }
+            }
+            is InstallResult.Refused -> setFire(id) {
+                it.copy(step = FireInstall.Step.Refused, error = Copy.installRefused(result.reason, launcherName(PROJECTIVY)))
             }
         }
     }
 
-    /** Cancel, Close or OK on a Fire OS dialog: back to the screen, or to the picker after Download directly. Not while the install runs. */
+    /** X or Stop on a Fire OS step: back to the start, or to the picker after Download directly. Not while the install runs. */
     fun dismissProjectivy() {
         val id = _state.value.selectedId ?: return
         if (_state.value.device.launcher?.fire?.step == FireInstall.Step.Installing) return
@@ -1542,6 +1580,22 @@ class TellyscopeViewModel(
             source.markMine(id, address)
             readAccess(id)
         }
+    }
+
+    /** "It's mine" on a new allowed computer: it stops showing as new on this TV. */
+    fun markKeyMine(fingerprint: String) {
+        val id = _state.value.selectedId ?: return
+        viewModelScope.launch {
+            source.markKeyMine(id, fingerprint)
+            readAccess(id)
+        }
+    }
+
+    /** Answer on a waiting connection: the TV's prompt again, even after it was dismissed. */
+    fun showRequest() {
+        val id = _state.value.selectedId ?: return
+        dismissedRequest = null
+        viewModelScope.launch { readRequest(id) }
     }
 
     private fun setRemoval(id: String, removal: Removal?) = updateDevice(id) { it.copy(removal = removal) }

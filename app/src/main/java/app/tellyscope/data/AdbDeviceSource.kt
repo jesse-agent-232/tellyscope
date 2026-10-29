@@ -101,6 +101,10 @@ class AdbDeviceSource(context: Context) : DeviceSource {
     /** TVs whose Apps tab got Not now on the card about a better home screen. */
     private val launcherCards = FoldBook(File(appContext.filesDir, "launcher-card.properties"))
     private val mine = MineBook(File(appContext.filesDir, "mine.tsv"))
+    /** The keys each TV was seen to allow, so one allowed behind Tellyscope's back shows as new. */
+    private val knownKeys = MineBook(File(appContext.filesDir, "known-keys.tsv"))
+    /** Per TV, fingerprints seen on its prompt in this launch: allowed while the user watched, so not new. */
+    private val watchedKeys = ConcurrentHashMap<String, Set<String>>()
     private val networkNames = NetworkNames()
     /** Last label seen per package, so history entries read like the app list. */
     private val labels = ConcurrentHashMap<String, String>()
@@ -966,7 +970,7 @@ class AdbDeviceSource(context: Context) : DeviceSource {
 
     override suspend fun screenshot(deviceId: String, sink: Sink) = Tweaks(session(deviceId)).screenshot(sink)
 
-    override suspend fun connectionRequest(deviceId: String) = ConnectionPrompt(session(deviceId)).pending()
+    override suspend fun connectionRequest(deviceId: String) = ConnectionPrompt(session(deviceId)).pending()?.also { watch(deviceId, it.fingerprint) }
 
     override suspend fun answerRequest(deviceId: String, request: ConnectionRequest, allow: Boolean, always: Boolean) =
         ConnectionPrompt(session(deviceId)).answer(request, allow, always)
@@ -978,7 +982,13 @@ class AdbDeviceSource(context: Context) : DeviceSource {
     override suspend fun access(deviceId: String): TvAccess {
         val a = Access(session(deviceId))
         val port = links[deviceId]?.port ?: Access.CLASSIC_PORT
-        val access = TvAccess.of(a.clients(port), a.keys(), phoneAddresses(), deviceId, mine[key(deviceId)], phoneFingerprint())
+        val pending = runCatching { connectionRequest(deviceId)?.fingerprint }.getOrNull()
+        val tv = key(deviceId)
+        val access = TvAccess.of(
+            a.clients(port), a.keys(), phoneAddresses(), deviceId, mine[tv], phoneFingerprint(),
+            pending = pending, known = knownKeys[tv].takeIf { knownKeys.has(tv) }, watched = watchedKeys[deviceId].orEmpty(),
+        )
+        access.allowed?.let { keys -> knownKeys.set(tv, knownKeys[tv] + keys.filterNot { it.new }.map { it.fingerprint }) }
         // Other computers only: this phone and apps on the TV itself need no name.
         val lookup = access.connected.orEmpty().filter { it.who == AccessClient.Who.Other || it.who == AccessClient.Who.Mine }
         return access.named(networkNames.of(lookup.map { it.address }))
@@ -989,9 +999,22 @@ class AdbDeviceSource(context: Context) : DeviceSource {
         mine.add(key(deviceId), address)
     }
 
+    /** A prompt the app showed: the key on it, once allowed, isn't new. */
+    private fun watch(deviceId: String, fingerprint: String) {
+        if (fingerprint.isNotEmpty()) watchedKeys.merge(deviceId, setOf(fingerprint), Set<String>::plus)
+    }
+
+    override suspend fun markKeyMine(deviceId: String, fingerprint: String) {
+        restored.await()
+        knownKeys.add(key(deviceId), fingerprint)
+    }
+
     override suspend fun peripherals(deviceId: String) = Peripherals(session(deviceId)).read()
 
-    override suspend fun revokeAll(deviceId: String) = Access(session(deviceId)).revokeAll()
+    /** Every key goes, so none counts as known after: a computer allowed again later shows as new. */
+    override suspend fun revokeAll(deviceId: String) = Access(session(deviceId)).revokeAll().also { ok ->
+        if (ok) knownKeys.set(key(deviceId), setOfNotNull(phoneFingerprint()))
+    }
 
     override suspend fun openDeveloperOptions(deviceId: String) = Access(session(deviceId)).openDeveloperOptions()
 
@@ -1027,6 +1050,7 @@ class AdbDeviceSource(context: Context) : DeviceSource {
             names.rekey(deviceId, key)
             docks.rekey(deviceId, key)
             mine.rekey(deviceId, key)
+            knownKeys.rekey(deviceId, key)
             remember(deviceId)
         }
         return key

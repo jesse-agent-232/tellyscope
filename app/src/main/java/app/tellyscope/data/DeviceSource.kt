@@ -226,6 +226,9 @@ interface DeviceSource {
     /** "It's mine": connections from [address] stop counting toward the warning on this TV. */
     suspend fun markMine(deviceId: String, address: String) {}
 
+    /** "It's mine" on a new allowed computer: [fingerprint] counts as known on this TV from now on. */
+    suspend fun markKeyMine(deviceId: String, fingerprint: String) {}
+
     /** Bluetooth, input, USB storage, HDMI-CEC and audio, for the Connected devices card. */
     suspend fun peripherals(deviceId: String): List<Peripheral> = emptyList()
 

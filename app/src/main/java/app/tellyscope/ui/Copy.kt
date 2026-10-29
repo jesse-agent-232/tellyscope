@@ -238,14 +238,13 @@ object Copy {
     const val INSTALL_PROJECTIVY = "Install Projectivy"
     const val FIRE_INSTALL_TEXT = "A home screen without ads. Tellyscope installs it on the TV for you; there's nothing to do on the TV."
 
-    fun installProjectivyOn(tv: String) = "Install Projectivy on $tv?"
-
     fun downloadsFrom(name: String) = "Tellyscope downloads $name from the developer's own release page:"
 
     fun release(version: String, size: Long) = "Release $version · ${bytes(size)}"
 
+    const val WHERE_FROM = "Where it comes from"
     const val SIGNED_CHECK =
-        "and checks it's signed by Projectivy's developer before installing it on the TV. Tellyscope isn't affiliated with Projectivy."
+        "Tellyscope checks it's signed by Projectivy's developer before installing it on the TV. Tellyscope isn't affiliated with Projectivy."
     const val DOWNLOAD_AND_INSTALL = "Download and install"
 
     /** Download directly on a TV with the Play Store: what Tellyscope checks, what it doesn't, and the safer way. */
@@ -257,16 +256,49 @@ object Copy {
     const val DOWNLOAD_ANYWAY = "Download anyway"
     const val STORE_INSTEAD = "Get it from the Play Store on the TV instead."
 
-    fun downloading(percent: Int) = "Downloading · $percent%"
+    /** Install Projectivy's steps, one panel: download (or the picked file), the check, the install. */
+    fun installing(name: String) = "Installing $name"
+    const val STEP_DOWNLOAD = "Download from GitHub"
+    const val STEP_DOWNLOADED = "Downloaded"
+    fun downloading(percent: Int, done: Long, total: Long) = "Downloading · $percent% · ${bytes(done)} of ${bytes(total)}"
+    const val STEP_PICKED = "Picked a file"
+    const val STEP_CHECK = "Check it's Projectivy"
+    const val STEP_CHECKING = "Checking it's Projectivy…"
+    const val STEP_CHECKED = "It's Projectivy"
+    const val STEP_CHECKED_TEXT = "Signed by its developer"
+    const val STEP_FAILED = "Not Projectivy"
+    const val STEP_FAILED_TEXT = "Package name or signature didn't match"
+    fun installOn(tv: String) = "Install on $tv"
 
     fun installingOn(tv: String) = "Installing on $tv…"
+
+    /** X while it downloads: nothing is on the TV yet. */
+    const val STOP_TITLE = "Stop the download?"
+    const val STOP_TEXT = "Nothing is on the TV yet. You can start again any time."
+    const val STOP = "Stop"
+    const val KEEP_DOWNLOADING = "Keep downloading"
 
     const val NOT_PROJECTIVY = "That download isn't Projectivy"
     const val NOT_PROJECTIVY_TEXT =
         "The file from GitHub didn't match Projectivy's package name or its developer's signature, so Tellyscope installed nothing on the TV."
+    const val NOT_PROJECTIVY_FILE = "That file isn't Projectivy"
+    const val NOT_PROJECTIVY_FILE_TEXT =
+        "It didn't match Projectivy's package name or its developer's signature, so Tellyscope installed nothing on the TV."
+    const val CANT_READ_FILE = "Tellyscope couldn't read that file. Pick it again, or download it again."
+    fun cantInstall(name: String) = "Couldn't install $name"
+
+    /** Couldn't download: GitHub's limit for the network ([until] is a clock time), or no way to reach it. */
     const val NO_DOWNLOAD = "Couldn't download Projectivy"
-    const val NO_DOWNLOAD_TEXT = "Check the phone's internet, then try again. Or download it yourself from Projectivy's release page."
-    const val OPEN_DOWNLOAD_PAGE = "Open the download page"
+    const val NO_DOWNLOAD_OFFLINE = "The phone can't reach GitHub. Check its internet, then try again."
+    fun noDownloadLimited(until: String?) =
+        "GitHub is limiting downloads from your network ${if (until != null) "until $until" else "for a while"}. Try again then, or download it yourself."
+    const val OR_YOURSELF = "Or download it yourself"
+    const val YOURSELF_PAGE = "Download the app file (.apk) from the release page in your browser."
+    fun yourselfPick(file: String?) = "Come back and pick ${file ?: "it"}. Tellyscope checks it's Projectivy before installing it."
+    const val LATEST_RELEASE = "Latest release"
+    const val PICK_DOWNLOADED = "Pick the downloaded file"
+    const val PICK_ANOTHER = "Pick another file"
+    const val TRY_DOWNLOAD_AGAIN = "Try download again"
 
     const val NOT_INSTALLED_TEXT =
         "The Play Store closed on the TV before it was installed. If the Store said it isn't available for this TV, choose another launcher."
@@ -715,6 +747,12 @@ object Copy {
     const val TELLYSCOPE = "Tellyscope"
     const val NOT_THIS_PHONE = "Not this phone"
     const val YOURS = "Yours"
+    const val WAITING_CHIP = "Waiting"
+    const val WAITING_LINE = "Waiting for you to allow it on the TV"
+    const val WAITING_TEXT = "An Allow prompt for it is on the TV now. It can't do anything until you choose Allow there. Not yours? Choose Deny."
+    const val ANSWER = "Answer"
+    const val NEW_CHIP = "New"
+    const val NEW_KEY_TEXT = "Allowed on the TV while Tellyscope wasn't watching. Not yours? Remove all other access."
     const val ALLOWED_COMPUTERS = "Allowed computers"
     const val UNNAMED_COMPUTER = "Unnamed computer"
     const val CANT_CHECK_CONNECTED = "This TV doesn't say who is connected."
