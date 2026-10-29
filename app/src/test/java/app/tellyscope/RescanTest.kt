@@ -60,14 +60,14 @@ class RescanTest {
     @Test fun idleCountsDownToTheNextScanAndRescans() {
         var rescans = 0
         show(ScanUi(nextScanAt = 7_000), now = 600) { rescans++ }
-        compose.onNodeWithText("No TV yet. Looking again in 7 s").assertIsDisplayed()
+        compose.onNodeWithText("No TV yet. Looking again in 7 s").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Rescan").performScrollTo().assertIsEnabled().performClick()
         assertEquals(1, rescans)
     }
 
     @Test fun rescanWaitsOutARunningScan() {
         show(ScanUi(scanning = true))
-        compose.onNodeWithText("Looking for your TV…").assertIsDisplayed()
+        compose.onNodeWithText("Looking for your TV…").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Rescan").performScrollTo().assertIsNotEnabled()
     }
 
