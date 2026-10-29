@@ -81,7 +81,7 @@ fun RequestDialog(
 
 /**
  * The same dialog while the prompt is under Fire OS's alert: no fingerprint, so no Allow and no Deny.
- * Press OK on the TV sends one OK to the alert, for when the remote it complains about isn't there.
+ * Press OK on the TV closes the alert with one Back, for when the remote it complains about isn't there.
  * Close answers nothing.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)

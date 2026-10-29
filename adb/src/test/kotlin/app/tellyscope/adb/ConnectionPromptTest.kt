@@ -85,23 +85,32 @@ class ConnectionPromptTest {
         assertEquals(ConnectionRequest("", canAlwaysAllow = false, behindAlert = true), ConnectionPrompt(tv(alert, alertFocus)).pending())
     }
 
-    @Test fun okIsPressedOnceAndOnlyOnTheAlert() = runTest {
+    private val back = "dumpsys window | grep -q 'mCurrentFocus=Window{[^ ]* u[0-9]* android}' && input keyevent 4"
+
+    @Test fun backIsSentOnceAndCheckedInTheSameCall() = runTest {
         val sh = tv(alert, alertFocus)
         assertTrue(ConnectionPrompt(sh).closeAlert())
-        assertEquals(listOf("input keyevent 23"), sh.ran.filter { it.startsWith("input") })
+        assertEquals(listOf(back), sh.ran.filter { "input" in it })
     }
 
     @Test fun noKeyOnceThePromptHasFocus() = runTest {
         val sh = tv(dump())
         assertFalse(ConnectionPrompt(sh).closeAlert())
-        assertFalse(sh.ran.any { it.startsWith("input") })
+        assertFalse(sh.ran.any { "input" in it })
+    }
+
+    @Test fun theAlertClosingDuringTheDumpSendsNothing() = runTest {
+        // The TV's grep finds no alert by the final check, so `&&` never runs the key.
+        val sh = tv(alert, alertFocus).apply { answer = { if (it == back) ShellResult("", 1) else null } }
+        assertFalse(ConnectionPrompt(sh).closeAlert())
+        assertEquals(listOf(back), sh.ran.filter { "input" in it })
     }
 
     @Test fun anotherSystemWindowIsNotTheAlert() = runTest {
         val sh = tv(alert.replace("amazon.fireos:id/ok_button", "android:id/button1"), alertFocus)
         assertNull(ConnectionPrompt(sh).pending())
         assertFalse(ConnectionPrompt(sh).closeAlert())
-        assertFalse(sh.ran.any { it.startsWith("input") })
+        assertFalse(sh.ran.any { "input" in it })
     }
 
     @Test fun theAlertAloneIsNoPrompt() = runTest {

@@ -31,13 +31,15 @@ class ConnectionPrompt(private val shell: AdbShell) {
     }
 
     /**
-     * Presses OK once on Amazon's alert, for the user who can't, as the remote it complains about
-     * isn't connected. Only while the alert still holds focus over the prompt, checked just before:
-     * once the prompt has focus, no key is ever sent, so this can't answer it. False when nothing was sent.
+     * Closes Amazon's alert with one Back, for the user who can't, as the remote it complains about
+     * isn't connected. Only while the alert holds focus over the prompt: checked with a screen dump,
+     * then again in the same shell call as the key, as the alert can close by itself meanwhile. Back,
+     * not OK, so a key that still lands on the prompt can only cancel it, never allow it.
+     * False when nothing was sent.
      */
     suspend fun closeAlert(): Boolean {
         if (!alertOnTop()) return false
-        return shell.shell("input keyevent $KEY_OK").exitCode == 0
+        return shell.shell("dumpsys window | grep -q '$ALERT_FOCUS_SH' && input keyevent $KEY_BACK").exitCode == 0
     }
 
     /** A system prompt is up but a bare `android` window holds focus, and that window is Amazon's alert. */
@@ -76,8 +78,8 @@ class ConnectionPrompt(private val shell: AdbShell) {
 
     companion object {
         private const val DUMP = "/data/local/tmp/tellyscope-ui.xml"
-        /** DPAD_CENTER: the remote's OK. */
-        private const val KEY_OK = 23
+        /** The remote's Back: it closes the alert, and on the prompt it means Cancel. */
+        private const val KEY_BACK = 4
         private val NODE = Regex("<node [^>]*>")
         private val ATTR = Regex("([\\w-]+)=\"([^\"]*)\"")
         private val BOUNDS = Regex("\\[(\\d+),(\\d+)]\\[(\\d+),(\\d+)]")
@@ -98,6 +100,8 @@ class ConnectionPrompt(private val shell: AdbShell) {
         private val FOCUS = Regex("mCurrentFocus|mFocusedWindow")
         /** Fire OS's alert is a window of the system itself, `android`, with no activity. */
         private val ALERT_FOCUS = Regex("mCurrentFocus=Window\\{\\S+ u\\d+ android}")
+        /** [ALERT_FOCUS] for the TV's grep, in the call that sends the key. */
+        private const val ALERT_FOCUS_SH = "mCurrentFocus=Window{[^ ]* u[0-9]* android}"
         /** Its OK button, the one id that says it's the remote alert and not some other system window. */
         private const val ALERT_OK = "amazon.fireos:id/ok_button"
 
