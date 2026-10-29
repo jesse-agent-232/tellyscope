@@ -194,7 +194,7 @@ class HomeSwitchTest {
             book.record("tv", 0, Action.Home, PROJECTIVY, PROJECTIVY, Action.Enable.takeIf { previous.isNotEmpty() }, previous = previous)
         }
 
-    @Test fun onFireOsOnlyTheServiceGoesOnAndUndoTurnsItOff() = runTest {
+    @Test fun onFireOsOnlyTheServiceGoesOnAndItsUndoIsTheServiceAlone() = runTest {
         val tv = LauncherTv(home = TV_HOME)
         val entry = fire(tv)
         assertEquals(listOf(PROJECTIVY_SERVICE), tv.services)
