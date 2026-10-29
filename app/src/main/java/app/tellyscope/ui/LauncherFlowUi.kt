@@ -513,7 +513,7 @@ private fun Numbered(n: Int, content: @Composable () -> Unit) {
     }
 }
 
-private enum class Mark { Todo, Active, Done, Failed }
+private enum class StepMark { Todo, Active, Done, Failed }
 
 /** Download (or the picked file), the check, the install: each to do, under way, done, or failed. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -526,34 +526,34 @@ private fun FireSteps(f: FireInstall, device: Device) {
     Surface(shape = MaterialTheme.shapes.large, color = c.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             when {
-                f.picked -> StepLine(1, Mark.Done, Copy.STEP_PICKED, f.size?.let(Copy::bytes))
+                f.picked -> StepLine(1, StepMark.Done, Copy.STEP_PICKED, f.size?.let(Copy::bytes))
                 f.step == FireInstall.Step.Downloading -> {
                     val p = f.progress
                     val total = p?.total?.takeIf { it > 0 } ?: release?.size ?: 0L
                     val fraction = p?.fraction
-                    StepLine(1, Mark.Active, Copy.STEP_DOWNLOAD, Copy.downloading(((fraction ?: 0f) * 100).toInt(), p?.done ?: 0L, total)) {
+                    StepLine(1, StepMark.Active, Copy.STEP_DOWNLOAD, Copy.downloading(((fraction ?: 0f) * 100).toInt(), p?.done ?: 0L, total)) {
                         if (fraction != null) LinearWavyProgressIndicator(progress = { fraction }, Modifier.fillMaxWidth())
                         else LinearWavyProgressIndicator(Modifier.fillMaxWidth())
                     }
                 }
-                else -> StepLine(1, Mark.Done, Copy.STEP_DOWNLOADED, release?.let { Copy.release(it.version, it.size) })
+                else -> StepLine(1, StepMark.Done, Copy.STEP_DOWNLOADED, release?.let { Copy.release(it.version, it.size) })
             }
             when {
-                failed -> StepLine(2, Mark.Failed, Copy.STEP_FAILED, Copy.STEP_FAILED_TEXT)
-                checked -> StepLine(2, Mark.Done, Copy.STEP_CHECKED, Copy.STEP_CHECKED_TEXT)
-                f.step == FireInstall.Step.Reading -> StepLine(2, Mark.Active, Copy.STEP_CHECKING)
-                else -> StepLine(2, Mark.Todo, Copy.STEP_CHECK)
+                failed -> StepLine(2, StepMark.Failed, Copy.STEP_FAILED, Copy.STEP_FAILED_TEXT)
+                checked -> StepLine(2, StepMark.Done, Copy.STEP_CHECKED, Copy.STEP_CHECKED_TEXT)
+                f.step == FireInstall.Step.Reading -> StepLine(2, StepMark.Active, Copy.STEP_CHECKING)
+                else -> StepLine(2, StepMark.Todo, Copy.STEP_CHECK)
             }
             if (!failed) {
                 if (checked) {
-                    StepLine(3, Mark.Active, Copy.installingOn(name(device))) {
+                    StepLine(3, StepMark.Active, Copy.installingOn(name(device))) {
                         // Past the last byte the TV is still unpacking: no bar stuck at 100%.
                         val p = f.progress?.fraction
                         if (p != null && p < 1f) LinearWavyProgressIndicator(progress = { p }, Modifier.fillMaxWidth())
                         else LinearWavyProgressIndicator(Modifier.fillMaxWidth())
                     }
                 } else {
-                    StepLine(3, Mark.Todo, Copy.installOn(name(device)))
+                    StepLine(3, StepMark.Todo, Copy.installOn(name(device)))
                 }
             }
         }
@@ -562,25 +562,25 @@ private fun FireSteps(f: FireInstall, device: Device) {
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun StepLine(n: Int, mark: Mark, title: String, text: String? = null, below: @Composable () -> Unit = {}) {
+private fun StepLine(n: Int, mark: StepMark, title: String, text: String? = null, below: @Composable () -> Unit = {}) {
     val c = MaterialTheme.colorScheme
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Box(Modifier.size(24.dp), contentAlignment = Alignment.Center) {
             when (mark) {
-                Mark.Todo -> Box(Modifier.size(22.dp).border(1.5.dp, c.outline, CircleShape), contentAlignment = Alignment.Center) {
+                StepMark.Todo -> Box(Modifier.size(22.dp).border(1.5.dp, c.outline, CircleShape), contentAlignment = Alignment.Center) {
                     Text("$n", style = MaterialTheme.typography.labelMedium, color = c.onSurfaceVariant)
                 }
-                Mark.Active -> LoadingIndicator(Modifier.size(24.dp))
-                Mark.Done -> Box(Modifier.size(24.dp).background(c.primary, CircleShape), contentAlignment = Alignment.Center) {
+                StepMark.Active -> LoadingIndicator(Modifier.size(24.dp))
+                StepMark.Done -> Box(Modifier.size(24.dp).background(c.primary, CircleShape), contentAlignment = Alignment.Center) {
                     Icon(Icons.Default.Check, null, Modifier.size(16.dp), tint = c.onPrimary)
                 }
-                Mark.Failed -> Box(Modifier.size(24.dp).background(c.errorContainer, CircleShape), contentAlignment = Alignment.Center) {
+                StepMark.Failed -> Box(Modifier.size(24.dp).background(c.errorContainer, CircleShape), contentAlignment = Alignment.Center) {
                     Icon(Icons.Default.Close, null, Modifier.size(16.dp), tint = c.onErrorContainer)
                 }
             }
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge, color = if (mark == Mark.Todo) c.onSurfaceVariant else c.onSurface)
+            Text(title, style = MaterialTheme.typography.bodyLarge, color = if (mark == StepMark.Todo) c.onSurfaceVariant else c.onSurface)
             text?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = c.onSurfaceVariant) }
             below()
         }

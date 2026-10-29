@@ -58,6 +58,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.File
+import java.io.IOException
 
 // Fixtures from Amazon's developer docs, not from a TV: Fire TV devices report Build.MANUFACTURER "Amazon" and an
 // AFT model (AFTKRT is the Fire TV Stick 4K Max, 2nd gen); Fire OS's home screen is com.amazon.tv.launcher, also on
@@ -109,7 +110,8 @@ private class FireTv(val tv: Device = amazon, val own: List<AppInfo> = listOf(fi
 
 private class FakeDownload(var signedByDeveloper: Boolean = true) : LauncherDownload {
     var fetched = 0
-    override suspend fun latest() = parseRelease(release())!!
+    var offline = false
+    override suspend fun latest() = if (offline) throw IOException("offline") else parseRelease(release())!!
     override suspend fun fetch(release: LauncherRelease, onProgress: (Progress) -> Unit): PickedApp {
         fetched++
         if (!signedByDeveloper) throw NotProjectivy()
@@ -275,7 +277,7 @@ class FireOsTest {
     }
 
     @Test fun aPickedFileIsCheckedThenInstalled() = with(test) {
-        val v = opened()
+        val v = couldntDownload()
         v.pickedProjectivy(Uri.parse("content://downloads/1"))
         runCurrent()
         assertEquals(listOf(PROJECTIVY), source.installs.map { it.packageName })
@@ -284,12 +286,29 @@ class FireOsTest {
 
     @Test fun aPickedFileThatIsntProjectivyInstallsNothing() = with(test) {
         download.signedByDeveloper = false
-        val v = opened()
+        val v = couldntDownload()
         v.pickedProjectivy(Uri.parse("content://downloads/1"))
         runCurrent()
         assertTrue(source.installs.isEmpty())
         val fire = v.state.value.device.launcher?.fire
         assertEquals(FireInstall.Step.NotProjectivy, fire?.step)
         assertEquals(true, fire?.picked)
+    }
+
+    @Test fun aPickOutsideAFailedStepIsIgnored() = with(test) {
+        val v = opened()
+        v.pickedProjectivy(Uri.parse("content://downloads/1"))
+        runCurrent()
+        assertTrue(source.installs.isEmpty())
+        assertNull(v.state.value.device.launcher?.fire?.step)
+    }
+
+    private fun TestScope.couldntDownload(): TellyscopeViewModel {
+        download.offline = true
+        val v = opened()
+        v.checkProjectivy()
+        runCurrent()
+        assertEquals(FireInstall.Step.NoDownload, v.state.value.device.launcher?.fire?.step)
+        return v
     }
 }

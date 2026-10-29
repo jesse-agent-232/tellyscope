@@ -38,11 +38,11 @@ data class TvAccess(
          *
          * [pending]: the fingerprint on the TV's "Allow debugging?" prompt now, empty when the prompt
          * can't be read, null when there is none. A prompt for a key that isn't allowed means a
-         * connection is waiting on it; with exactly one other connection, that one is
+         * connection is waiting on it; with exactly one other connection, from an address with no other, that one is
          * [AccessClient.Who.Waiting]. With more, nothing says which, so none is.
          *
          * [known]: the keys this TV was seen to allow before, null on the first read, when every key
-         * counts as known. A key that isn't, and wasn't seen on a prompt ([watched]), is [AccessKey.new].
+         * counts as known. A key that isn't is [AccessKey.new].
          */
         fun of(
             clients: List<AdbClient>?,
@@ -53,7 +53,6 @@ data class TvAccess(
             phoneFingerprint: String?,
             pending: String? = null,
             known: Set<String>? = null,
-            watched: Set<String> = emptySet(),
         ): TvAccess {
             val tvLoopback = tvHost == "localhost" || AdbClient(tvHost, 0).loopback
             val connected = clients?.groupBy { it.address }?.map { (address, rows) ->
@@ -67,12 +66,14 @@ data class TvAccess(
                 }
                 AccessClient(address, rows.size, who)
             }?.let { list ->
-                val waiting = pending != null && keys?.none { it.fingerprint == pending } != false && list.count { it.who == AccessClient.Who.Other } == 1
+                // A client waiting on the prompt holds one connection; a second from that address is a live session.
+                val waiting = pending != null && keys?.none { it.fingerprint == pending } != false &&
+                    list.singleOrNull { it.who == AccessClient.Who.Other }?.connections == 1
                 if (waiting) list.map { if (it.who == AccessClient.Who.Other) it.copy(who = AccessClient.Who.Waiting) else it } else list
             }?.sortedBy { it.who.ordinal }
             val allowed = keys?.map { k ->
                 val phone = k.fingerprint == phoneFingerprint
-                AccessKey(k.fingerprint, k.name, k.lastSeen, phone, new = !phone && known != null && k.fingerprint !in known && k.fingerprint !in watched)
+                AccessKey(k.fingerprint, k.name, k.lastSeen, phone, new = !phone && known != null && k.fingerprint !in known)
             }?.sortedWith(compareByDescending<AccessKey> { it.phone }.thenByDescending { it.new })
             return TvAccess(connected, allowed)
         }
