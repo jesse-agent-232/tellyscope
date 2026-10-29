@@ -64,7 +64,8 @@ MANUAL:
 - `SMALL_APP`: the name `small.apk` shows in Apps.
 - `OFF_APP` and `OFF_PKG`: an app A3 may turn off and on.
 - `DEBLOAT_PKGS`: two or three packages from the Debloat list that D3 may
-  turn off before Restore everything.
+  turn off. It turns them back on with Undo, never Restore everything,
+  so earlier debloats stay.
 
 Z1 runs last even if you stop the run: it puts back
 Private DNS, the animation speed and Stay awake, and lists any Home
@@ -199,7 +200,9 @@ ADB check: `adb shell pm list packages -d` lists what's off;
   all on, then all off.
 - **D3 ⚠ Run and restore.** Run Debloat with two or three harmless apps
   ticked. *Expect:* Disabling…, then Debloat done (or partly done, with
-  the reason per app). Then open History and Restore everything.
+  the reason per app). Then open History and Restore everything. On a
+  TV whose earlier Tellyscope changes should stay, Undo this run's rows
+  instead; the script always does that.
   *Expect:* those apps are on again, and nothing that was off before
   Tellyscope's first change has been turned on.
 

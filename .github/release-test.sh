@@ -102,7 +102,6 @@ snapshot() {
     echo "since=$(p shell date +'%m-%d %H:%M:%S.000' | tr -d '\r')"
   } > "$W/before"
   t shell pm list packages -d | sort > "$W/off_before"
-  t shell pm list packages -3 | sort > "$W/apps_before"
   t shell ls /sdcard/Download /sdcard/Movies 2>/dev/null | sort > "$W/tv_files_before"
   p shell ls /sdcard/Download | sort > "$W/phone_files_before"
   p shell settings put global stay_on_while_plugged_in 7
@@ -208,18 +207,20 @@ PY2
   done
 }
 step_D3() {
-  [ -n "${DEBLOAT_PKGS:-}" ] || { manual "set DEBLOAT_PKGS, or run Debloat with 2-3 harmless apps and Restore everything"; return; }
+  [ -n "${DEBLOAT_PKGS:-}" ] || { manual "set DEBLOAT_PKGS, or run Debloat with 2-3 harmless apps and Undo them in History"; return; }
   home_page; tap '^Debloat$' || { fail "no Debloat"; return; }; sleep 3
   tick_only "$DEBLOAT_PKGS"
   local n; n=$(wc -w <<<"$DEBLOAT_PKGS")
   tap "^Disable $n apps?\$" || { fail "couldn't tick exactly $n"; return; }
   tap '^Yes, disable them$'; wait_for '^Debloat (partly )?done' 60 || { fail "no Debloat done"; return; }
   local q off=0; for q in $DEBLOAT_PKGS; do is_off "$q" && off=$((off+1)); done
-  home_page; menu History; tap '^Restore everything' && tap '^Turn back on$'; sleep 8
+  # Not Restore everything: History also holds earlier changes the owner wants kept.
+  # This run's are the newest rows, so Undo the top $off of them.
+  home_page; menu History; local i
+  for i in $(seq 1 "$off"); do tap '^Undo$' 0 && { tap '^Yes, turn it on$' 2>/dev/null; sleep 4; }; done
   t shell pm list packages -d | sort | comm -13 "$W/off_before" - > "$W/d3_left"
-  [ -s "$W/d3_left" ] && { fail "$off/$n turned off; still off after Restore: $(tr '\n' ' ' < "$W/d3_left")"; return; }
-  comm -23 "$W/off_before" <(t shell pm list packages -d | sort) | grep -q . && { fail "Restore turned on apps that were off before the run"; return; }
-  pass "$off/$n turned off, Restore everything put back exactly the apps that were off before"
+  [ -s "$W/d3_left" ] && { fail "$off/$n turned off; still off after Undo: $(tr '\n' ' ' < "$W/d3_left")"; return; }
+  pass "$off/$n turned off, Undo in History turned them back on"
 }
 step_H1() {
   home_page; menu History
@@ -259,15 +260,17 @@ install_step() {  # $1 file in FIXTURES, $2 wording expected before the install
   fixture "$1" || return; home_page
   pick_file "${1%.*}" || { fail "file picker"; return; }
   wait_for "$2" 20 || { fail "no '$2' before install"; return; }
+  t shell pm list packages -3 | sort > "$W/pk_before"
   tap '^(Install|Reinstall|Update)$|^Install the older version anyway$'
   check "$1: '$2', then installed" wait_for '^Open on TV' 120
+  # Only what this install added; Z1 uninstalls exactly these.
+  t shell pm list packages -3 | sort | comm -13 "$W/pk_before" - | sed 's/^package://' | tr -d '\r' | tee -a "$W/installed" > "$W/new_pkg"
 }
 step_I1() {
-  t shell pm list packages -3 | sort > "$W/pk_before"
   install_step small.apk 'Not on this TV yet'
-  t shell pm list packages -3 | sort | comm -13 "$W/pk_before" - | head -1 | sed 's/^package://' | tr -d '\r' > "$W/i1_pkg"
+  cp "$W/new_pkg" "$W/i1_pkg"
   # N12: Open on TV after an install.
-  tap '^Open on TV$' && sleep 4 && tv_focus | grep -q "$(cat "$W/i1_pkg")" && echo "     N12 PASS Open on TV" || echo "     N12 FAIL Open on TV"
+  ID=N12 check "Open on TV opens the installed app" eval 'tap "^Open on TV\$" && sleep 4 && tv_focus | grep -q "$(cat "$W/i1_pkg")"'
 }
 step_I2() { install_step bundle.apks 'Not on this TV yet'; }
 step_I3() { install_step small.apk 'Reinstall'; install_step older.apk 'older version'; }
@@ -288,8 +291,10 @@ step_F2() {
   local n; n=$(p shell ls /sdcard/Download | grep -c '^photo')
   tap '^Save' ; sleep 3; key 66; sleep 4   # the phone's save screen: Enter saves under the offered name
   local m; m=$(p shell ls /sdcard/Download | grep -c '^photo')
-  [ "$m" -gt "$n" ] && pass "saved to the phone's Download: $(p shell ls -t /sdcard/Download | head -1 | tr -d '\r')" || fail "nothing new in the phone's Download"
-  p shell ls -t /sdcard/Download | head -1 | tr -d '\r' >> "$W/pushed"   # Z1 deletes it
+  [ "$m" -gt "$n" ] || { fail "nothing new in the phone's Download"; return; }
+  local f; f=$(p shell ls -t /sdcard/Download | head -1 | tr -d '\r')
+  echo "$f" >> "$W/pushed"   # this run saved it, so Z1 deletes it
+  pass "saved to the phone's Download: $f"
 }
 step_F3() {
   fixture big.bin || return
@@ -368,9 +373,9 @@ step_Z1() {
   p shell settings put global stay_on_while_plugged_in "$(before stay_on)"
   # What the run added: the pushed fixtures, the files F1 sent, the apps I1-I3 installed.
   local f q; while read -r f; do p shell rm -f "/sdcard/Download/$f"; done < "$W/pushed" 2>/dev/null
-  t shell rm -f /sdcard/Download/photo.png /sdcard/Movies/video.mp4
-  for q in $(t shell pm list packages -3 | sort | comm -13 "$W/apps_before" - | sed 's/^package://' | tr -d '\r'); do
-    t shell pm uninstall "$q" >/dev/null; done
+  for f in Download/photo.png Movies/video.mp4; do
+    grep -qx "${f#*/}" "$W/tv_files_before" || t shell rm -f "/sdcard/$f"; done
+  for q in $(sort -u "$W/installed" 2>/dev/null); do t shell pm uninstall "$q" >/dev/null; done
   # Anything else left behind on either side.
   t shell ls /sdcard/Download /sdcard/Movies 2>/dev/null | sort | comm -13 "$W/tv_files_before" - > "$W/tv_new"
   p shell ls /sdcard/Download | sort | comm -13 "$W/phone_files_before" - > "$W/phone_new"
