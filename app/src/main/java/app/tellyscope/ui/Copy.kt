@@ -618,6 +618,11 @@ object Copy {
     const val REQUEST_ALLOWED = "Allowed. That device can control the TV now."
     const val REQUEST_DENIED = "Denied. That device can't connect."
     const val REQUEST_GONE = "The TV's prompt had closed or changed, so nothing was pressed."
+    /** A prompt under Fire OS's remote alert: it can't be read until the alert closes. */
+    const val REQUEST_BEHIND_ALERT = "The TV's prompt is behind an Amazon alert, “Unable to Detect Your Remote”. Press OK on your TV remote to close it."
+    const val REQUEST_THEN = "Then the prompt shows here, so you can check its fingerprint."
+    const val REQUEST_WAITING = "Waiting for the TV's prompt"
+    const val PRESS_OK = "Press OK on the TV"
 
     // Who has access
     const val WARNING_TITLE = "Another computer is connected to this TV"

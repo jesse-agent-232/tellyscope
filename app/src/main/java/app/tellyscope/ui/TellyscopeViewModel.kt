@@ -350,6 +350,9 @@ const val SCREENSHOT = "screenshot"
 /** [DeviceUi.busy] value while the TV's connection prompt is being answered. */
 const val ANSWERING = "request"
 
+/** How long Fire OS takes to hand focus from its closed alert to the prompt under it. */
+private const val ALERT_CLOSING_MS = 1_000L
+
 /** How often Install a home screen asks the TV whether the launcher is in yet. */
 const val STORE_POLL_MS = 3_000L
 
@@ -1423,15 +1426,44 @@ class TellyscopeViewModel(
      */
     private suspend fun watchRequests(id: String) {
         while (true) {
-            val request = try {
-                source.connectionRequest(id)?.takeIf { it.fingerprint != dismissedRequest }
+            readRequest(id)
+            delay(5_000)
+        }
+    }
+
+    private suspend fun readRequest(id: String) {
+        val request = try {
+            source.connectionRequest(id).also {
+                // A prompt under Amazon's alert has no fingerprint to hide it by: Close hides it until the alert is gone.
+                if (it == null && dismissedRequest == "") dismissedRequest = null
+            }?.takeIf { it.fingerprint != dismissedRequest }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null
+        }
+        updateDevice(id) { if (it.busy == ANSWERING) it else it.copy(request = request) }
+    }
+
+    /**
+     * Press OK on the TV, on a prompt under Fire OS's remote alert: one OK, sent only while the alert has focus.
+     * Then a fresh read, so the prompt itself, with its fingerprint, takes over without waiting for the next check.
+     */
+    fun closeAlert() {
+        val id = _state.value.selectedId ?: return
+        if (_state.value.device.request?.behindAlert != true) return
+        updateDevice(id) { it.copy(busy = ANSWERING) }
+        viewModelScope.launch {
+            try {
+                source.closeAlert(id)
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
-                null
+                false
             }
-            updateDevice(id) { if (it.busy == ANSWERING) it else it.copy(request = request) }
-            delay(5_000)
+            delay(ALERT_CLOSING_MS)
+            updateDevice(id) { it.copy(busy = null) }
+            readRequest(id)
         }
     }
 

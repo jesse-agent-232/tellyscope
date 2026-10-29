@@ -412,7 +412,7 @@ fun DeviceTabsScreen(
                 }
                 item(key = "tail") { Spacer(Modifier.height(with(LocalDensity.current) { tail.toDp() }).testTag("tail")) }
             }
-            if (!offline) ui.request?.let { RequestDialog(it, ui.busy == ANSWERING, actions.answerRequest, actions.dismissRequest) }
+            if (!offline) ui.request?.let { RequestDialog(it, ui.busy == ANSWERING, actions.answerRequest, actions.dismissRequest, actions.closeAlert) }
             ui.sideload?.let { SideloadDialog(it, actions) }
             ui.transfer?.let { TransferDialog(it, actions.cancelTransfer) }
         }
