@@ -127,6 +127,22 @@ val dexLabelHelper by tasks.registering(DexLabelHelper::class) {
     outputDir = layout.buildDirectory.dir("generated/labelHelper/assets")
 }
 
+/** The repo's CHANGELOG.md, shipped as an asset so What's new matches the installed version, offline. */
+abstract class BundleChangelog : DefaultTask() {
+    @get:InputFile abstract val changelog: RegularFileProperty
+    @get:OutputDirectory abstract val outputDir: DirectoryProperty
+
+    @TaskAction fun copy() {
+        val out = outputDir.get().asFile.also { it.deleteRecursively(); it.mkdirs() }
+        changelog.get().asFile.copyTo(out.resolve("CHANGELOG.md"))
+    }
+}
+
+val bundleChangelog by tasks.registering(BundleChangelog::class) {
+    changelog = rootProject.layout.projectDirectory.file("CHANGELOG.md")
+    outputDir = layout.buildDirectory.dir("generated/changelog/assets")
+}
+
 /** Fails the build when a release APK grows past the 3.5 MB budget. CI's `build` and release.yml both assemble release. */
 abstract class CheckApkSize : DefaultTask() {
     @get:InputFiles abstract val apkDir: DirectoryProperty
@@ -147,6 +163,7 @@ abstract class CheckApkSize : DefaultTask() {
 androidComponents {
     onVariants { variant ->
         variant.sources.assets?.addGeneratedSourceDirectory(dexLabelHelper, DexLabelHelper::outputDir)
+        variant.sources.assets?.addGeneratedSourceDirectory(bundleChangelog, BundleChangelog::outputDir)
     }
     onVariants(selector().withBuildType("release")) { variant ->
         val name = variant.name.replaceFirstChar { it.uppercase() }
