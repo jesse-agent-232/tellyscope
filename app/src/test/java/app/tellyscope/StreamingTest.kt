@@ -72,9 +72,11 @@ class StreamingTest {
         assertEquals(prime.packages.first(), prime.packageOn(emptyList()))
     }
 
-    @Test fun theAlphaOffersEveryService() {
-        assertTrue(RemoteButtons.ANY_SERVICE)
-        assertEquals(services, RemoteButtons.choices(services, emptyList()))
+    @Test fun thePickerOffersOnlyServicesOnTheTv() {
+        assertFalse(RemoteButtons.ANY_SERVICE)
+        val nvidia = AppInfo("com.amazon.amazonvideo.livingroom.nvidia", "Prime Video", null, false, true, null, "", launchable = true)
+        assertEquals(listOf("Prime Video"), RemoteButtons.choices(services, listOf(nvidia)).map { it.name })
+        assertEquals(emptyList<StreamingService>(), RemoteButtons.choices(services, emptyList()))
     }
 
     private val lightSheet = 0xFFEEF5F4

@@ -2018,7 +2018,7 @@ class TellyscopeViewModel(
 
     /**
      * An app uninstalled, here or on the TV itself, takes its button off the Remote, and the snackbar
-     * says so. Not in the alpha, where any service can have a button.
+     * says so. Not with [RemoteButtons.ANY_SERVICE], where any service can have a button.
      */
     private suspend fun pruneDock(id: String, apps: List<AppInfo>) {
         if (RemoteButtons.ANY_SERVICE) return
