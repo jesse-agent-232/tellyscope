@@ -16,6 +16,7 @@ until this file has a section for its version.
 - **Fixed:** The Projectivy install dialog on Fire TV closes when the install finishes. [#235](../../pull/235)
 - **New:** On Android TV, Projectivy can also be downloaded directly, after a warning. [#236](../../pull/236)
 - **Fixed:** On Fire TV, a debugging prompt hidden behind the remote alert shows on the phone. [#237](../../pull/237)
+- **Improved:** Remote buttons offer only the streaming apps on your TV, and a button leaves when its app is uninstalled. [#239](../../pull/239)
 
 ## 0.13.0 — 2026-10-29
 
