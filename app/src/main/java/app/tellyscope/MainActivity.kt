@@ -347,6 +347,7 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
                 fireDismiss = vm::dismissProjectivy,
             ),
             snackbar = snackbar,
+            direct = vm.directDownload,
         )
     } else if (debloat && state.device.debloat != null) {
         // Leaving mid-run only closes the screen; the run goes on, and History has each app.

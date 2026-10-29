@@ -183,6 +183,8 @@ object Copy {
     const val INSTALL_ONE = "Install it"
     const val CHOOSE_HOME = "Choose a home screen"
     const val CHOOSE_HOME_TEXT = "Each one replaces the TV's home screen. Tellyscope opens it in the Play Store on the TV; you install it with the remote."
+    /** After [CHOOSE_HOME_TEXT] when Download directly is offered. */
+    const val CAN_DOWNLOAD = "Some can also be downloaded directly."
     const val NO_LAUNCHER_LIST = "Couldn't load the list of home screens. Check the phone's internet and try again."
     const val RECOMMENDED = "Recommended"
     /** The picker's section for launchers on the TV that Recommended doesn't list. */
@@ -196,7 +198,9 @@ object Copy {
     /** Under the picker's list: any other launcher works too, and comes back as On this TV. */
     const val OTHER_LAUNCHER = "Prefer another launcher? Install it from the Play Store on your TV, then come back here. It shows up under $ON_THIS_TV."
     const val NOT_AFFILIATED = "Tellyscope isn't affiliated with any of these launchers or their developers."
-    const val OPEN_IN_STORE = "Open in Play Store"
+    const val GET_FROM_STORE = "Get it from Play Store"
+    const val STORE_RECOMMENDED = "Play Store recommended: it updates itself"
+    const val DOWNLOAD_DIRECTLY = "Download directly"
     const val INSTALL_HOME = "Install a home screen"
     const val INSTALL_IT = "Install it on your TV"
 
@@ -236,11 +240,22 @@ object Copy {
 
     fun installProjectivyOn(tv: String) = "Install Projectivy on $tv?"
 
-    fun downloadsFrom(name: String, version: String, size: Long) = "Tellyscope downloads $name $version (${bytes(size)}) from:"
+    fun downloadsFrom(name: String) = "Tellyscope downloads $name from the developer's own release page:"
+
+    fun release(version: String, size: Long) = "Release $version · ${bytes(size)}"
 
     const val SIGNED_CHECK =
         "and checks it's signed by Projectivy's developer before installing it on the TV. Tellyscope isn't affiliated with Projectivy."
     const val DOWNLOAD_AND_INSTALL = "Download and install"
+
+    /** Download directly on a TV with the Play Store: what Tellyscope checks, what it doesn't, and the safer way. */
+    fun downloadDirectly(name: String) = "Download $name directly?"
+
+    const val DIRECT_CHECK =
+        "Tellyscope checks the app carries the developer's signature. It does not scan the app for malicious code, and the app won't update on its own."
+    const val STORE_SAFER = "Getting it from Play Store is safer and keeps it updated."
+    const val DOWNLOAD_ANYWAY = "Download anyway"
+    const val STORE_INSTEAD = "Get it from the Play Store on the TV instead."
 
     fun downloading(percent: Int) = "Downloading · $percent%"
 
