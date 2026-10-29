@@ -944,7 +944,9 @@ class TellyscopeViewModel(
     fun pickedProjectivy(uri: Uri) {
         val id = _state.value.selectedId ?: return
         val download = launcherDownload ?: return
-        if (_state.value.device.launcher?.fire == null) return
+        // The picker answers on its own timing: only from a step that offers it, never over a running install.
+        val step = _state.value.device.launcher?.fire?.step
+        if (step != FireInstall.Step.NoDownload && step != FireInstall.Step.NotProjectivy && step != FireInstall.Step.Refused) return
         launcherJob?.cancel()
         setFire(id) { it.copy(step = FireInstall.Step.Reading, picked = true, progress = null, size = null) }
         launcherJob = viewModelScope.launch {
