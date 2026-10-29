@@ -12,6 +12,8 @@ until this file has a section for its version.
 
 ## Unreleased
 
+- **Improved:** Switching TVs shows each TV's apps and debloat list straight away, while fresh ones load. [#240](../../pull/240)
+
 ## 0.13.0 — 2026-10-29
 
 - **Improved:** The Remote's dock is refined: it shows only the streaming buttons you pick. [#224](../../pull/224)
