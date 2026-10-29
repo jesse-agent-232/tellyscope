@@ -220,6 +220,7 @@ step_D3() {
   for i in $(seq 1 "$off"); do tap '^Undo$' 0 && { tap '^Yes, turn it on$' 2>/dev/null; sleep 4; }; done
   t shell pm list packages -d | sort | comm -13 "$W/off_before" - > "$W/d3_left"
   [ -s "$W/d3_left" ] && { fail "$off/$n turned off; still off after Undo: $(tr '\n' ' ' < "$W/d3_left")"; return; }
+  comm -23 "$W/off_before" <(t shell pm list packages -d | sort) | grep -q . && { fail "an app that was off before the run is now on"; return; }
   pass "$off/$n turned off, Undo in History turned them back on"
 }
 step_H1() {
