@@ -13,6 +13,7 @@ until this file has a section for its version.
 ## Unreleased
 
 - **Improved:** Switching TVs shows each TV's apps and debloat list straight away, while fresh ones load. [#240](../../pull/240)
+- **Fixed:** The app no longer closes when you open or switch to a TV. [#241](../../pull/241)
 
 ## 0.13.0 — 2026-10-29
 
