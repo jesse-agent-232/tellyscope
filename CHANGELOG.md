@@ -16,6 +16,7 @@ until this file has a section for its version.
 - **Fixed:** On Fire TV, the Home screen card shows Projectivy as Current once it holds Home. [#249](../../pull/249)
   - Switching back to Amazon's launcher turns Projectivy's accessibility service off.
   - Apps without a name of their own no longer show a class name.
+- **Fixed:** On the Remote, tapping outside the text box closes the keyboard again. [#250](../../pull/250)
 
 ## 0.13.0 — 2026-10-29
 
