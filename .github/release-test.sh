@@ -14,7 +14,12 @@
 # Optional:
 #   PKG       package under test (default app.tellyscope.alpha)
 #   FIXTURES  folder on this computer with small.apk, older.apk (an older
-#             build of the same app) and bundle.apks, for I1-I3
+#             build of the same app), bundle.apks, photo.png, video.mp4 and
+#             big.bin (50 MB or more), for I1-I3 and F1-F3
+#   SMALL_APP the app name small.apk shows, for A4 and A5
+#   OFF_APP, OFF_PKG  name and package of an app A3 may turn off and on
+#   DEBLOAT_PKGS      2-3 packages from the Debloat list that D3 may turn
+#             off and back on, space-separated
 #   SKIP      step IDs to skip, space-separated (for example "C6 X2")
 #   ASK=1     stop and ask at the steps a person has to see
 
@@ -68,6 +73,8 @@ tap() {
 key() { p shell input keyevent "$@"; }
 type_text() { p shell input text "$(printf '%s' "$1" | sed 's/ /%s/g')"; }
 scroll() { p shell input swipe 540 1800 540 700 300; sleep 0.8; }
+# Every text on a scrolling list, top to bottom.
+alltext() { local i; for i in $(seq 1 15); do ui | cut -d'|' -f1; scroll; done | awk 'NF && !s[$0]++'; }
 # Some controls (the Remote button on Overview) aren't in the dump; tap a screen fraction.
 tap_frac() { local s; s=$(p shell wm size | grep -oE '[0-9]+x[0-9]+' | tail -1)
   p shell input tap $(( ${s%x*} * $1 / 100 )) $(( ${s#*x} * $2 / 100 )); sleep 1; }
@@ -92,8 +99,10 @@ snapshot() {
     echo "anim=$(tv_setting animator_duration_scale)"
     echo "home=$(t shell cmd package resolve-activity --brief -c android.intent.category.HOME -a android.intent.action.MAIN | tail -1 | tr -d '\r')"
     echo "stay_on=$(p shell settings get global stay_on_while_plugged_in | tr -d '\r')"
+    echo "since=$(p shell date +'%m-%d %H:%M:%S.000' | tr -d '\r')"
   } > "$W/before"
   t shell pm list packages -d | sort > "$W/off_before"
+  t shell pm list packages -3 | sort > "$W/apps_before"
   t shell ls /sdcard/Download /sdcard/Movies 2>/dev/null | sort > "$W/tv_files_before"
   p shell ls /sdcard/Download | sort > "$W/phone_files_before"
   p shell settings put global stay_on_while_plugged_in 7
@@ -112,8 +121,7 @@ step_C1() {
 step_C2() {
   tap '^Fire TV$|^Android TV$' >/dev/null 2>&1
   local ip=${TV%:*}
-  check "scan lists the TV" wait_for "^${ip//./\\.}\|" 30
-  has '^Scan again' || fail "no Scan again"
+  check "scan lists the TV, with Scan again" eval 'wait_for "^${ip//./\\.}\|" 30 && has "^Scan again"'
 }
 step_C3() {
   tap '^Add by IP address$' || { fail "no Add by IP"; return; }
@@ -140,26 +148,79 @@ step_O2() { ask "list card names a list for model $(t shell getprop ro.product.m
 
 step_A1() {
   tab Apps; has '^Running' && has '^Installed' || { fail "tabs missing"; return; }
-  tap '^Installed$'; sleep 2
-  local ids; ids=$(ui | grep -cE '^[a-z][a-z0-9_]*(\.[a-z0-9_]+){2,}\|')
-  [ "$ids" = 0 ] && pass "Installed shows names" || fail "$ids row(s) show a package or class name"
+  # A package or class name where the app's name should be (N13).
+  local t ids=""; for t in Installed Built-in; do tap "^$t\$"; sleep 2
+    ids="$ids$(alltext | grep -E '^[a-z][a-z0-9_]*(\.[A-Za-z0-9_]+){2,}$' | tr '\n' ' ')"; done
+  [ -z "$ids" ] && pass "Installed and Built-in show names" || fail "shown as names: $ids"
 }
 step_A2() {
-  tap 'Search apps' && type_text "set"; sleep 2
-  local n; n=$(ui | grep -c '|')
+  local all n; all=$(ui | grep -c '|')
+  tap 'Search apps' && type_text "set"; sleep 2; n=$(ui | grep -c '|')
   tap 'Clear search'; sleep 1.5
-  [ "$(ui | grep -c '|')" -ge "$n" ] && pass "narrows, Clear search restores" || fail "Clear search left the list short"
+  [ "$n" -lt "$all" ] || { fail "search didn't narrow the list ($all, then $n)"; return; }
+  [ "$(ui | grep -c '|')" -gt "$n" ] && pass "narrows ($all to $n), Clear search restores" || fail "Clear search left the list short"
 }
-step_A3() { manual "turn one unused app off, check History, turn it back on"; }
-step_A4() { manual "uninstall an app from I1; built-in apps offer no Uninstall"; }
-step_A5() { manual "open an app from its row; it comes up on the TV and under Running"; }
+# Finds an app in Apps › Installed by name and opens its row.
+app_row() { home_page; tab Apps; tap '^Installed$'; tap 'Search apps' && type_text "$1"; sleep 2; tap "^$1\$"; sleep 1.5; }
+is_off() { t shell pm list packages -d | tr -d '\r' | grep -qx "package:$1"; }
+step_A3() {
+  [ -n "${OFF_APP:-}" ] && [ -n "${OFF_PKG:-}" ] || { manual "set OFF_APP and OFF_PKG, or turn one unused app off and on by hand"; return; }
+  app_row "$OFF_APP"; tap '^Disable$' && tap '^Yes, disable it$'; sleep 4
+  is_off "$OFF_PKG" || { fail "$OFF_PKG not off after Disable"; return; }
+  tap '^Turn on$' && tap '^Yes, turn it on$' 2>/dev/null; sleep 4
+  is_off "$OFF_PKG" && fail "$OFF_PKG still off after Turn on" || pass "off, then on (pm list packages -d)"
+}
+step_A4() {
+  local pkg; pkg=$(cat "$W/i1_pkg" 2>/dev/null)
+  [ -n "$pkg" ] && [ -n "${SMALL_APP:-}" ] || { row "$ID" SKIP "needs I1 and SMALL_APP"; return; }
+  app_row "$SMALL_APP"; tap '^Uninstall$' && tap '^Yes, uninstall it$'; sleep 6
+  t shell pm list packages | tr -d '\r' | grep -qx "package:$pkg" && fail "$pkg still installed" || pass "confirmed, then gone"
+}
+step_A5() {
+  [ -n "${SMALL_APP:-}" ] || { row "$ID" SKIP "needs SMALL_APP"; return; }
+  app_row "$SMALL_APP"
+  tap '^Open$' || { fail "no Open on the app's row (#259)"; return; }
+  tap '^Yes, open it$' 2>/dev/null; sleep 4
+  check "comes up on the TV" eval 'tv_focus | grep -q "$(cat "$W/i1_pkg")"'
+}
 
 step_D1() {
   home_page; tap '^Debloat$' || { fail "no Debloat on the list card"; return; }
   sleep 3; check "review lists apps before any change" has '^Disable [0-9]+ apps?\||Everything on the list is off'
 }
 step_D2() { ask "untick one app, then a whole group from its heading; the count follows"; key 4; }
-step_D3() { manual "run Debloat with 2-3 harmless apps, then History › Restore everything"; }
+# Ticks exactly the rows whose package is in $1 on the Debloat review, scrolling through it.
+tick_only() {
+  local i; for i in $(seq 1 12); do
+    ui >/dev/null
+    python3 - "$W/ui.xml" "$1" <<'PY2' | while read -r xy; do p shell input tap $xy; sleep 0.4; done
+import re, sys, xml.etree.ElementTree as E
+want = set(sys.argv[2].split())
+for n in E.parse(sys.argv[1]).iter('node'):
+    if n.get('checkable') != 'true': continue
+    texts = [c.get('text') or '' for c in n.iter('node')]
+    pkg = next((t for t in texts if re.fullmatch(r'[a-z][\w]*(\.[\w]+)+', t)), None)
+    if pkg and (n.get('checked') == 'true') != (pkg in want):
+        a, b, c, d = map(int, re.findall(r'\d+', n.get('bounds')))
+        print((a + c) // 2, (b + d) // 2)
+PY2
+    has '^Disable [0-9]+ apps?\|' && break; scroll
+  done
+}
+step_D3() {
+  [ -n "${DEBLOAT_PKGS:-}" ] || { manual "set DEBLOAT_PKGS, or run Debloat with 2-3 harmless apps and Restore everything"; return; }
+  home_page; tap '^Debloat$' || { fail "no Debloat"; return; }; sleep 3
+  tick_only "$DEBLOAT_PKGS"
+  local n; n=$(wc -w <<<"$DEBLOAT_PKGS")
+  tap "^Disable $n apps?\$" || { fail "couldn't tick exactly $n"; return; }
+  tap '^Yes, disable them$'; wait_for '^Debloat (partly )?done' 60 || { fail "no Debloat done"; return; }
+  local q off=0; for q in $DEBLOAT_PKGS; do is_off "$q" && off=$((off+1)); done
+  home_page; menu History; tap '^Restore everything' && tap '^Turn back on$'; sleep 8
+  t shell pm list packages -d | sort | comm -13 "$W/off_before" - > "$W/d3_left"
+  [ -s "$W/d3_left" ] && { fail "$off/$n turned off; still off after Restore: $(tr '\n' ' ' < "$W/d3_left")"; return; }
+  comm -23 "$W/off_before" <(t shell pm list packages -d | sort) | grep -q . && { fail "Restore turned on apps that were off before the run"; return; }
+  pass "$off/$n turned off, Restore everything put back exactly the apps that were off before"
+}
 step_H1() {
   home_page; menu History
   check "History opens" wait_for '^History' 5
@@ -192,21 +253,50 @@ pick_file() {
   tab Apps; tap '^Install app$' || return 1; sleep 3
   tap '^Search$' || return 1; type_text "$1"; key 66; sleep 2.5; key 20 20 23; sleep 3
 }
-install_step() {  # $1 file in FIXTURES, $2 expected wording
-  [ -n "${FIXTURES:-}" ] && [ -f "$FIXTURES/$1" ] || { row "$ID" SKIP "no \$FIXTURES/$1"; return; }
-  p push "$FIXTURES/$1" "/sdcard/Download/$1" >/dev/null; home_page
+fixture() { [ -n "${FIXTURES:-}" ] && [ -f "$FIXTURES/$1" ] || { row "$ID" SKIP "no \$FIXTURES/$1"; return 1; }
+  p push "$FIXTURES/$1" "/sdcard/Download/$1" >/dev/null; echo "$1" >> "$W/pushed"; }
+install_step() {  # $1 file in FIXTURES, $2 wording expected before the install
+  fixture "$1" || return; home_page
   pick_file "${1%.*}" || { fail "file picker"; return; }
   wait_for "$2" 20 || { fail "no '$2' before install"; return; }
-  tap '^Install( the older version anyway)?$'
-  check "installed" wait_for 'Installed|Open on TV' 120
+  tap '^(Install|Reinstall|Update)$|^Install the older version anyway$'
+  check "$1: '$2', then installed" wait_for '^Open on TV' 120
 }
-step_I1() { install_step small.apk 'New app|Install'; }
-step_I2() { install_step bundle.apks 'New app|Install'; }
-step_I3() { install_step small.apk 'Update'; install_step older.apk 'older version'; }
+step_I1() {
+  t shell pm list packages -3 | sort > "$W/pk_before"
+  install_step small.apk 'Not on this TV yet'
+  t shell pm list packages -3 | sort | comm -13 "$W/pk_before" - | head -1 | sed 's/^package://' | tr -d '\r' > "$W/i1_pkg"
+  # N12: Open on TV after an install.
+  tap '^Open on TV$' && sleep 4 && tv_focus | grep -q "$(cat "$W/i1_pkg")" && echo "     N12 PASS Open on TV" || echo "     N12 FAIL Open on TV"
+}
+step_I2() { install_step bundle.apks 'Not on this TV yet'; }
+step_I3() { install_step small.apk 'Reinstall'; install_step older.apk 'older version'; }
 
-step_F1() { manual "Files › Upload a photo to Download, a video to Movies (Upload isn't in the dump)"; }
-step_F2() { manual "save a file back; it lands in the phone's Downloads"; }
-step_F3() { manual "cancel a large send; nothing left on the TV and the list agrees"; }
+# Files › folder $1, then Upload (not in the dump: bottom-right) and pick $2.
+upload() {
+  home_page; tab Files; tap "^$1\$"; tap_frac 83 87; sleep 3
+  tap '^Search$' || return 1; type_text "${2%.*}"; key 66; sleep 2.5; key 20 20 23
+}
+step_F1() {
+  fixture photo.png && fixture video.mp4 || return
+  upload Download photo.png && wait_for '^photo\.png\|' 60 || { fail "photo not listed in Download"; return; }
+  upload Movies video.mp4 && wait_for '^video\.mp4\|' 120 || { fail "video not listed in Movies"; return; }
+  check "photo in Download, video in Movies" eval 't shell ls /sdcard/Download/photo.png /sdcard/Movies/video.mp4 >/dev/null'
+}
+step_F2() {
+  home_page; tab Files; tap '^Download$'; tap '^photo\.png$' || { row "$ID" SKIP "no photo.png from F1"; return; }
+  local n; n=$(p shell ls /sdcard/Download | grep -c '^photo')
+  tap '^Save' ; sleep 3; key 66; sleep 4   # the phone's save screen: Enter saves under the offered name
+  local m; m=$(p shell ls /sdcard/Download | grep -c '^photo')
+  [ "$m" -gt "$n" ] && pass "saved to the phone's Download: $(p shell ls -t /sdcard/Download | head -1 | tr -d '\r')" || fail "nothing new in the phone's Download"
+  p shell ls -t /sdcard/Download | head -1 | tr -d '\r' >> "$W/pushed"   # Z1 deletes it
+}
+step_F3() {
+  fixture big.bin || return
+  upload Download big.bin; sleep 3; tap '^Cancel$'
+  wait_for 'Cancelled\. Nothing was left on the TV\.' 20 || { fail "no 'Cancelled' message"; return; }
+  t shell ls /sdcard/Download | grep -q big.bin && fail "big.bin left on the TV" || pass "cancelled, nothing left on the TV"
+}
 
 step_T1() {
   home_page; tab Tweaks; tap '^Block ads with Private DNS$' || { fail "no Private DNS"; return; }
@@ -233,7 +323,18 @@ step_L1() {
   tab Tweaks; local cur; cur=$(t shell cmd package resolve-activity --brief -c android.intent.category.HOME -a android.intent.action.MAIN | tail -1 | cut -d/ -f1 | tr -d '\r')
   ask "Home screen card marks Current on the app for $cur"
 }
-step_L2() { manual "Make Home on another launcher, press Home, switch back; accessibility service offered, never forced"; }
+home_pkg() { t shell cmd package resolve-activity --brief -c android.intent.category.HOME -a android.intent.action.MAIN | tail -1 | cut -d/ -f1 | tr -d '\r'; }
+step_L2() {
+  local was now svc; was=$(home_pkg); svc=$(t shell settings get secure enabled_accessibility_services | tr -d '\r')
+  home_page; tab Tweaks
+  tap '^Make Home$' 0 && tap '^Make Home$' || { fail "no Make Home"; return; }; sleep 8
+  now=$(home_pkg); [ "$now" != "$was" ] || { fail "Home still $was"; return; }
+  # Back: the first Make Home on the card is the launcher we left, when it's added.
+  tap '^Make Home$' 0 && tap '^Make Home$'; sleep 4
+  if has '^Switch without it\|'; then tap '^Turn it on$'; sleep 6; fi
+  [ "$(t shell settings get secure enabled_accessibility_services | tr -d '\r')" = "$svc" ] || { fail "accessibility services differ from before"; return; }
+  ask "Home switched to $now and back; press Home on the TV's own remote: is it the launcher from before?"
+}
 step_L3() { manual "only while no extra launcher is installed; say in Notes if one was uninstalled"; }
 
 step_W1() { home_page; menu 'Who has access'; check "this phone is marked" wait_for '^This phone' 15; key 4; }
@@ -253,8 +354,8 @@ step_X3() {
   pass "two cold starts land connected"
 }
 step_X4() {
-  local n; n=$(p logcat -b crash -d | grep -c "$PKG")
-  [ "$n" = 0 ] && pass "no crash in the crash buffer" || fail "$n crash line(s): adb logcat -b crash -d"
+  local n; n=$(p logcat -b crash -d -T "$(before since)" | grep -c "$PKG")
+  [ "$n" = 0 ] && pass "no crash since the run started" || fail "$n crash line(s): adb logcat -b crash -d -T '$(before since)'"
 }
 
 step_Z1() {
@@ -265,7 +366,12 @@ step_Z1() {
   if [ "$s" = null ]; then t shell settings delete global private_dns_specifier >/dev/null; else t shell settings put global private_dns_specifier "$s"; fi
   if [ "$a" = null ]; then t shell settings delete global animator_duration_scale >/dev/null; else t shell settings put global animator_duration_scale "$a"; fi
   p shell settings put global stay_on_while_plugged_in "$(before stay_on)"
-  # Files the run left behind on either side.
+  # What the run added: the pushed fixtures, the files F1 sent, the apps I1-I3 installed.
+  local f q; while read -r f; do p shell rm -f "/sdcard/Download/$f"; done < "$W/pushed" 2>/dev/null
+  t shell rm -f /sdcard/Download/photo.png /sdcard/Movies/video.mp4
+  for q in $(t shell pm list packages -3 | sort | comm -13 "$W/apps_before" - | sed 's/^package://' | tr -d '\r'); do
+    t shell pm uninstall "$q" >/dev/null; done
+  # Anything else left behind on either side.
   t shell ls /sdcard/Download /sdcard/Movies 2>/dev/null | sort | comm -13 "$W/tv_files_before" - > "$W/tv_new"
   p shell ls /sdcard/Download | sort | comm -13 "$W/phone_files_before" - > "$W/phone_new"
   t shell pm list packages -d | sort | comm -13 "$W/off_before" - > "$W/off_new"
@@ -280,8 +386,9 @@ step_Z1() {
 }
 
 # ======================================================================
-STEPS="C1 C2 C3 C4 C5 C6 O1 O2 A1 A2 A3 A4 A5 D1 D2 D3 H1 R1 R2 R3 R4 R5 R6 R7
-I1 I2 I3 F1 F2 F3 T1 T2 T3 T4 L1 L2 L3 W1 W2 M1 S1 S2 X1 X2 X3 X4"
+# Table order, except I1-I3 run before A3-A5, which use the app I1 installs.
+STEPS="C1 C2 C3 C4 C5 C6 O1 O2 A1 A2 I1 I2 I3 A3 A4 A5 D1 D2 D3 H1 R1 R2 R3 R4 R5 R6 R7
+F1 F2 F3 T1 T2 T3 T4 L1 L2 L3 W1 W2 M1 S1 S2 X1 X2 X3 X4"
 
 adb connect "$TV" >/dev/null; p get-state >/dev/null || { echo "phone $PHONE not reachable"; exit 2; }
 t get-state >/dev/null || { echo "TV not reachable"; exit 2; }

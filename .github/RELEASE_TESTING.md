@@ -52,15 +52,28 @@ TV=… PHONE=… ASK=1 .github/release-test.sh R2 R6                          # 
 
 It prints one line per step ID and appends them to
 `release-test-results.md`. MANUAL means the step needs hands on the TV
-or the phone, and ASK means someone has to look. Those steps are A3–A5,
-C5, C6, D2, D3, F1–F3, L1–L3, O2, R2–R6, S1, S2, W2, X1, X2, plus the
-press on the TV in C4. I1–I3 need `FIXTURES` set to a folder holding
-`small.apk`, `older.apk` and `bundle.apks`. Z1 runs last even if you stop the run: it puts back
+or the phone, and ASK means someone has to look. Those are C5, C6, D2,
+L1, L3, O2, R2–R6, S1, S2, W2, X1, X2, the press on the TV in C4, and
+the last look in L2. A3–A5, D3, I1–I3 and F1–F3 run by themselves once
+you give them something safe to work on; without it they print SKIP or
+MANUAL:
+
+- `FIXTURES`: a folder holding `small.apk`, `older.apk` (an older build
+  of the same app), `bundle.apks`, `photo.png`, `video.mp4` and
+  `big.bin` (50 MB or more).
+- `SMALL_APP`: the name `small.apk` shows in Apps.
+- `OFF_APP` and `OFF_PKG`: an app A3 may turn off and on.
+- `DEBLOAT_PKGS`: two or three packages from the Debloat list that D3 may
+  turn off before Restore everything.
+
+Z1 runs last even if you stop the run: it puts back
 Private DNS, the animation speed and Stay awake, and lists any Home
 change, leftover files or apps still off.
 
-C1 clears the alpha app, so the TV asks to allow the phone again. Have
-someone at the TV for C4.
+C1 clears the alpha app's storage: its saved TVs, Remote buttons, History
+and settings are gone, and the phone has a new key, so the TV asks to
+allow it again. Have someone at the TV for C4. Run C1 on a test phone or
+accept losing that History; `SKIP="C1 C2 C3 C4"` keeps it.
 
 ## Results
 
