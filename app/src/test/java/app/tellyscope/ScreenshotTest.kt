@@ -247,6 +247,14 @@ class ScreenshotTest {
 
     @Test fun connect_notAllowed_dark() = connect(unknown, RowState.NotAllowed, true, "03_connect_no_answer")
 
+    @Test fun connect_offWifi() = connect(unknown, RowState.Unreachable(offWifi = true), false, "03_connect_off_wifi")
+
+    @Test fun connect_offWifi_dark() = connect(unknown, RowState.Unreachable(offWifi = true), true, "03_connect_off_wifi")
+
+    @Test fun connect_waitingForWifi() = connect(unknown, RowState.WaitingForWifi, false, "03_connect_waiting_wifi")
+
+    @Test fun connect_tvSilent() = connect(unknown, RowState.Unreachable(offWifi = false), false, "03_connect_tv_silent")
+
     private fun deviceState(device: DeviceUi.() -> DeviceUi = { this }): UiState = runBlocking {
         val d = Device(xgimi.ip, xgimi, DeviceState.Online, "XGIMI Horizon Pro", "XGIMI", "11", now)
         UiState(

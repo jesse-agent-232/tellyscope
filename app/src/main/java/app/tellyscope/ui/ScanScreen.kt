@@ -82,6 +82,7 @@ fun ScanScreen(
     onBack: (() -> Unit)? = null,
     onOpenWifi: () -> Unit = {},
     phoneKey: String? = null,
+    onLeave: (ScanHit) -> Unit = {},
 ) {
     var adding by remember { mutableStateOf(false) }
     var help by remember { mutableStateOf(false) }
@@ -94,7 +95,7 @@ fun ScanScreen(
 
     val openHit = scan.hits.firstOrNull { it.ip == open }
     if (openHit != null) {
-        BackHandler { open = null }
+        BackHandler { onLeave(openHit); open = null }
         ConnectScreen(
             hit = openHit,
             row = scan.rows[openHit.ip] ?: RowState.Found,
@@ -104,7 +105,8 @@ fun ScanScreen(
             onCode = { onCode(openHit, it) },
             onPair = { onPair(openHit) },
             onRetry = { onConnect(openHit) },
-            onBack = { open = null },
+            onBack = { onLeave(openHit); open = null },
+            onOpenWifi = onOpenWifi,
         )
         return
     }
@@ -142,7 +144,7 @@ fun ScanScreen(
             GuideSteps(brand, step, onStep = { step = it }) {
                 FoundTvs(scan, now, onRescan, onPick = { hit ->
                     val row = scan.rows[hit.ip] ?: RowState.Found
-                    if (row == RowState.Found || row == RowState.NotAllowed) onConnect(hit)
+                    if (row == RowState.Found || row == RowState.NotAllowed || row is RowState.Unreachable) onConnect(hit)
                     open = hit.ip
                 })
             }
@@ -197,7 +199,7 @@ private fun FoundTvs(scan: ScanUi, now: Long, onRescan: () -> Unit, onPick: (Sca
                         Text(
                             when (row) {
                                 RowState.Found -> stringResource(R.string.scan_connect)
-                                RowState.NotAllowed -> stringResource(R.string.scan_try_again)
+                                RowState.NotAllowed, is RowState.Unreachable -> stringResource(R.string.scan_try_again)
                                 else -> stringResource(R.string.scan_continue)
                             },
                         )

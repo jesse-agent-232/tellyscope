@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -43,6 +44,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
@@ -77,6 +79,7 @@ fun ConnectScreen(
     onRetry: () -> Unit,
     onBack: () -> Unit,
     title: String? = null,
+    onOpenWifi: () -> Unit = {},
 ) {
     Scaffold(
         topBar = {
@@ -92,7 +95,7 @@ fun ConnectScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 when (row) {
-                    RowState.NotAllowed -> {
+                    RowState.NotAllowed, is RowState.Unreachable -> {
                         TextButton(onClick = onBack) { Text(stringResource(R.string.connect_back_to_tvs)) }
                         Button(onClick = onRetry) { Text(stringResource(R.string.connect_try_again)) }
                     }
@@ -143,11 +146,7 @@ fun ConnectScreen(
                     row.detail?.let { Details(listOf(stringResource(R.string.connect_from_tv) to it)) }
                 }
                 RowState.NotAllowed -> {
-                    Surface(Modifier.size(64.dp), shape = CircleShape, color = MaterialTheme.colorScheme.errorContainer) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(Icons.Default.Warning, null, Modifier.size(32.dp), tint = MaterialTheme.colorScheme.onErrorContainer)
-                        }
-                    }
+                    ProblemIcon(Icons.Default.Warning)
                     Text(stringResource(R.string.connect_no_answer), style = MaterialTheme.typography.headlineMedium)
                     Text(
                         stringResource(R.string.connect_not_accepted),
@@ -194,6 +193,36 @@ fun ConnectScreen(
                         )
                     }
                 }
+                // Reachable but refusing is No answer above; this is a TV that didn't answer at all.
+                is RowState.Unreachable, RowState.WaitingForWifi -> {
+                    val offWifi = row != RowState.Unreachable(offWifi = false)
+                    ProblemIcon(if (offWifi) DeviceIcons.WifiOff else Icons.Default.Warning)
+                    Text(stringResource(R.string.connect_cant_reach), style = MaterialTheme.typography.headlineMedium)
+                    Text(
+                        stringResource(
+                            when {
+                                row == RowState.WaitingForWifi -> R.string.connect_off_wifi_waiting
+                                offWifi -> R.string.connect_off_wifi
+                                else -> R.string.connect_tv_silent
+                            },
+                        ),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (offWifi) FilledTonalButton(onClick = onOpenWifi) { Text(stringResource(R.string.scan_open_wifi)) }
+                    if (row == RowState.WaitingForWifi) Row(verticalAlignment = Alignment.CenterVertically) {
+                        LoadingIndicator(Modifier.size(32.dp))
+                        Spacer(Modifier.width(12.dp))
+                        Text(stringResource(R.string.connect_waiting_wifi), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    if (!offWifi) Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(
+                            stringResource(R.string.connect_check_on),
+                            stringResource(R.string.connect_check_same_wifi),
+                            stringResource(R.string.connect_check_new_address),
+                        ).forEach { Text(stringResource(R.string.connect_bullet, it), style = MaterialTheme.typography.bodyMedium) }
+                    }
+                }
                 RowState.Found -> Connecting()
             }
         }
@@ -201,6 +230,16 @@ fun ConnectScreen(
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
+/** The round error badge heading No answer and Can't reach the TV. */
+@Composable
+private fun ProblemIcon(icon: ImageVector) {
+    Surface(Modifier.size(64.dp), shape = CircleShape, color = MaterialTheme.colorScheme.errorContainer) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(icon, null, Modifier.size(32.dp), tint = MaterialTheme.colorScheme.onErrorContainer)
+        }
+    }
+}
+
 @Composable
 private fun Connecting() {
     Text(stringResource(R.string.connect_connecting), style = MaterialTheme.typography.headlineMedium)

@@ -265,6 +265,8 @@ class AdbDeviceSource(context: Context) : DeviceSource {
             .distinct()
     }
 
+    override fun onLan() = lanHosts().isNotEmpty()
+
     override fun lanUp(): Flow<Unit> = callbackFlow {
         val cm = appContext.getSystemService(ConnectivityManager::class.java) ?: run { close(); return@callbackFlow }
         val callback = object : ConnectivityManager.NetworkCallback() {
