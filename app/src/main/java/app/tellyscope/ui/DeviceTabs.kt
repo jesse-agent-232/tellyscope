@@ -349,7 +349,7 @@ fun DeviceTabsScreen(
                     }
                     TvTab.Apps -> {
                         fun rows(apps: List<AppInfo>) = items(apps, key = { it.packageName }) { app ->
-                            AppRow(app, procs, ui.pending, ui.busy == app.packageName, actions, locked = ui.busy != null, toHomeScreen = { if (searching) closeSearch(); tab = TvTab.Tweaks })
+                            AppRow(app, procs, ui.pending, ui.busy == app.packageName, actions, locked = ui.busy != null, toHomeScreen = { if (searching) closeSearch(); tab = TvTab.Tweaks }, offline = offline)
                         }
                         // Until the first read lands, an empty list means "not yet", not "none".
                         val loading = ui.appsLoading && !offline
@@ -408,7 +408,7 @@ fun DeviceTabsScreen(
                         }
                     }
                     TvTab.Tweaks -> {
-                        if (offline) item { Muted(stringResource(R.string.tabs_tweaks_offline)) }
+                        if (offline) item { EmptyState(DeviceIcons.Tv, Copy.TV_OFFLINE.resolve(), stringResource(R.string.tabs_tweaks_offline)) }
                         else {
                             if (homeLaunchers(ui.apps).isNotEmpty()) item { Panel(Copy.HOME_SCREEN.resolve()) { HomeScreenBlock(ui, actions, fire) } }
                             item { Panel(Copy.TWEAKS.resolve()) { TweaksBlock(ui, actions) } }
