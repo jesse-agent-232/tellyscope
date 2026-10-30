@@ -995,6 +995,11 @@
     <string name="whats_new_new">Nuevo</string>
     <string name="whats_new_improved">Mejorado</string>
     <string name="whats_new_fixed">Corregido</string>
+    <string name="whats_new_update_out">Tellyscope %1$s ya está disponible</string>
+    <string name="whats_new_you_have">Tienes la %1$s.</string>
+    <string name="whats_new_update">Actualizar</string>
+    <string name="whats_new_not_installed">No instalada</string>
+    <string name="whats_new_newer_failed">No se pudieron cargar las versiones nuevas.</string>
     <string name="settings_advanced">Avanzado</string>
     <string name="settings_change">Cambiar</string>
     <string name="settings_change_text">Pega la carpeta raw HTTPS que contiene index.json, p. ej., raw.githubusercontent.com/&lt;tu-usuario&gt;/tellyscope-devices/main/</string>

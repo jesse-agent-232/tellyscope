@@ -911,6 +911,11 @@
     <string name="whats_new_new">新機能</string>
     <string name="whats_new_improved">改善</string>
     <string name="whats_new_fixed">修正</string>
+    <string name="whats_new_update_out">Tellyscope %1$s が公開されました</string>
+    <string name="whats_new_you_have">現在のバージョンは %1$s です。</string>
+    <string name="whats_new_update">アップデート</string>
+    <string name="whats_new_not_installed">未インストール</string>
+    <string name="whats_new_newer_failed">新しいバージョンを読み込めませんでした。</string>
     <string name="settings_advanced">詳細設定</string>
     <string name="settings_change">変更</string>
     <string name="settings_change_text">index.json を含む HTTPS の raw フォルダを貼り付けてください。例: raw.githubusercontent.com/&lt;you&gt;/tellyscope-devices/main/</string>

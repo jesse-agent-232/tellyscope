@@ -326,7 +326,8 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
         AccessScreen(state, accessActions(vm) { access = false }, snackbar = snackbar)
     } else if (whatsNew) {
         BackHandler { whatsNew = false }
-        WhatsNewScreen(rememberChangelog(), back = { whatsNew = false })
+        LaunchedEffect(state.available) { vm.loadNewer() }
+        WhatsNewScreen(rememberChangelog(), back = { whatsNew = false }, available = state.available, newer = state.newer, onUpdate = vm::reopenUpdate)
     } else if (settings) {
         BackHandler { settings = false }
         SettingsScreen(

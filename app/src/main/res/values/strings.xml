@@ -1186,6 +1186,11 @@
     <string name="whats_new_new">New</string>
     <string name="whats_new_improved">Improved</string>
     <string name="whats_new_fixed">Fixed</string>
+    <string name="whats_new_update_out">Tellyscope %1$s is out</string>
+    <string name="whats_new_you_have">You have %1$s.</string>
+    <string name="whats_new_update">Update</string>
+    <string name="whats_new_not_installed">Not installed</string>
+    <string name="whats_new_newer_failed">Couldn’t load newer versions.</string>
     <string name="settings_advanced">Advanced</string>
     <!-- Heading: how to change where the debloat lists come from -->
     <string name="settings_change">Change</string>

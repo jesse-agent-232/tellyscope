@@ -911,6 +911,11 @@
     <string name="whats_new_new">新增</string>
     <string name="whats_new_improved">改进</string>
     <string name="whats_new_fixed">修复</string>
+    <string name="whats_new_update_out">Tellyscope %1$s 已发布</string>
+    <string name="whats_new_you_have">你的版本是 %1$s。</string>
+    <string name="whats_new_update">更新</string>
+    <string name="whats_new_not_installed">未安装</string>
+    <string name="whats_new_newer_failed">无法加载更新的版本。</string>
     <string name="settings_advanced">高级</string>
     <string name="settings_change">更改</string>
     <string name="settings_change_text">粘贴包含 index.json 的 HTTPS 原始文件夹地址，例如 raw.githubusercontent.com/&lt;you&gt;/tellyscope-devices/main/</string>

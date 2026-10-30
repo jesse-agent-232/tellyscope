@@ -136,6 +136,19 @@ class UpdateCheckTest {
         assertEquals(0, calls)
     }
 
+    @Test fun `newer reads the branch's CHANGELOG and keeps only versions past the installed one`() = runTest {
+        val urls = mutableListOf<String>()
+        val md = "# Changelog\n\n## Unreleased\n\n- **New:** Later.\n\n## 0.3.0 — 2026-10-30\n\n- **New:** Three.\n\n## 0.2.0 — 2026-10-29\n\n- **New:** Two.\n"
+        val newer = UpdateCheck(tmp.newFile(), "0.2.0", alpha = false) { urls += it; md.toByteArray() }.newer()
+        assertEquals(listOf("0.3.0"), newer?.map { it.version })
+        assertTrue(urls.single().endsWith("/main/CHANGELOG.md"))
+        // An alpha reads dev, and its own section is its base version's.
+        val alpha = UpdateCheck(tmp.newFile(), "0.2.0-alpha.4", alpha = true) { urls += it; md.toByteArray() }.newer()
+        assertEquals(listOf("0.3.0"), alpha?.map { it.version })
+        assertTrue(urls.last().endsWith("/dev/CHANGELOG.md"))
+        assertNull(UpdateCheck(tmp.newFile(), "0.2.0", alpha = false) { throw IOException("offline") }.newer())
+    }
+
     /** v0.1.0's body as release.yml wrote it, commit list cut short. */
     private val prodBody = """
 

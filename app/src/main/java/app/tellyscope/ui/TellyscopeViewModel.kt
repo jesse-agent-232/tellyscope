@@ -25,6 +25,7 @@ import app.tellyscope.adb.Tweak
 import app.tellyscope.adb.installKind
 import app.tellyscope.data.Action
 import app.tellyscope.data.AppInfo
+import app.tellyscope.data.Changelog
 import app.tellyscope.data.ConnectResult
 import app.tellyscope.data.Device
 import app.tellyscope.data.DeviceSource
@@ -298,6 +299,10 @@ data class UiState(
     val alphaBuild: Boolean = false,
     /** A newer release to offer; cleared once the user answers. */
     val update: Update? = null,
+    /** The newest release the last check found; unlike [update] it stays after Later, for What's new. */
+    val available: Update? = null,
+    /** What's new's CHANGELOG sections past the installed version, once [available] is set: empty until read, null if they couldn't be. */
+    val newer: List<Changelog.Release>? = emptyList(),
     /** A Remote key press vibrates. */
     val keyHaptics: Boolean = true,
     /** The TVs whose picture the Remote turned off. */
@@ -1782,7 +1787,7 @@ class TellyscopeViewModel(
         if (updateJob?.isActive == true || _state.value.update != null) return
         updateJob = viewModelScope.launch(Dispatchers.IO) {
             // Null on any failure: no offer looks the same as no newer release.
-            u.check()?.let { found -> _state.update { it.copy(update = found) } }
+            u.check()?.let { found -> _state.update { it.copy(update = found, available = found) } }
         }
     }
 
@@ -1794,8 +1799,23 @@ class TellyscopeViewModel(
     /** "Skip this version": never offered again; a later release still is. */
     fun skipUpdate() {
         val version = _state.value.update?.version ?: return
-        _state.update { it.copy(update = null) }
+        _state.update { it.copy(update = null, available = null) }
         viewModelScope.launch(Dispatchers.IO) { updates?.skip(version) }
+    }
+
+    /** What's new's Update card: the update check's offer again. */
+    fun reopenUpdate() {
+        _state.update { it.copy(update = it.available) }
+    }
+
+    /** What's new is open and an update is known: read the versions in between from GitHub. */
+    fun loadNewer() {
+        val u = updates ?: return
+        if (_state.value.available == null) return
+        viewModelScope.launch(Dispatchers.IO) {
+            val newer = u.newer()
+            _state.update { it.copy(newer = newer) }
+        }
     }
 
     /** Folds or opens [tab]'s System section, and keeps it that way across restarts. */
