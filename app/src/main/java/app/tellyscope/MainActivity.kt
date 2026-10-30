@@ -45,6 +45,7 @@ import app.tellyscope.adb.Connector
 import app.tellyscope.adb.StatsProfile
 import app.tellyscope.data.AdbDeviceSource
 import app.tellyscope.data.AndroidLauncherDownload
+import app.tellyscope.data.AndroidSelfUpdate
 import app.tellyscope.data.AndroidPhoneStorage
 import app.tellyscope.data.Device
 import app.tellyscope.data.DeviceState
@@ -133,6 +134,7 @@ class MainActivity : ComponentActivity() {
                                         historySeen = SeenBook(File(filesDir, "history-seen.properties")),
                                         appFacts = AppFacts(installedVersion(), "${Build.MANUFACTURER} ${Build.MODEL}, Android ${Build.VERSION.RELEASE}"),
                                         launcherDownload = if (scenario != null) null else AndroidLauncherDownload(applicationContext),
+                                        selfUpdate = if (scenario != null) null else AndroidSelfUpdate(applicationContext),
                                     )
                                 }
                             },
@@ -223,11 +225,19 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
     val saveScreenshot = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("image/png"), vm::screenshotTo)
 
     state.update?.let { u ->
-        UpdateDialog(u, onGet = { vm.updateLater(); runCatching { browser.openUri(u.url) } }, onLater = vm::updateLater, onSkip = vm::skipUpdate)
+        UpdateDialog(
+            u, state.updating,
+            onUpdate = vm::startUpdate,
+            onRelease = { vm.updateLater(); runCatching { browser.openUri(u.url) } },
+            onCancel = vm::updateLater,
+            onOpenSettings = vm::openInstallSettings,
+            onBack = vm::backToOffer,
+        )
     }
 
     // On every return to the app, not just a cold start; the check itself enforces the interval.
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { vm.checkForUpdate() }
+    // Back from Install unknown apps with it allowed, the update download starts.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { vm.checkForUpdate(); vm.resumeUpdate() }
     // In the background nothing reads the TVs or sweeps the LAN; back on screen, everything picks up again.
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { vm.pause() }
     LifecycleEventEffect(Lifecycle.Event.ON_START) { vm.resume() }
