@@ -703,8 +703,8 @@ class ScreenshotTest {
         shot("96_whats_new") { whatsNew(opened)() }
         compose.onNodeWithText("Installed").assertExists()
         compose.onAllNodesWithText("NEW")[0].assertExists()
-        compose.onAllNodes(SemanticsMatcher("opens #231") { it.config.getOrNull(SemanticsActions.OnClick)?.label == "#231" })[0].performClick()
-        assertEquals(listOf(Changelog.pullUrl(231)), opened)
+        compose.onAllNodes(SemanticsMatcher("opens #267") { it.config.getOrNull(SemanticsActions.OnClick)?.label == "#267" })[0].performClick()
+        assertEquals(listOf(Changelog.pullUrl(267)), opened)
     }
 
     @Test fun whatsNew_dark() = shot("96_whats_new", dark = true) { whatsNew()() }
