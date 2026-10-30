@@ -904,6 +904,13 @@
     <string name="settings_report">报告问题</string>
     <string name="settings_report_text">在 Tellyscope 的 GitHub 上创建 issue。发送前你会先看到内容。</string>
     <string name="settings_share_hint">把 Tellyscope 的 GitHub 页面链接发给别人。</string>
+    <string name="settings_whats_new">新功能</string>
+    <string name="settings_whats_new_text">这个版本和之前版本的变化。</string>
+    <string name="whats_new_back">返回设置</string>
+    <string name="whats_new_installed">已安装</string>
+    <string name="whats_new_new">新增</string>
+    <string name="whats_new_improved">改进</string>
+    <string name="whats_new_fixed">修复</string>
     <string name="settings_advanced">高级</string>
     <string name="settings_change">更改</string>
     <string name="settings_change_text">粘贴包含 index.json 的 HTTPS 原始文件夹地址，例如 raw.githubusercontent.com/&lt;you&gt;/tellyscope-devices/main/</string>

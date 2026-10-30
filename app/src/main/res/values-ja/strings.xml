@@ -904,6 +904,13 @@
     <string name="settings_report">問題を報告</string>
     <string name="settings_report_text">Tellyscope の GitHub で issue を作成します。送信前に内容を確認できます。</string>
     <string name="settings_share_hint">Tellyscope の GitHub ページへのリンクを送ります。</string>
+    <string name="settings_whats_new">新機能</string>
+    <string name="settings_whats_new_text">このバージョンとそれ以前のバージョンの変更点です。</string>
+    <string name="whats_new_back">設定に戻る</string>
+    <string name="whats_new_installed">インストール済み</string>
+    <string name="whats_new_new">新機能</string>
+    <string name="whats_new_improved">改善</string>
+    <string name="whats_new_fixed">修正</string>
     <string name="settings_advanced">詳細設定</string>
     <string name="settings_change">変更</string>
     <string name="settings_change_text">index.json を含む HTTPS の raw フォルダを貼り付けてください。例: raw.githubusercontent.com/&lt;you&gt;/tellyscope-devices/main/</string>
