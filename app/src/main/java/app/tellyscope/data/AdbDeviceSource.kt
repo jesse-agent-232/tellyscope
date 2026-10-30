@@ -108,6 +108,8 @@ class AdbDeviceSource(context: Context) : DeviceSource {
     private val labels = ConcurrentHashMap<String, String>()
     /** Per TV, the session [fireHome] read on and the launcher it found. */
     private val fireHomes = ConcurrentHashMap<String, Pair<AdbSession, String?>>()
+    /** Per TV, the session [volumeKeys] read on and the keys per tap it worked out. */
+    private val volumeSteps = ConcurrentHashMap<String, Pair<AdbSession, Int>>()
     /** The remote's key helper on each TV, while the remote is open. */
     private val keyHelpers = ConcurrentHashMap<String, KeyHelper>()
     private val helperDex by lazy { appContext.assets.open("label-helper.jar").use { it.readBytes() } }
@@ -236,6 +238,7 @@ class AdbDeviceSource(context: Context) : DeviceSource {
         watchers.remove(deviceId)?.cancel()
         keyHelpers.remove(deviceId)?.close()
         fireHomes -= deviceId
+        volumeSteps -= deviceId
         links.remove(deviceId)?.disconnect()
         hits.remove(deviceId)
         restoring -= deviceId
@@ -898,7 +901,18 @@ class AdbDeviceSource(context: Context) : DeviceSource {
 
     override suspend fun press(deviceId: String, key: RemoteKey) = busy(deviceId) {
         if (key == RemoteKey.HOME && deviceKind(device(deviceId)) == DeviceKind.FireTv) remote(deviceId).home(fireHome(deviceId))
+        else if (key == RemoteKey.VOLUME_UP || key == RemoteKey.VOLUME_DOWN) remote(deviceId).press(key, volumeKeys(deviceId))
         else remote(deviceId).press(key)
+    }
+
+    /**
+     * Keys per volume tap, so a tap moves about 1/[Remote.VOLUME_STEPS] of the range on any TV. Read
+     * once per session; a reconnect reads it again.
+     */
+    private suspend fun volumeKeys(deviceId: String): Int {
+        val session = session(deviceId)
+        volumeSteps[deviceId]?.takeIf { it.first === session }?.let { return it.second }
+        return Remote.volumeKeys(Remote(session).volumeMax()).also { volumeSteps[deviceId] = session to it }
     }
 
     /**
