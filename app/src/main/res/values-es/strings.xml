@@ -988,6 +988,13 @@
     <string name="settings_report">Informar de un problema</string>
     <string name="settings_report_text">Abre una incidencia en el GitHub de Tellyscope. Primero ves el texto.</string>
     <string name="settings_share_hint">Envía a alguien el enlace a la página de Tellyscope en GitHub.</string>
+    <string name="settings_whats_new">Novedades</string>
+    <string name="settings_whats_new_text">Qué cambió en esta versión y en las anteriores.</string>
+    <string name="whats_new_back">Volver a Ajustes</string>
+    <string name="whats_new_installed">Instalada</string>
+    <string name="whats_new_new">Nuevo</string>
+    <string name="whats_new_improved">Mejorado</string>
+    <string name="whats_new_fixed">Corregido</string>
     <string name="settings_advanced">Avanzado</string>
     <string name="settings_change">Cambiar</string>
     <string name="settings_change_text">Pega la carpeta raw HTTPS que contiene index.json, p. ej., raw.githubusercontent.com/&lt;tu-usuario&gt;/tellyscope-devices/main/</string>

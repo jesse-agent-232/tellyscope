@@ -1030,6 +1030,13 @@
     <string name="settings_report">Сообщить о проблеме</string>
     <string name="settings_report_text">Открывает issue в репозитории Tellyscope на GitHub. Сначала вы увидите текст.</string>
     <string name="settings_share_hint">Отправьте кому-нибудь ссылку на страницу Tellyscope на GitHub.</string>
+    <string name="settings_whats_new">Что нового</string>
+    <string name="settings_whats_new_text">Что изменилось в этой версии и в предыдущих.</string>
+    <string name="whats_new_back">Назад к настройкам</string>
+    <string name="whats_new_installed">Установлена</string>
+    <string name="whats_new_new">Новое</string>
+    <string name="whats_new_improved">Улучшено</string>
+    <string name="whats_new_fixed">Исправлено</string>
     <string name="settings_advanced">Дополнительно</string>
     <string name="settings_change">Изменить</string>
     <string name="settings_change_text">Вставьте адрес HTTPS-папки raw, в которой лежит index.json, например raw.githubusercontent.com/&lt;you&gt;/tellyscope-devices/main/</string>
