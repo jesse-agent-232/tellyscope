@@ -1179,6 +1179,13 @@
     <string name="settings_report">Report a problem</string>
     <string name="settings_report_text">Opens an issue on Tellyscope’s GitHub. You see the text first.</string>
     <string name="settings_share_hint">Send someone the link to Tellyscope’s GitHub page.</string>
+    <string name="settings_whats_new">What’s new</string>
+    <string name="settings_whats_new_text">What changed in this version and the ones before it.</string>
+    <string name="whats_new_back">Back to Settings</string>
+    <string name="whats_new_installed">Installed</string>
+    <string name="whats_new_new">New</string>
+    <string name="whats_new_improved">Improved</string>
+    <string name="whats_new_fixed">Fixed</string>
     <string name="settings_advanced">Advanced</string>
     <!-- Heading: how to change where the debloat lists come from -->
     <string name="settings_change">Change</string>

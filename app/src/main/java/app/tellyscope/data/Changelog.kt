@@ -15,7 +15,7 @@ object Changelog {
      */
     fun pullUrl(pr: Int) = RELEASES.removeSuffix("/releases") + "/pull/$pr"
 
-    enum class Kind(val label: String) { New("New"), Improved("Improved"), Fixed("Fixed") }
+    enum class Kind { New, Improved, Fixed }
 
     /** One change. [pr] is the pull request it links to, if any; [details] are its indented points. */
     data class Change(val kind: Kind?, val text: String, val pr: Int?, val details: List<String> = emptyList())
