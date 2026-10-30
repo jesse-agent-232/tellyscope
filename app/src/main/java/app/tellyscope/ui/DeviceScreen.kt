@@ -176,16 +176,16 @@ internal fun SystemWidget(usedGb: Double?, totalGb: Double?, live: Snapshot?, as
             }
             Row {
                 Vital("CPU", live?.let { "${it.cpuPercent}%" } ?: dash, Modifier.weight(1f))
-                Vital("RAM", live?.takeIf { it.ramTotalMb > 0 }?.let { "${it.ramUsedMb * 100 / it.ramTotalMb}%" } ?: dash, Modifier.weight(1f))
-                Vital("Network", live?.netBytesPerSec?.let(Copy::speed) ?: dash, Modifier.weight(1.3f))
+                Vital("RAM", live?.takeIf { it.ramTotalMb > 0 }?.let { "${it.ramUsedMb * 100 / it.ramTotalMb}%" } ?: dash, Modifier.weight(1f), Alignment.CenterHorizontally)
+                Vital("Network", live?.netBytesPerSec?.let(Copy::speed) ?: dash, Modifier.weight(1f), Alignment.End)
             }
         }
     }
 }
 
 @Composable
-private fun Vital(label: String, value: String, modifier: Modifier = Modifier) {
-    Column(modifier) {
+private fun Vital(label: String, value: String, modifier: Modifier = Modifier, align: Alignment.Horizontal = Alignment.Start) {
+    Column(modifier, horizontalAlignment = align) {
         Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(value, style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"), maxLines = 1)
     }
