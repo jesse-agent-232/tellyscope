@@ -715,9 +715,11 @@ class ScreenshotTest {
         var updates = 0
         shot("97_whats_new_update") { whatsNewUpdate(newer = true) { updates++ }() }
         compose.onNodeWithText("Not installed").assertExists()
-        compose.onNodeWithText("Installed").assertExists()
         compose.onNodeWithText("Update").performClick()
         assertEquals(1, updates)
+        // A long newest section pushes the installed one off screen, where the list hasn't drawn it yet.
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Installed"))
+        compose.onNodeWithText("Installed").assertExists()
     }
 
     @Test fun whatsNew_updateWaiting_dark() = shot("97_whats_new_update", dark = true) { whatsNewUpdate(newer = true)() }
