@@ -2,9 +2,11 @@
 
 package app.tellyscope
 
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import app.tellyscope.data.Action
@@ -40,6 +42,14 @@ class BusyGatingTest {
         compose.onNodeWithText("Example").performClick()
         compose.onNodeWithText(Copy.button(Action.Disable).text()).assertIsNotEnabled()
         compose.onNodeWithText(Copy.button(Action.Uninstall).text()).assertIsNotEnabled()
+    }
+
+    @Test fun offlineRowSaysNothingAndWontOpen() {
+        // Away, what the row last heard is stale: no status line, and a tap opens nothing.
+        compose.setContent { AppRow(app, emptyList(), null, busy = false, actions = DeviceActions(), offline = true) }
+        compose.onNodeWithText("Example").performClick()
+        compose.onAllNodesWithText(Copy.button(Action.Disable).text()).assertCountEquals(0)
+        compose.onAllNodesWithText("Not running").assertCountEquals(0)
     }
 
     @Test fun confirmWaitsWhileTheTvIsBusy() {

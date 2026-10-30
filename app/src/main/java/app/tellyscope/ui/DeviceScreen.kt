@@ -410,11 +410,13 @@ internal fun AppRow(
     locked: Boolean = false,
     /** Opens the Home screen card in Tweaks, where launchers are switched. */
     toHomeScreen: () -> Unit = {},
+    /** The TV is away: what the row last heard is stale, so it greys out, says nothing and won't open. */
+    offline: Boolean = false,
 ) {
     var open by rememberSaveable(app.packageName) { mutableStateOf(false) }
     // A launcher can be protected and still open, for the way to the Home screen card.
     val launcher = app.answersHome || app.builtInLauncher
-    val changeable = app.protectedReason == null || launcher
+    val changeable = (app.protectedReason == null || launcher) && !offline
     val ram = procs.filter { it.packageName == app.packageName }.sumOf { it.ramMb }
     val status = stringResource(
         when {
@@ -423,20 +425,22 @@ internal fun AppRow(
             else -> R.string.device_app_not_running
         },
     )
-    Column(Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).clickable(enabled = changeable) { open = !open }.padding(vertical = 8.dp)) {
+    Column(Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).clickable(enabled = changeable) { open = !open }.padding(vertical = 8.dp).alpha(if (offline) 0.38f else 1f)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            AppIcon(app, Modifier.alpha(if (app.enabled) 1f else 0.4f))
+            AppIcon(app, Modifier.alpha(if (app.enabled || offline) 1f else 0.4f))
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(app.label, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(
-                    app.protectedReason?.let { stringResource(R.string.device_app_protected, it.resolve()) } ?: status,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                if (app.homeServiceOff) Text(Copy.SERVICE_OFF.resolve(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (!offline) {
+                    Text(
+                        app.protectedReason?.let { stringResource(R.string.device_app_protected, it.resolve()) } ?: status,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (app.homeServiceOff) Text(Copy.SERVICE_OFF.resolve(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
-            if (busy) androidx.compose.material3.LoadingIndicator(Modifier.size(32.dp))
+            if (busy && !offline) androidx.compose.material3.LoadingIndicator(Modifier.size(32.dp))
         }
         // Home switches are asked for in the Home screen card, not here.
         val proposed = pending?.takeIf { it.first == app.packageName }?.second?.takeUnless { it == Action.Home || it == Action.HomeBack }
