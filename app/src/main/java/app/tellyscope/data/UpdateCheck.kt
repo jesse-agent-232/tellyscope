@@ -18,8 +18,11 @@ private const val RELEASES_API = "https://api.github.com/repos/man15h/tellyscope
 private const val RELEASE_INTERVAL_MS = 30 * 60 * 1000L
 private const val ALPHA_INTERVAL_MS = 5 * 60 * 1000L
 
-/** A newer Tellyscope than the one running. [apk] is its release's APK, [size] bytes; null when the release has none. */
-data class Update(val version: String, val notes: String, val url: String, val apk: String? = null, val size: Long = 0)
+/** Tellyscope is about 3 MB; an APK far past that isn't it. */
+private const val MAX_APK_BYTES = 64L shl 20
+
+/** A newer Tellyscope than the one running. [apk] is its release's APK link; null when the release has none this build can install. */
+data class Update(val version: String, val notes: String, val url: String, val apk: String? = null)
 
 /**
  * Asks GitHub, at most every 30 minutes (5 minutes on alpha builds), whether a newer release is out. No auth and no download: it
@@ -104,8 +107,8 @@ fun newest(json: String, alpha: Boolean): Update? = runCatching {
             // build can update to: alpha and release builds are different packages with different keys.
             val apk = if ((parsed.alpha != null) != alpha) null else r.optJSONArray("assets")?.let { a -> (0 until a.length()).map(a::getJSONObject) }.orEmpty()
                 .singleOrNull { it.optString("name").endsWith(".apk") }
-                ?.takeIf { it.optString("browser_download_url").startsWith("$RELEASES/download/") && it.optLong("size") in 1..MAX_SELF_APK_BYTES }
-            Update(version, r.optString("body").trim(), "$RELEASES/tag/v$version", apk?.optString("browser_download_url"), apk?.optLong("size") ?: 0)
+                ?.takeIf { it.optString("browser_download_url").startsWith("$RELEASES/download/") && it.optLong("size") in 1..MAX_APK_BYTES }
+            Update(version, r.optString("body").trim(), "$RELEASES/tag/v$version", apk?.optString("browser_download_url"))
         }
         .maxWithOrNull { a, b -> compareVersions(a.version, b.version) }
 }.getOrNull()

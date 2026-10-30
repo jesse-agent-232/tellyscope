@@ -1172,8 +1172,8 @@
     <string name="settings_title">Settings</string>
     <string name="settings_back_to_tv">Back to the TV\'s page</string>
     <string name="settings_check_updates">Check for updates</string>
-    <string name="settings_check_updates_alpha">Every 5 minutes on alpha builds, ask GitHub whether a newer Tellyscope is out. Nothing is downloaded until you tap Update.</string>
-    <string name="settings_check_updates_release">Every 30 minutes, ask GitHub whether a newer Tellyscope is out. Nothing is downloaded until you tap Update.</string>
+    <string name="settings_check_updates_alpha">Every 5 minutes on alpha builds, ask GitHub whether a newer Tellyscope is out. Nothing is downloaded.</string>
+    <string name="settings_check_updates_release">Every 30 minutes, ask GitHub whether a newer Tellyscope is out. Nothing is downloaded.</string>
     <string name="settings_key_haptics">Vibrate on key press</string>
     <string name="settings_key_haptics_text">A short tick for each key on the Remote.</string>
     <string name="settings_report">Report a problem</string>
@@ -1382,17 +1382,9 @@
     <string name="update_no_notes">No release notes.</string>
     <!-- Last line when the release notes are cut short. -->
     <string name="update_more_notes">…and more on GitHub</string>
-    <string name="update_install">Update</string>
-    <string name="update_release">Get new release</string>
+    <string name="update_download">Download APK</string>
+    <string name="update_release">Check release</string>
     <string name="update_cancel">Cancel</string>
-    <string name="update_allow_title">Let Tellyscope install updates?</string>
-    <string name="update_allow_text">Android asks once. On the next screen, turn on **Allow from this source**, then come back here.\n\nAndroid still asks you to confirm every update, and only accepts one signed like the Tellyscope you have.</string>
-    <string name="update_open_settings">Open settings</string>
-    <string name="update_downloading">Downloading %1$s</string>
-    <string name="update_of">%1$s of %2$s</string>
-    <string name="update_failed_title">Couldn\'t download %1$s</string>
-    <string name="update_failed_text">Check the phone is online and try again, or get it from the GitHub release page.</string>
-    <string name="update_try_again">Try again</string>
 
     <!-- Welcome -->
     <string name="welcome_skip">Skip</string>
