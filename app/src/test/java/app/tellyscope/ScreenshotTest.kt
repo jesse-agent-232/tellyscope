@@ -718,7 +718,9 @@ class ScreenshotTest {
         compose.onNodeWithText("Update").performClick()
         assertEquals(1, updates)
         // A long newest section pushes the installed one off screen, where the list hasn't drawn it yet.
-        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Installed"))
+        // By key: shot() stops the clock, so the list never redraws while scrolling to a node, and that never stops.
+        compose.onNode(hasScrollAction()).performScrollToKey(changelog[1].version)
+        compose.mainClock.advanceTimeBy(1_000)
         compose.onNodeWithText("Installed").assertExists()
     }
 
