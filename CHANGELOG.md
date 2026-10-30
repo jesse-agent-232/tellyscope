@@ -12,6 +12,8 @@ until this file has a section for its version.
 
 ## Unreleased
 
+## 0.14.0 — 2026-10-30
+
 - **New:** Tellyscope speaks Hindi when the phone is set to Hindi. It's a first, machine-made translation; corrections are welcome. [#231](../../pull/231)
 - **Improved:** Remote volume moves the full range in about 15 taps, without lag. [#267](../../pull/267)
 - **Improved:** The Temp reading is gone, since many TVs don't let apps read it. [#268](../../pull/268)
