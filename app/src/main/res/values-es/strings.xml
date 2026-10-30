@@ -1020,6 +1020,14 @@
     <string name="connect_check_awake">¿Está la TV encendida y activa?</string>
     <string name="connect_check_denied">¿Se cerró el aviso en la TV o se pulsó Denegar? Vuelve a intentarlo y lo pedirá otra vez.</string>
     <string name="connect_check_restart">Algunas TV desactivan la depuración al reiniciarse. Vuelve a activarla.</string>
+    <string name="connect_cant_reach">No se puede llegar a la TV</string>
+    <string name="connect_off_wifi">Este teléfono no está en Wi-Fi. Conéctate a la misma Wi-Fi que la TV y vuelve a intentarlo.</string>
+    <string name="connect_off_wifi_waiting">Este teléfono no está en Wi-Fi. Conéctate a la misma Wi-Fi que la TV. Tellyscope sigue en cuanto estés conectado.</string>
+    <string name="connect_waiting_wifi">Esperando la Wi-Fi…</string>
+    <string name="connect_tv_silent">Este teléfono está en Wi-Fi, pero la TV no respondió.</string>
+    <string name="connect_check_on">¿Está encendida la TV? Algunas TV se desconectan de la Wi-Fi al suspenderse.</string>
+    <string name="connect_check_same_wifi">¿Misma Wi-Fi que la TV? Una red de invitados las mantiene separadas.</string>
+    <string name="connect_check_new_address">¿La TV tiene una dirección nueva? Vuelve a las TV y toca Volver a buscar.</string>
     <string name="connect_bullet">•  %1$s</string>
     <string name="connect_allow_title">Permite el acceso en tu TV</string>
     <string name="connect_allow_text_key">Aparece un aviso en tu TV. Comprueba que su clave coincida con la de este teléfono, marca **Permitir siempre** y selecciona **Permitir**.</string>

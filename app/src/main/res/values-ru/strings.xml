@@ -1063,6 +1063,14 @@
     <string name="connect_check_awake">Телевизор включен и не в спящем режиме?</string>
     <string name="connect_check_denied">Окно на телевизоре было закрыто или нажата кнопка «Запретить»? Повторите попытку, и запрос появится еще раз.</string>
     <string name="connect_check_restart">Некоторые телевизоры отключают отладку после перезапуска. Включите ее снова.</string>
+    <string name="connect_cant_reach">Не удаётся связаться с телевизором</string>
+    <string name="connect_off_wifi">Этот телефон не подключён к Wi-Fi. Подключитесь к той же сети Wi-Fi, что и телевизор, и попробуйте снова.</string>
+    <string name="connect_off_wifi_waiting">Этот телефон не подключён к Wi-Fi. Подключитесь к той же сети Wi-Fi, что и телевизор. Tellyscope продолжит, как только вы подключитесь.</string>
+    <string name="connect_waiting_wifi">Ожидание Wi-Fi…</string>
+    <string name="connect_tv_silent">Телефон подключён к Wi-Fi, но телевизор не ответил.</string>
+    <string name="connect_check_on">Телевизор включён? Некоторые телевизоры отключаются от Wi-Fi в спящем режиме.</string>
+    <string name="connect_check_same_wifi">Та же сеть Wi-Fi, что и у телевизора? Гостевая сеть их разделяет.</string>
+    <string name="connect_check_new_address">У телевизора новый адрес? Вернитесь к списку телевизоров и нажмите «Искать снова».</string>
     <string name="connect_bullet">•  %1$s</string>
     <string name="connect_allow_title">Разрешите доступ на телевизоре</string>
     <string name="connect_allow_text_key">На телевизоре появится окно. Убедитесь, что ключ совпадает с ключом этого телефона, отметьте **Всегда разрешать** и выберите **Разрешить**.</string>

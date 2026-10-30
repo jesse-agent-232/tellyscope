@@ -934,6 +934,14 @@
     <string name="connect_check_awake">テレビの電源が入っていて、スリープしていませんか？</string>
     <string name="connect_check_denied">テレビの確認画面を閉じたか、「拒否」を押しませんでしたか？もう一度試すと、再度確認画面が表示されます。</string>
     <string name="connect_check_restart">テレビによっては、再起動後にデバッグがオフになります。再びオンにしてください。</string>
+    <string name="connect_cant_reach">テレビに接続できません</string>
+    <string name="connect_off_wifi">このスマホは Wi-Fi につながっていません。テレビと同じ Wi-Fi につないでから、もう一度お試しください。</string>
+    <string name="connect_off_wifi_waiting">このスマホは Wi-Fi につながっていません。テレビと同じ Wi-Fi につないでください。つながるとすぐに Tellyscope が続けます。</string>
+    <string name="connect_waiting_wifi">Wi-Fi を待っています…</string>
+    <string name="connect_tv_silent">このスマホは Wi-Fi につながっていますが、テレビから応答がありません。</string>
+    <string name="connect_check_on">テレビの電源は入っていますか？スリープ中に Wi-Fi から外れるテレビもあります。</string>
+    <string name="connect_check_same_wifi">テレビと同じ Wi-Fi ですか？ゲストネットワークでは互いに見えません。</string>
+    <string name="connect_check_new_address">テレビのアドレスが変わりましたか？テレビ一覧に戻って再スキャンをタップしてください。</string>
     <string name="connect_bullet">•  %1$s</string>
     <string name="connect_allow_title">テレビで許可してください</string>
     <string name="connect_allow_text_key">テレビに確認画面が表示されます。キーがこのスマートフォンのものと一致することを確認し、**[常に許可する]** にチェックを入れてから、**[許可]** を選んでください。</string>

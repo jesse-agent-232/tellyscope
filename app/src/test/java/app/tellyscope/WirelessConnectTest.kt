@@ -12,12 +12,11 @@ import app.tellyscope.data.ScanKind
 import app.tellyscope.ui.Copy
 import app.tellyscope.ui.RowState
 import app.tellyscope.ui.TellyscopeViewModel
+import app.tellyscope.ui.WIFI_POLL_MS
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -33,11 +32,8 @@ import org.junit.Test
 private class Answers : DeviceSource by FakeDeviceSource(FakeDeviceSource.Scenario.Empty, clock = { 0L }) {
     var result: ConnectResult? = null
     var lan = true
-    val lanBack = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
     override fun onLan() = lan
-
-    override fun lanUp(): Flow<Unit> = lanBack
 
     override suspend fun known() = emptyList<Device>()
 
@@ -129,7 +125,7 @@ class WirelessConnectTest {
         test.runCurrent()
         assertEquals(RowState.WaitingForWifi, vm.state.value.scan.rows[classic.ip])
         source.lan = true
-        source.lanBack.tryEmit(Unit)
+        test.advanceTimeBy(WIFI_POLL_MS + 1)
         test.runCurrent()
         assertEquals(RowState.Waiting(0L), vm.state.value.scan.rows[classic.ip])
     }
@@ -140,7 +136,7 @@ class WirelessConnectTest {
         test.runCurrent()
         vm.leaveConnect(classic)
         source.lan = true
-        source.lanBack.tryEmit(Unit)
+        test.advanceTimeBy(WIFI_POLL_MS + 1)
         test.runCurrent()
         assertEquals(RowState.Unreachable(offWifi = true), vm.state.value.scan.rows[classic.ip])
     }
