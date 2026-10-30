@@ -219,6 +219,8 @@ fun ConnectScreen(
                         listOf(
                             stringResource(R.string.connect_check_on),
                             stringResource(R.string.connect_check_same_wifi),
+                            // A TV with debugging off refuses the port outright, so it lands here too.
+                            stringResource(R.string.connect_check_restart),
                             stringResource(R.string.connect_check_new_address),
                         ).forEach { Text(stringResource(R.string.connect_bullet, it), style = MaterialTheme.typography.bodyMedium) }
                     }
@@ -229,7 +231,6 @@ fun ConnectScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 /** The round error badge heading No answer and Can't reach the TV. */
 @Composable
 private fun ProblemIcon(icon: ImageVector) {
@@ -240,6 +241,7 @@ private fun ProblemIcon(icon: ImageVector) {
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun Connecting() {
     Text(stringResource(R.string.connect_connecting), style = MaterialTheme.typography.headlineMedium)

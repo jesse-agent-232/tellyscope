@@ -73,7 +73,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -375,6 +374,9 @@ const val STORE_POLL_MS = 3_000L
 /** An empty scan starts again after this long, unless Rescan is tapped first. */
 const val RESCAN_EVERY_MS = 10_000L
 
+/** How often a connect waiting for Wi-Fi looks again. */
+const val WIFI_POLL_MS = 2_000L
+
 /** How long it keeps asking before it says the launcher didn't arrive. */
 const val STORE_WAIT_MS = 10 * 60_000L
 
@@ -606,7 +608,8 @@ class TellyscopeViewModel(
         if (!source.onLan()) {
             setRow(hit.ip, RowState.WaitingForWifi)
             wifiWait = viewModelScope.launch {
-                source.lanUp().firstOrNull() ?: return@launch
+                // Polled rather than lanUp(), which stays silent while a VPN is up.
+                while (!source.onLan()) delay(WIFI_POLL_MS)
                 wifiWait = null
                 connect(hit)
             }

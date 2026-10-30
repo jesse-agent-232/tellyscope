@@ -934,6 +934,14 @@
     <string name="connect_check_awake">电视是否已开机并处于唤醒状态？</string>
     <string name="connect_check_denied">电视上的对话框是否已关闭，或按了“拒绝”？请重试，它会再次询问。</string>
     <string name="connect_check_restart">部分电视重启后会关闭调试。请重新开启。</string>
+    <string name="connect_cant_reach">无法连接到电视</string>
+    <string name="connect_off_wifi">这部手机没有连接 Wi-Fi。连接到电视所在的 Wi-Fi，然后重试。</string>
+    <string name="connect_off_wifi_waiting">这部手机没有连接 Wi-Fi。连接到电视所在的 Wi-Fi。一连上，Tellyscope 就会继续。</string>
+    <string name="connect_waiting_wifi">正在等待 Wi-Fi…</string>
+    <string name="connect_tv_silent">这部手机已连接 Wi-Fi，但电视没有响应。</string>
+    <string name="connect_check_on">电视开着吗？有些电视休眠时会断开 Wi-Fi。</string>
+    <string name="connect_check_same_wifi">和电视在同一个 Wi-Fi 上吗？访客网络会把它们隔开。</string>
+    <string name="connect_check_new_address">电视换了新地址？返回电视列表，点重新扫描。</string>
     <string name="connect_bullet">•  %1$s</string>
     <string name="connect_allow_title">在电视上允许</string>
     <string name="connect_allow_text_key">电视上会弹出一个对话框。请确认其密钥与此手机的一致，勾选 **一律允许**，然后选择 **允许**。</string>

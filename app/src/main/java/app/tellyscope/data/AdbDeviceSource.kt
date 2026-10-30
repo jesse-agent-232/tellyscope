@@ -265,7 +265,16 @@ class AdbDeviceSource(context: Context) : DeviceSource {
             .distinct()
     }
 
-    override fun onLan() = lanHosts().isNotEmpty()
+    /** Unlike [lanHosts], a VPN on top doesn't count as off Wi-Fi: connect can still reach the TV. */
+    override fun onLan(): Boolean {
+        val cm = appContext.getSystemService(ConnectivityManager::class.java) ?: return true
+        @Suppress("DEPRECATION") // the only synchronous list of every network, VPN's underlying one included
+        return cm.allNetworks.any { n ->
+            cm.getNetworkCapabilities(n)?.let {
+                it.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) || it.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+            } == true
+        }
+    }
 
     override fun lanUp(): Flow<Unit> = callbackFlow {
         val cm = appContext.getSystemService(ConnectivityManager::class.java) ?: run { close(); return@callbackFlow }
