@@ -13,7 +13,7 @@ until this file has a section for its version.
 ## Unreleased
 
 - **New:** Spanish, Chinese and Japanese translations, machine-made; corrections welcome. [#272](../../pull/272)
-- **Improved:** Hindi is gone for now to keep the app small; Hindi phones show English. [#PR](../../pull/PR)
+- **Improved:** Hindi is gone for now to keep the app small; Hindi phones show English. [#275](../../pull/275)
 
 ## 0.14.0 — 2026-10-30
 
