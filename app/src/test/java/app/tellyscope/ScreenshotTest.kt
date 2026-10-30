@@ -20,6 +20,8 @@ import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.activity.OnBackPressedDispatcher
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
@@ -119,6 +121,8 @@ import app.tellyscope.ui.ReportKind
 import app.tellyscope.ui.ReportScreen
 import app.tellyscope.ui.ReportUi
 import app.tellyscope.ui.SettingsScreen
+import app.tellyscope.ui.WhatsNewScreen
+import app.tellyscope.data.Changelog
 import app.tellyscope.ui.SHARE_TEXT
 import app.tellyscope.data.RELEASES
 import androidx.compose.ui.platform.UriHandler
@@ -672,6 +676,38 @@ class ScreenshotTest {
     @Test fun settings_dark() = shot("81_settings", dark = true) { settings()() }
     @Test fun settings_advanced() = shot("82_settings_advanced", before = { compose.onNodeWithText("Advanced").performClick(); Unit }) { settings()() }
     @Test fun settings_advanced_dark() = shot("82_settings_advanced", dark = true, before = { compose.onNodeWithText("Advanced").performClick(); Unit }) { settings()() }
+
+    @Test fun settings_whatsNewOpens() {
+        var opened = 0
+        compose.setContent {
+            TellyscopeTheme(dark = false, dynamic = false) {
+                SettingsScreen(null, onListSource = {}, checkUpdates = true, alphaBuild = false, onCheckUpdates = {}, back = {}, onWhatsNew = { opened++ })
+            }
+        }
+        compose.onNodeWithText("What’s new").performClick()
+        assertEquals(1, opened)
+    }
+
+    /** The repo's own CHANGELOG.md, as bundled, with the newest release installed as an alpha. */
+    private fun whatsNew(opened: MutableList<String> = mutableListOf()) = @Composable {
+        val file = generateSequence(File("").absoluteFile) { it.parentFile }.map { File(it, Changelog.ASSET) }.first { it.exists() }
+        val releases = Changelog.parse(file.readText())
+        val links = object : UriHandler { override fun openUri(uri: String) { opened += uri } }
+        CompositionLocalProvider(LocalUriHandler provides links) {
+            WhatsNewScreen(releases, back = {}, installed = releases.first().version + "-alpha.1")
+        }
+    }
+
+    @Test fun whatsNew_installedAndLinks() {
+        val opened = mutableListOf<String>()
+        shot("96_whats_new") { whatsNew(opened)() }
+        compose.onNodeWithText("Installed").assertExists()
+        compose.onAllNodesWithText("NEW")[0].assertExists()
+        compose.onAllNodes(SemanticsMatcher("opens #231") { it.config.getOrNull(SemanticsActions.OnClick)?.label == "#231" })[0].performClick()
+        assertEquals(listOf(Changelog.pullUrl(231)), opened)
+    }
+
+    @Test fun whatsNew_dark() = shot("96_whats_new", dark = true) { whatsNew()() }
 
     private fun appMenu(dark: Boolean) {
         val open = {

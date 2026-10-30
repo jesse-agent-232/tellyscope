@@ -496,7 +496,7 @@ private fun AboutLink(label: String, url: String, open: (String) -> Unit) {
 }
 
 @Composable
-private fun installedVersion(): String {
+internal fun installedVersion(): String {
     val context = LocalContext.current
     @Suppress("DEPRECATION") // the flags overload is API 33+
     return remember { context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty() }

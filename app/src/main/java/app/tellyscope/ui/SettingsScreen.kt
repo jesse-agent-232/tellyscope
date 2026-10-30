@@ -82,8 +82,8 @@ internal fun shareTellyscope(context: Context) {
 }
 
 /**
- * App-wide choices, not tied to one TV: update checks, Report a problem and Share Tellyscope first, then a folded
- * Advanced with where the debloat lists come from and how to use your own.
+ * App-wide choices, not tied to one TV: update checks, What's new, Report a problem and Share Tellyscope first,
+ * then a folded Advanced with where the debloat lists come from and how to use your own.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -100,6 +100,7 @@ fun SettingsScreen(
     keyHaptics: Boolean = true,
     onKeyHaptics: (Boolean) -> Unit = {},
     onReport: () -> Unit = {},
+    onWhatsNew: () -> Unit = {},
     snackbar: SnackbarHostState = remember { SnackbarHostState() },
 ) {
     var editing by rememberSaveable { mutableStateOf(false) }
@@ -155,6 +156,17 @@ fun SettingsScreen(
                         }
                         Spacer(Modifier.width(16.dp))
                         Switch(checked = keyHaptics, onCheckedChange = null)
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.surface)
+                    Row(Modifier.fillMaxWidth().clickable(onClick = onWhatsNew).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(NewReleases, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(Modifier.width(16.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(stringResource(R.string.settings_whats_new), style = MaterialTheme.typography.titleSmall)
+                            Text(stringResource(R.string.settings_whats_new_text), style = MaterialTheme.typography.bodyMedium)
+                        }
+                        Spacer(Modifier.width(16.dp))
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
                     }
                     HorizontalDivider(color = MaterialTheme.colorScheme.surface)
                     Row(Modifier.fillMaxWidth().clickable(onClick = onReport).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
