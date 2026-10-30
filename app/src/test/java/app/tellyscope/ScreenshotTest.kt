@@ -136,7 +136,6 @@ import java.io.File
 import java.io.IOException
 import java.io.RandomAccessFile
 import java.nio.file.Files
-import java.security.MessageDigest
 import kotlin.random.Random
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -1146,21 +1145,18 @@ class ScreenshotTest {
     private fun realIcon(pkg: String): ByteArray? = javaClass.classLoader?.getResourceAsStream("dock-icons/$pkg.png")?.use { it.readBytes() }
 
     /**
-     * [body] with the Remote's lists offline but holding these services' real logos, as on a phone
-     * that has downloaded them; test resources only (see NOTICE). The lists go back to none after.
+     * [body] with the Remote's lists offline but holding these services' logos, fetched from
+     * tellyscope-devices into a temp cache as a phone would; without the network the buttons show
+     * their names instead. The lists go back to none after.
      */
     private fun withLogos(vararg names: String, body: () -> Unit) {
-        fun sha256(b: ByteArray) = MessageDigest.getInstance("SHA-256").digest(b).joinToString("") { "%02x".format(it) }
         val offline: suspend (String) -> ByteArray = { throw IOException("offline") }
         val dir = Files.createTempDirectory("logos").toFile()
-        val logos = names.joinToString { n ->
-            val png = javaClass.classLoader!!.getResourceAsStream("streaming-logos/$n.png")!!.use { it.readBytes() }
-            File(dir, "logos").mkdirs()
-            File(dir, "logos/$n.png").writeBytes(png)
-            """"$n": {"file": "logos/$n.png", "sha256": "${sha256(png)}"}"""
+        runBlocking {
+            val online = DeviceLists(dir)
+            if (online.index() != null) names.forEach { online.logo(it) }
+            SharedLists.load(DeviceLists(dir, offline))
         }
-        File(dir, "index.json").writeText("""{"schema": 1, "devices": [], "logos": {$logos}}""")
-        runBlocking { SharedLists.load(DeviceLists(dir, offline)) }
         try { body() } finally {
             runBlocking { SharedLists.load(DeviceLists(Files.createTempDirectory("none").toFile(), offline)) }
             dir.deleteRecursively()
