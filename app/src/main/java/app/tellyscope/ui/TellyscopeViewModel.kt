@@ -79,6 +79,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 
 /** Per-row connect state on the scan screen. */
 sealed interface RowState {
@@ -420,6 +421,11 @@ class TellyscopeViewModel(
 
     /** Keys go out one at a time, in the order pressed. */
     private val keys = Mutex()
+    /**
+     * A volume tap is waiting for [keys]. Further taps while it waits are dropped rather than queued,
+     * so a burst of taps can't keep a slow TV changing volume after the thumb stops.
+     */
+    private val volumeWaiting = AtomicBoolean(false)
     /**
      * Per TV, the letters the Remote typed that are still in the TV's text box, as far as the phone
      * knows. Backspace deletes only these: on an empty box Delete acts as Back, and YouTube closes.
@@ -1825,7 +1831,10 @@ class TellyscopeViewModel(
      */
     suspend fun press(key: RemoteKey): Boolean {
         val id = _state.value.selectedId ?: return false
+        val volume = key == RemoteKey.VOLUME_UP || key == RemoteKey.VOLUME_DOWN
+        if (volume && !volumeWaiting.compareAndSet(false, true)) return true
         return keys.withLock {
+            if (volume) volumeWaiting.set(false)
             try {
                 // With the picture off, any key wakes it, the way a TV's own remote does, and does nothing else.
                 if (id in _state.value.screenOff) return@withLock wake(id)
