@@ -83,6 +83,10 @@ class UpdateCheckTest {
         assertNull(newest(withAsset("https://example.com/Tellyscope-0.2.0.apk", 3_000_000), alpha = false)?.apk)
         assertNull(newest(withAsset(base + "Tellyscope-0.2.0.apk", 0), alpha = false)?.apk)
         assertNull(newest(releases(release("v0.2.0")), alpha = false)?.apk)
+        // An alpha build is a different package: it's offered the release, but only its page.
+        val offered = newest(withAsset(base + "Tellyscope-0.2.0.apk", 3_000_000), alpha = true)
+        assertEquals("0.2.0", offered?.version)
+        assertNull(offered?.apk)
     }
 
     @Test fun `nothing when the running version is the newest`() = runTest {

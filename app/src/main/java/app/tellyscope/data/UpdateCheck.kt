@@ -100,8 +100,9 @@ fun newest(json: String, alpha: Boolean): Update? = runCatching {
             // A release build never offers an alpha; an alpha build offers both.
             if (parsed.alpha != null && !alpha) return@mapNotNull null
             if (r.optBoolean("prerelease") && parsed.alpha == null) return@mapNotNull null
-            // Only an APK served from this repo's releases, of a plausible size.
-            val apk = r.optJSONArray("assets")?.let { a -> (0 until a.length()).map(a::getJSONObject) }.orEmpty()
+            // Only an APK served from this repo's releases, of a plausible size, and only one this
+            // build can update to: alpha and release builds are different packages with different keys.
+            val apk = if ((parsed.alpha != null) != alpha) null else r.optJSONArray("assets")?.let { a -> (0 until a.length()).map(a::getJSONObject) }.orEmpty()
                 .singleOrNull { it.optString("name").endsWith(".apk") }
                 ?.takeIf { it.optString("browser_download_url").startsWith("$RELEASES/download/") && it.optLong("size") in 1..MAX_SELF_APK_BYTES }
             Update(version, r.optString("body").trim(), "$RELEASES/tag/v$version", apk?.optString("browser_download_url"), apk?.optLong("size") ?: 0)

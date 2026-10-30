@@ -80,6 +80,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -483,6 +484,8 @@ class TellyscopeViewModel(
     private var launcherJob: Job? = null
     private var updateJob: Job? = null
     private var selfUpdateJob: Job? = null
+    /** An update downloaded while the app was in the background, for the installer on return. */
+    private var readyApk: File? = null
     /** The clock and the device refresh, every second. */
     private var tickJob: Job? = null
     /** In the background since [pause]; [resume] starts everything again. */
@@ -1832,9 +1835,10 @@ class TellyscopeViewModel(
                 _state.update { it.copy(updating = Updating.Failed) }
                 return@launch
             }
-            // Android's own confirm takes over from here.
+            // Android's own confirm takes over from here. Android 10+ blocks it from the background
+            // without a word, so a download that ends there waits for the app to come back.
             _state.update { it.copy(update = null, updating = null) }
-            runCatching { s.install(apk) }
+            if (paused) readyApk = apk else runCatching { s.install(apk) }
         }
     }
 
@@ -1843,8 +1847,12 @@ class TellyscopeViewModel(
         runCatching { selfUpdate?.openSettings() }
     }
 
-    /** Back in the app: if the user just allowed installs, the download starts without a second tap. */
+    /**
+     * Back in the app: a download that finished in the background goes to the installer now, and if
+     * the user just allowed installs, the download starts without a second tap.
+     */
     fun resumeUpdate() {
+        readyApk?.let { apk -> readyApk = null; runCatching { selfUpdate?.install(apk) } }
         if (_state.value.updating == Updating.Allow && selfUpdate?.allowed() == true) startUpdate()
     }
 
