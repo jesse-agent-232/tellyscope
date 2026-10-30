@@ -18,12 +18,12 @@ private const val RELEASES_API = "https://api.github.com/repos/man15h/tellyscope
 private const val RELEASE_INTERVAL_MS = 30 * 60 * 1000L
 private const val ALPHA_INTERVAL_MS = 5 * 60 * 1000L
 
-/** A newer Tellyscope than the one running. */
-data class Update(val version: String, val notes: String, val url: String)
+/** A newer Tellyscope than the one running. [apk] is its release's APK, [size] bytes; null when the release has none. */
+data class Update(val version: String, val notes: String, val url: String, val apk: String? = null, val size: Long = 0)
 
 /**
  * Asks GitHub, at most every 30 minutes (5 minutes on alpha builds), whether a newer release is out. No auth and no download: it
- * only reads the release list. Off switch, last check and a skipped version live in [file].
+ * only reads the release list. Off switch and last check live in [file].
  * Release builds look at full releases only; alpha builds at `-alpha` pre-releases too.
  */
 class UpdateCheck(
@@ -39,10 +39,7 @@ class UpdateCheck(
         get() = props().getProperty("off") != "true"
         set(on) = save { if (on) remove("off") else setProperty("off", "true") }
 
-    @Synchronized
-    fun skip(version: String) = save { setProperty("skip", version) }
-
-    /** The newest release past [current], unless it was skipped. Null when off, checked recently, or on any failure. */
+    /** The newest release past [current]. Null when off, checked recently, or on any failure. */
     suspend fun check(): Update? = withContext(Dispatchers.IO) {
         val p = props()
         if (p.getProperty("off") == "true") return@withContext null
@@ -58,17 +55,17 @@ class UpdateCheck(
             return@withContext null
         }
         save { setProperty("checked", now.toString()) }
-        newest(text, alpha)?.takeIf { compareVersions(it.version, current) > 0 && it.version != p.getProperty("skip") }
+        newest(text, alpha)?.takeIf { compareVersions(it.version, current) > 0 }
     }
 
     /**
-     * The released CHANGELOG sections past [current], newest first, read from the branch this build
-     * updates from: `main`, or `dev` on alpha builds. Null on any failure. No interval: What's new
+     * The released CHANGELOG sections past [current], newest first, read from `main` on every build:
+     * What's new lists releases only, never alphas. Null on any failure. No interval: What's new
      * asks only once the check has found an update.
      */
     suspend fun newer(): List<Changelog.Release>? = withContext(Dispatchers.IO) {
         val text = try {
-            fetch("https://raw.githubusercontent.com/$REPO/${if (alpha) "dev" else "main"}/${Changelog.ASSET}").decodeToString()
+            fetch("https://raw.githubusercontent.com/$REPO/main/${Changelog.ASSET}").decodeToString()
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {
@@ -103,7 +100,11 @@ fun newest(json: String, alpha: Boolean): Update? = runCatching {
             // A release build never offers an alpha; an alpha build offers both.
             if (parsed.alpha != null && !alpha) return@mapNotNull null
             if (r.optBoolean("prerelease") && parsed.alpha == null) return@mapNotNull null
-            Update(version, r.optString("body").trim(), "$RELEASES/tag/v$version")
+            // Only an APK served from this repo's releases, of a plausible size.
+            val apk = r.optJSONArray("assets")?.let { a -> (0 until a.length()).map(a::getJSONObject) }.orEmpty()
+                .singleOrNull { it.optString("name").endsWith(".apk") }
+                ?.takeIf { it.optString("browser_download_url").startsWith("$RELEASES/download/") && it.optLong("size") in 1..MAX_SELF_APK_BYTES }
+            Update(version, r.optString("body").trim(), "$RELEASES/tag/v$version", apk?.optString("browser_download_url"), apk?.optLong("size") ?: 0)
         }
         .maxWithOrNull { a, b -> compareVersions(a.version, b.version) }
 }.getOrNull()

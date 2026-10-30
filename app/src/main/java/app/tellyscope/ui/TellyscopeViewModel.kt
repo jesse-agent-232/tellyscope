@@ -62,6 +62,7 @@ import app.tellyscope.data.TvTweaks
 import app.tellyscope.data.Update
 import app.tellyscope.data.FoldBook
 import app.tellyscope.data.SeenBook
+import app.tellyscope.data.SelfUpdate
 import app.tellyscope.data.UpdateCheck
 import app.tellyscope.data.UiText
 import app.tellyscope.data.why
@@ -281,6 +282,13 @@ data class FilesUi(
 
 data class TransferUi(val name: String, val toTv: Boolean, val folder: TvFolder, val progress: Progress? = null)
 
+/** The update dialog after Update: allow installs first, then the download, or why it stopped. */
+sealed interface Updating {
+    data object Allow : Updating
+    data class Downloading(val progress: Progress) : Updating
+    data object Failed : Updating
+}
+
 data class UiState(
     val scan: ScanUi = ScanUi(),
     val devices: List<Device> = emptyList(),
@@ -299,6 +307,8 @@ data class UiState(
     val alphaBuild: Boolean = false,
     /** A newer release to offer; cleared once the user answers. */
     val update: Update? = null,
+    /** How far Update has got with [update]; null while it is only offered. */
+    val updating: Updating? = null,
     /** The newest release the last check found; unlike [update] it stays after Later, for What's new. */
     val available: Update? = null,
     /** What's new's CHANGELOG sections past the installed version, once [available] is set: empty until read, null if they couldn't be. */
@@ -408,6 +418,8 @@ class TellyscopeViewModel(
     private val appFacts: AppFacts = AppFacts("unknown", "unknown phone"),
     /** Projectivy from its developer's GitHub, for Fire OS. */
     private val launcherDownload: LauncherDownload? = null,
+    /** Update from inside the app; null in screenshots and tests. */
+    private val selfUpdate: SelfUpdate? = null,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(UiState(now = clock()))
@@ -470,6 +482,7 @@ class TellyscopeViewModel(
     /** Watches the TV for a launcher's install from the Play Store. */
     private var launcherJob: Job? = null
     private var updateJob: Job? = null
+    private var selfUpdateJob: Job? = null
     /** The clock and the device refresh, every second. */
     private var tickJob: Job? = null
     /** In the background since [pause]; [resume] starts everything again. */
@@ -1791,16 +1804,53 @@ class TellyscopeViewModel(
         }
     }
 
-    /** "Get it" or "Later": the offer goes away until the next check. */
+    /** "Get new release" or "Cancel": the offer goes away until the next check, and a download stops. */
     fun updateLater() {
-        _state.update { it.copy(update = null) }
+        selfUpdateJob?.cancel()
+        _state.update { it.copy(update = null, updating = null) }
     }
 
-    /** "Skip this version": never offered again; a later release still is. */
-    fun skipUpdate() {
-        val version = _state.value.update?.version ?: return
-        _state.update { it.copy(update = null, available = null) }
-        viewModelScope.launch(Dispatchers.IO) { updates?.skip(version) }
+    /**
+     * Update: downloads the release's APK and hands it to Android's installer. The first time,
+     * Android has to allow this app to install, so the dialog asks for that first.
+     */
+    fun startUpdate() {
+        val s = selfUpdate ?: return
+        val u = _state.value.update ?: return
+        if (!s.allowed()) {
+            _state.update { it.copy(updating = Updating.Allow) }
+            return
+        }
+        selfUpdateJob?.cancel()
+        _state.update { it.copy(updating = Updating.Downloading(Progress(0, u.size))) }
+        selfUpdateJob = viewModelScope.launch {
+            val apk = try {
+                s.fetch(u) { p -> _state.update { it.copy(updating = Updating.Downloading(p)) } }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                _state.update { it.copy(updating = Updating.Failed) }
+                return@launch
+            }
+            // Android's own confirm takes over from here.
+            _state.update { it.copy(update = null, updating = null) }
+            runCatching { s.install(apk) }
+        }
+    }
+
+    /** "Open settings": Android's Install unknown apps page; back from it, [resumeUpdate] goes on. */
+    fun openInstallSettings() {
+        runCatching { selfUpdate?.openSettings() }
+    }
+
+    /** Back in the app: if the user just allowed installs, the download starts without a second tap. */
+    fun resumeUpdate() {
+        if (_state.value.updating == Updating.Allow && selfUpdate?.allowed() == true) startUpdate()
+    }
+
+    /** "Cancel" on the Allow step: back to the offer. */
+    fun backToOffer() {
+        _state.update { it.copy(updating = null) }
     }
 
     /** What's new's Update card: the update check's offer again. */
