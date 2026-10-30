@@ -124,7 +124,6 @@ import app.tellyscope.ui.SettingsScreen
 import app.tellyscope.ui.WhatsNewScreen
 import app.tellyscope.data.Changelog
 import app.tellyscope.data.Update
-import app.tellyscope.ui.Updating
 import app.tellyscope.ui.UpdateDialog
 import app.tellyscope.ui.SHARE_TEXT
 import app.tellyscope.data.RELEASES
@@ -729,34 +728,32 @@ class ScreenshotTest {
         compose.onNodeWithText("Not installed").assertDoesNotExist()
     }
 
-    /** 0.14.0 out with its APK; [updating] is how far Update got. */
-    private fun updateDialog(updating: Updating?, onUpdate: () -> Unit = {}) = @Composable {
+    /** 0.14.0 out, with its APK unless [apk] is false. */
+    private fun updateDialog(apk: Boolean = true, onDownload: () -> Unit = {}, onRelease: () -> Unit = {}) = @Composable {
         val notes = changelog.first().changes.joinToString("\n") { "- **${it.kind}:** ${it.text}" }
         UpdateDialog(
-            Update("0.14.0", notes, "", apk = "$RELEASES/download/v0.14.0/Tellyscope-0.14.0.apk", size = 3_040_000),
-            updating, onUpdate = onUpdate, onRelease = {}, onCancel = {}, onOpenSettings = {}, onBack = {},
+            Update("0.14.0", notes, "", apk = if (apk) "$RELEASES/download/v0.14.0/Tellyscope-0.14.0.apk" else null),
+            onDownload = onDownload, onRelease = onRelease, onCancel = {},
         )
     }
 
     @Test fun update_offer() {
-        var updates = 0
-        shot("99_update_offer", screen = true) { updateDialog(null) { updates++ }() }
-        compose.onNodeWithText("Get new release").assertExists()
-        compose.onNodeWithText("Skip this version").assertDoesNotExist()
-        compose.onNodeWithText("Update").performClick()
-        assertEquals(1, updates)
+        var downloads = 0
+        var releases = 0
+        shot("99_update_offer", screen = true) { updateDialog(onDownload = { downloads++ }, onRelease = { releases++ })() }
+        compose.onNodeWithText("Cancel").assertExists()
+        compose.onNodeWithText("Download APK").performClick()
+        compose.onNodeWithText("Check release").performClick()
+        assertEquals(1, downloads)
+        assertEquals(1, releases)
     }
 
-    @Test fun update_offer_dark() = shot("99_update_offer", dark = true, screen = true) { updateDialog(null)() }
+    @Test fun update_offer_dark() = shot("99_update_offer", dark = true, screen = true) { updateDialog()() }
 
-    @Test fun update_allow() = shot("99_update_allow", screen = true) { updateDialog(Updating.Allow)() }
-
-    @Test fun update_downloading() = shot("99_update_downloading", screen = true) { updateDialog(Updating.Downloading(Progress(1_260_000, 3_040_000)))() }
-
-    @Test fun update_failed() {
-        shot("99_update_failed", screen = true) { updateDialog(Updating.Failed)() }
-        compose.onNodeWithText("Try again").assertExists()
-        compose.onNodeWithText("Cancel").assertExists()
+    @Test fun update_offer_noApk() {
+        shot("99_update_offer_no_apk", screen = true) { updateDialog(apk = false)() }
+        compose.onNodeWithText("Download APK").assertDoesNotExist()
+        compose.onNodeWithText("Check release").assertExists()
     }
 
     @Test fun whatsNew_installedAndLinks() {

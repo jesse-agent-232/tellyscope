@@ -79,7 +79,6 @@ class UpdateCheckTest {
             releases("""{"tag_name":"v0.2.0","prerelease":false,"draft":false,"body":"","assets":[{"name":"Tellyscope-0.2.0.apk","browser_download_url":"$url","size":$size}]}""")
         val u = newest(withAsset(base + "Tellyscope-0.2.0.apk", 3_000_000), alpha = false)
         assertEquals(base + "Tellyscope-0.2.0.apk", u?.apk)
-        assertEquals(3_000_000L, u?.size)
         assertNull(newest(withAsset("https://example.com/Tellyscope-0.2.0.apk", 3_000_000), alpha = false)?.apk)
         assertNull(newest(withAsset(base + "Tellyscope-0.2.0.apk", 0), alpha = false)?.apk)
         assertNull(newest(releases(release("v0.2.0")), alpha = false)?.apk)
