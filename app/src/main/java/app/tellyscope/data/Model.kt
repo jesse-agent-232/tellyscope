@@ -60,7 +60,7 @@ data class Device(
 
 /**
  * The slow-changing facts from a TV's last good reading, saved on the phone so an offline TV
- * (even after a restart) still shows them. Live numbers (CPU, RAM, temp, network) are never kept.
+ * (even after a restart) still shows them. Live numbers (CPU, RAM, network) are never kept.
  */
 data class LastKnown(
     val manufacturer: String? = null,
@@ -97,7 +97,6 @@ data class Snapshot(
     val ramTotalMb: Int,
     val storageUsedGb: Double?,
     val storageTotalGb: Double?,
-    val tempC: Int?,
     val uptimeSeconds: Long,
     val screenOn: Boolean?,
     val procs: List<Proc>,
