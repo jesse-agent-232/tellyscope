@@ -123,6 +123,7 @@ import app.tellyscope.ui.ReportUi
 import app.tellyscope.ui.SettingsScreen
 import app.tellyscope.ui.WhatsNewScreen
 import app.tellyscope.data.Changelog
+import app.tellyscope.data.Update
 import app.tellyscope.ui.SHARE_TEXT
 import app.tellyscope.data.RELEASES
 import androidx.compose.ui.platform.UriHandler
@@ -690,12 +691,40 @@ class ScreenshotTest {
 
     /** The repo's own CHANGELOG.md, as bundled, with the newest release installed as an alpha. */
     private fun whatsNew(opened: MutableList<String> = mutableListOf()) = @Composable {
-        val file = generateSequence(File("").absoluteFile) { it.parentFile }.map { File(it, Changelog.ASSET) }.first { it.exists() }
-        val releases = Changelog.parse(file.readText())
         val links = object : UriHandler { override fun openUri(uri: String) { opened += uri } }
         CompositionLocalProvider(LocalUriHandler provides links) {
-            WhatsNewScreen(releases, back = {}, installed = releases.first().version + "-alpha.1")
+            WhatsNewScreen(changelog, back = {}, installed = changelog.first().version + "-alpha.1")
         }
+    }
+
+    private val changelog by lazy {
+        Changelog.parse(generateSequence(File("").absoluteFile) { it.parentFile }.map { File(it, Changelog.ASSET) }.first { it.exists() }.readText())
+    }
+
+    /** An update is out: the newest release isn't installed, the one before it is. [newer] null = GitHub unreachable. */
+    private fun whatsNewUpdate(newer: Boolean, onUpdate: () -> Unit = {}) = @Composable {
+        val (latest, installed) = changelog
+        WhatsNewScreen(
+            changelog.drop(1), back = {}, installed = installed.version,
+            available = Update(latest.version, "", ""), newer = if (newer) listOf(latest) else null, onUpdate = onUpdate,
+        )
+    }
+
+    @Test fun whatsNew_updateWaiting() {
+        var updates = 0
+        shot("97_whats_new_update") { whatsNewUpdate(newer = true) { updates++ }() }
+        compose.onNodeWithText("Not installed").assertExists()
+        compose.onNodeWithText("Installed").assertExists()
+        compose.onNodeWithText("Update").performClick()
+        assertEquals(1, updates)
+    }
+
+    @Test fun whatsNew_updateWaiting_dark() = shot("97_whats_new_update", dark = true) { whatsNewUpdate(newer = true)() }
+
+    @Test fun whatsNew_newerFailed() {
+        shot("98_whats_new_newer_failed") { whatsNewUpdate(newer = false)() }
+        compose.onNodeWithText("Couldn’t load newer versions.").assertExists()
+        compose.onNodeWithText("Not installed").assertDoesNotExist()
     }
 
     @Test fun whatsNew_installedAndLinks() {

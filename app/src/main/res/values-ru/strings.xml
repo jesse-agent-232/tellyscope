@@ -1037,6 +1037,11 @@
     <string name="whats_new_new">Новое</string>
     <string name="whats_new_improved">Улучшено</string>
     <string name="whats_new_fixed">Исправлено</string>
+    <string name="whats_new_update_out">Вышла версия Tellyscope %1$s</string>
+    <string name="whats_new_you_have">У вас версия %1$s.</string>
+    <string name="whats_new_update">Обновить</string>
+    <string name="whats_new_not_installed">Не установлена</string>
+    <string name="whats_new_newer_failed">Не удалось загрузить новые версии.</string>
     <string name="settings_advanced">Дополнительно</string>
     <string name="settings_change">Изменить</string>
     <string name="settings_change_text">Вставьте адрес HTTPS-папки raw, в которой лежит index.json, например raw.githubusercontent.com/&lt;you&gt;/tellyscope-devices/main/</string>

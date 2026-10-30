@@ -11,6 +11,7 @@ import java.util.Properties
 
 /** Where releases are published: the app's own GitHub repo. */
 const val RELEASES = "https://github.com/man15h/tellyscope/releases"
+private val REPO = RELEASES.removePrefix("https://github.com/").removeSuffix("/releases")
 private const val RELEASES_API = "https://api.github.com/repos/man15h/tellyscope/releases?per_page=20"
 
 /** How long a check counts for: release builds ask every 30 minutes, alpha builds every 5 minutes for testing. */
@@ -58,6 +59,23 @@ class UpdateCheck(
         }
         save { setProperty("checked", now.toString()) }
         newest(text, alpha)?.takeIf { compareVersions(it.version, current) > 0 && it.version != p.getProperty("skip") }
+    }
+
+    /**
+     * The released CHANGELOG sections past [current], newest first, read from the branch this build
+     * updates from: `main`, or `dev` on alpha builds. Null on any failure. No interval: What's new
+     * asks only once the check has found an update.
+     */
+    suspend fun newer(): List<Changelog.Release>? = withContext(Dispatchers.IO) {
+        val text = try {
+            fetch("https://raw.githubusercontent.com/$REPO/${if (alpha) "dev" else "main"}/${Changelog.ASSET}").decodeToString()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            return@withContext null
+        }
+        // An alpha's own section is its base version's, as for the Installed chip.
+        Changelog.parse(text).filter { compareVersions(it.version, current.substringBefore('-')) > 0 }
     }
 
     private fun props() = Properties().apply {
