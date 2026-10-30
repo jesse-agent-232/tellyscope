@@ -1833,26 +1833,33 @@ class TellyscopeViewModel(
         val id = _state.value.selectedId ?: return false
         val volume = key == RemoteKey.VOLUME_UP || key == RemoteKey.VOLUME_DOWN
         if (volume && !volumeWaiting.compareAndSet(false, true)) return true
-        return keys.withLock {
-            if (volume) volumeWaiting.set(false)
-            try {
-                // With the picture off, any key wakes it, the way a TV's own remote does, and does nothing else.
-                if (id in _state.value.screenOff) return@withLock wake(id)
-                if (key == RemoteKey.DEL) {
-                    // Nothing typed from here to delete: the key does nothing, and a hold stops.
-                    val left = typed[id] ?: 0
-                    if (left == 0) return@withLock false
-                    return@withLock source.press(id, key)
-                        .also { if (it) typed[id] = left - 1 else _notice.value = Copy.KEY_REFUSED }
+        // Cleared once this tap has the lock, or here if it never gets it (the Remote closed while
+        // it waited), so a cancelled tap can't silence the volume keys.
+        var waiting = volume
+        try {
+            return keys.withLock {
+                if (volume) { volumeWaiting.set(false); waiting = false }
+                try {
+                    // With the picture off, any key wakes it, the way a TV's own remote does, and does nothing else.
+                    if (id in _state.value.screenOff) return@withLock wake(id)
+                    if (key == RemoteKey.DEL) {
+                        // Nothing typed from here to delete: the key does nothing, and a hold stops.
+                        val left = typed[id] ?: 0
+                        if (left == 0) return@withLock false
+                        return@withLock source.press(id, key)
+                            .also { if (it) typed[id] = left - 1 else _notice.value = Copy.KEY_REFUSED }
+                    }
+                    typed.remove(id)
+                    source.press(id, key).also { if (!it) _notice.value = Copy.KEY_REFUSED }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    _notice.value = Copy.REMOTE_LOST
+                    false
                 }
-                typed.remove(id)
-                source.press(id, key).also { if (!it) _notice.value = Copy.KEY_REFUSED }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (_: Exception) {
-                _notice.value = Copy.REMOTE_LOST
-                false
             }
+        } finally {
+            if (waiting) volumeWaiting.set(false)
         }
     }
 
