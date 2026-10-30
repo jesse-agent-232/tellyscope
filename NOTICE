@@ -94,10 +94,3 @@ App icon in app/src/test/resources/dock-icons/ (screenshot tests only, not in
 the app)
 The YouTube name and logo belong to its owner. It is shown only to illustrate
 the Apps list in a screenshot.
-
---------------------------------------------------------------------------------
-Streaming service logos in app/src/test/resources/streaming-logos/ (screenshot
-tests only, not in the app)
-Copies of tellyscope-devices' YouTube, Netflix and Jellyfin logos, under the
-same terms as the streaming service logos above, shown only to illustrate the
-Remote in a screenshot.
