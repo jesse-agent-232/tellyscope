@@ -12,12 +12,10 @@ until this file has a section for its version.
 
 ## Unreleased
 
-- **New:** Spanish, Chinese and Japanese translations, machine-made; corrections welcome. [#272](../../pull/272)
-- **Improved:** Hindi is gone for now to keep the app small; Hindi phones show English. [#275](../../pull/275)
+- **New:** Spanish, Chinese, Japanese and Russian translations, machine-made; corrections welcome. [#272](../../pull/272)
 
 ## 0.14.0 — 2026-10-30
 
-- **New:** Tellyscope speaks Hindi when the phone is set to Hindi. It's a first, machine-made translation; corrections are welcome. [#231](../../pull/231)
 - **Improved:** Remote volume moves the full range in about 15 taps, without lag. [#267](../../pull/267)
 - **Improved:** The Temp reading is gone, since many TVs don't let apps read it. [#268](../../pull/268)
 - **Fixed:** On Fire TV, making Projectivy Home now opens it straight away, without a Home press. [#263](../../pull/263)
