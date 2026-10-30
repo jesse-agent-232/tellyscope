@@ -73,6 +73,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -91,6 +92,10 @@ sealed interface RowState {
     /** [error] is the plain sentence; [detail] is what the TV said, shown under Details. */
     data class Code(val input: String = "", val busy: Boolean = false, val error: UiText? = null, val detail: String? = null) : RowState
     data object NotAllowed : RowState
+    /** The TV didn't answer at all; [offWifi] when this phone isn't on Wi-Fi, which is why. */
+    data class Unreachable(val offWifi: Boolean) : RowState
+    /** Connect asked for while off Wi-Fi: it goes on by itself once the phone is back on. */
+    data object WaitingForWifi : RowState
 }
 
 data class ScanUi(
@@ -437,6 +442,7 @@ class TellyscopeViewModel(
     private val typed = mutableMapOf<String, Int>()
 
     private var scanJob: Job? = null
+    private var wifiWait: Job? = null
     /** Rescan tapped while an empty scan waits: cuts the wait short. */
     private val scanNow = Channel<Unit>(Channel.CONFLATED)
     /** The add flow is open over a selected TV, so an empty scan keeps looking there too. */
@@ -595,6 +601,17 @@ class TellyscopeViewModel(
     }
 
     fun connect(hit: ScanHit) {
+        wifiWait?.cancel()
+        // Off Wi-Fi every try fails at once: wait for the network instead, then ask the TV.
+        if (!source.onLan()) {
+            setRow(hit.ip, RowState.WaitingForWifi)
+            wifiWait = viewModelScope.launch {
+                source.lanUp().firstOrNull() ?: return@launch
+                wifiWait = null
+                connect(hit)
+            }
+            return
+        }
         // Wireless-debugging TVs that already know our key connect straight away;
         // the rest answer NeedsPairing and get the code field.
         setRow(hit.ip, RowState.Waiting(clock()))
@@ -602,15 +619,24 @@ class TellyscopeViewModel(
             val r = withTimeoutOrNull(allowTimeoutMs) { source.connect(hit) }
             when {
                 r is ConnectResult.Online -> online(r.device)
+                // Wi-Fi dropped mid-connect: the TV never had a chance to answer.
+                !source.onLan() -> setRow(hit.ip, RowState.Unreachable(offWifi = true))
                 r == ConnectResult.NeedsPairing -> setRow(hit.ip, RowState.Code())
                 // A wireless-debugging TV never shows the Allow box: whatever went wrong, the way in is the code.
                 hit.kind == ScanKind.Wireless -> setRow(hit.ip, RowState.Code(
                     error = if (r is ConnectResult.Unreachable) Copy.UNREACHABLE else Copy.PAIR_INSTEAD,
                     detail = (r as? ConnectResult.Unreachable)?.message ?: (r as? ConnectResult.WrongCode)?.message,
                 ))
+                r is ConnectResult.Unreachable -> setRow(hit.ip, RowState.Unreachable(offWifi = false))
                 else -> setRow(hit.ip, RowState.NotAllowed)
             }
         }
+    }
+
+    /** The connect screen closed: stop waiting for Wi-Fi, so the TV isn't asked behind the user's back. */
+    fun leaveConnect(hit: ScanHit) {
+        wifiWait?.cancel()
+        if (_state.value.scan.rows[hit.ip] == RowState.WaitingForWifi) setRow(hit.ip, RowState.Unreachable(offWifi = true))
     }
 
     fun codeChanged(hit: ScanHit, input: String) {

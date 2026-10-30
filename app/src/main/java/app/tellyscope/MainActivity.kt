@@ -258,6 +258,7 @@ fun TellyscopeApp(vm: TellyscopeViewModel) {
             onBack = if (adding) ({ adding = false }) else null,
             onOpenWifi = { context.openWifiSettings() },
             phoneKey = remember { Connector.fingerprint() },
+            onLeave = vm::leaveConnect,
         )
     } else if (state.report != null) {
         BackHandler { vm.closeReport() }

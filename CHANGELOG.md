@@ -15,6 +15,7 @@ until this file has a section for its version.
 - **New:** Spanish, Chinese, Japanese and Russian translations, machine-made; corrections welcome. [#272](../../pull/272)
 - **Improved:** Tweaks shows the same TV-offline screen as Files. [#273](../../pull/273)
 - **Fixed:** With the TV away, app rows grey out and won't open. [#273](../../pull/273)
+- **Fixed:** Connect says when the phone has dropped off Wi-Fi, and Try again waits for Wi-Fi instead of failing at once. [#000](../../pull/000)
 
 ## 0.14.0 — 2026-10-30
 

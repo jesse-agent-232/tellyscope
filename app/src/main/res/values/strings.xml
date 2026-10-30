@@ -1217,6 +1217,14 @@
     <string name="connect_check_awake">Is the TV on and awake?</string>
     <string name="connect_check_denied">Was the box on the TV closed, or Deny pressed? Try again and it asks once more.</string>
     <string name="connect_check_restart">Some TVs switch debugging off after a restart. Turn it back on.</string>
+    <string name="connect_cant_reach">Can\'t reach the TV</string>
+    <string name="connect_off_wifi">This phone isn\'t on Wi-Fi. Join the same Wi-Fi as the TV, then try again.</string>
+    <string name="connect_off_wifi_waiting">This phone isn\'t on Wi-Fi. Join the same Wi-Fi as the TV. Tellyscope carries on as soon as you\'re on.</string>
+    <string name="connect_waiting_wifi">Waiting for Wi-Fi…</string>
+    <string name="connect_tv_silent">This phone is on Wi-Fi, but the TV didn\'t answer.</string>
+    <string name="connect_check_on">Is the TV on? Some TVs drop off Wi-Fi when they sleep.</string>
+    <string name="connect_check_same_wifi">Same Wi-Fi as the TV? A guest network keeps them apart.</string>
+    <string name="connect_check_new_address">Did the TV get a new address? Go back to TVs and tap Rescan.</string>
     <!-- One item of a bulleted list -->
     <string name="connect_bullet">•  %1$s</string>
     <string name="connect_allow_title">Allow on your TV</string>

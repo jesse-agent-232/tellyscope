@@ -16,6 +16,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -30,6 +32,12 @@ import org.junit.Test
 /** Every connect answers [result]; null hangs until the caller's timeout. */
 private class Answers : DeviceSource by FakeDeviceSource(FakeDeviceSource.Scenario.Empty, clock = { 0L }) {
     var result: ConnectResult? = null
+    var lan = true
+    val lanBack = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
+    override fun onLan() = lan
+
+    override fun lanUp(): Flow<Unit> = lanBack
 
     override suspend fun known() = emptyList<Device>()
 
@@ -94,5 +102,46 @@ class WirelessConnectTest {
     @Test fun classicTimeoutIsStillTheAllowBox() {
         source.result = null
         assertEquals(RowState.NotAllowed, connect(classic))
+    }
+
+    @Test fun classicUnreachableOnWifiIsCantReachNotNoAnswer() {
+        source.result = ConnectResult.Unreachable("connection refused")
+        assertEquals(RowState.Unreachable(offWifi = false), connect(classic))
+    }
+
+    @Test fun wifiDroppedMidConnectIsCantReachOffWifi() {
+        source.result = null
+        vm.connect(classic)
+        test.runCurrent()
+        source.lan = false
+        test.advanceTimeBy(60_001)
+        test.runCurrent()
+        assertEquals(RowState.Unreachable(offWifi = true), vm.state.value.scan.rows[classic.ip])
+    }
+
+    @Test fun tryAgainOffWifiWaitsThenAsksTheTv() {
+        source.lan = false
+        vm.connect(classic)
+        test.runCurrent()
+        assertEquals(RowState.WaitingForWifi, vm.state.value.scan.rows[classic.ip])
+        // No Allow countdown while there's no network: the wait has no limit.
+        test.advanceTimeBy(120_000)
+        test.runCurrent()
+        assertEquals(RowState.WaitingForWifi, vm.state.value.scan.rows[classic.ip])
+        source.lan = true
+        source.lanBack.tryEmit(Unit)
+        test.runCurrent()
+        assertEquals(RowState.Waiting(0L), vm.state.value.scan.rows[classic.ip])
+    }
+
+    @Test fun leavingStopsTheWifiWait() {
+        source.lan = false
+        vm.connect(classic)
+        test.runCurrent()
+        vm.leaveConnect(classic)
+        source.lan = true
+        source.lanBack.tryEmit(Unit)
+        test.runCurrent()
+        assertEquals(RowState.Unreachable(offWifi = true), vm.state.value.scan.rows[classic.ip])
     }
 }
