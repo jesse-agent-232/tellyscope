@@ -145,7 +145,6 @@ private fun Block(title: String, body: @Composable () -> Unit) {
 private fun Stats(s: Snapshot, staleSince: Long?) {
     val cells = listOf(
         "CPU" to "${s.cpuPercent}%",
-        "Temperature" to s.tempC?.let { "$it°C" },
         "On for" to Copy.uptime(s.uptimeSeconds),
         "Screen" to s.screenOn?.let { if (it) "On" else "Off" },
     )

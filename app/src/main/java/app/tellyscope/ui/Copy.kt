@@ -462,13 +462,11 @@ object Copy {
         return when {
             storage != null && storage >= FULL -> Health(false, "Storage almost full")
             ram != null && ram >= FULL -> Health(false, "Memory almost full$most")
-            (s.tempC ?: 0) >= HOT_C -> Health(false, "Running hot")
             else -> Health(true, "Running fine")
         }
     }
 
     const val FULL = 0.9
-    private const val HOT_C = 80
 
     fun bytes(v: Long): String = when {
         v >= 1L shl 30 -> "%.1f GB".format(v / (1L shl 30).toDouble())

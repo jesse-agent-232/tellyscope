@@ -13,6 +13,7 @@ until this file has a section for its version.
 ## Unreleased
 
 - **Improved:** Remote volume moves the full range in about 15 taps, without lag. [#267](../../pull/267)
+- **Improved:** The Temp reading is gone, since many TVs don't let apps read it. [#PR](../../pull/PR)
 - **Fixed:** On Fire TV, making Projectivy Home now opens it straight away, without a Home press. [#263](../../pull/263)
 - **Fixed:** On Fire TV, Reset TV now puts Amazon's launcher back when Projectivy holds Home, by turning its accessibility service off. Undo turns it back on. [#263](../../pull/263)
 

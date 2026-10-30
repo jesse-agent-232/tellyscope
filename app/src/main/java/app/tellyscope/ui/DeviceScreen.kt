@@ -139,7 +139,7 @@ data class DeviceActions(
 
 /**
  * The TV's vitals in one small card: internal storage as a full bar, since it decides whether an
- * install fits, then CPU, RAM, temperature and network speed as plain numbers.
+ * install fits, then CPU, RAM and network speed as plain numbers.
  */
 @Composable
 internal fun SystemWidget(s: Snapshot) = SystemWidget(s.storageUsedGb, s.storageTotalGb, s)
@@ -177,7 +177,6 @@ internal fun SystemWidget(usedGb: Double?, totalGb: Double?, live: Snapshot?, as
             Row {
                 Vital("CPU", live?.let { "${it.cpuPercent}%" } ?: dash, Modifier.weight(1f))
                 Vital("RAM", live?.takeIf { it.ramTotalMb > 0 }?.let { "${it.ramUsedMb * 100 / it.ramTotalMb}%" } ?: dash, Modifier.weight(1f))
-                Vital("Temp", live?.tempC?.let { "$it\u00b0C" } ?: dash, Modifier.weight(1f))
                 Vital("Network", live?.netBytesPerSec?.let(Copy::speed) ?: dash, Modifier.weight(1.3f))
             }
         }

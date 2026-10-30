@@ -797,7 +797,7 @@ class ScreenshotTest {
         // Away, storage shows as it was last seen; the live numbers are dashes.
         compose.onNodeWithText("As of ", substring = true).assertExists()
         compose.onNodeWithText("Internal storage").assertExists()
-        compose.onAllNodesWithText("\u2014").assertCountEquals(4)
+        compose.onAllNodesWithText("\u2014").assertCountEquals(3)
         compose.onNodeWithText("Updated ", substring = true).assertExists()
         // No Remote while the TV is away.
         compose.onNodeWithText("Remote", useUnmergedTree = true).assertDoesNotExist()

@@ -348,7 +348,6 @@ class AdbDeviceSource(context: Context) : DeviceSource {
                     ramTotalMb = mem?.let { (it.totalKb / 1024).toInt() } ?: 0,
                     storageUsedGb = s.storage?.let { it.usedKb / 1_048_576.0 },
                     storageTotalGb = s.storage?.let { it.totalKb / 1_048_576.0 },
-                    tempC = s.temperatureC?.toInt(),
                     uptimeSeconds = s.uptimeSeconds ?: 0,
                     screenOn = s.screenOn,
                     procs = s.processes.map { Proc(it.pid, it.name, it.packageName, it.cpuPercent ?: 0.0, (it.rssKb / 1024).toInt()) },

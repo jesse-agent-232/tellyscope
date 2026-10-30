@@ -163,7 +163,6 @@ class FakeDeviceSource(
             ramTotalMb = 2048,
             storageUsedGb = 9.8,
             storageTotalGb = 16.0,
-            tempC = 52 + random.nextInt(-1, 2),
             uptimeSeconds = 3 * 86_400L + 4 * 3_600L,
             screenOn = true,
             procs = procs,
